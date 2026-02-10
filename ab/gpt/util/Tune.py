@@ -68,7 +68,7 @@ def flatten_chunks(data):
 
 def tune(test_nn, nn_train_epochs, skip_epoch, llm_path, llm_tune_conf, nn_gen_conf, conf_keys, llm_conf, training_args, peft_config,
          max_prompts=None, save_llm_output=True, max_new_tokens=16 * 1024, nn_name_prefix=None, temperature=1.0, top_k=50, top_p=0.9, test_metric=None,
-         onnx_run=False, trans_mode=False, prompt_batch=1):
+         onnx_run=False, trans_mode=False, prompt_batch=1, use_backbone=False):
     
     if not isinstance(conf_keys, (list, tuple)):
         conf_keys = (conf_keys,)
@@ -86,6 +86,7 @@ def tune(test_nn, nn_train_epochs, skip_epoch, llm_path, llm_tune_conf, nn_gen_c
     use_unsloth = config.get('use_unsloth', False)
     unsloth_load_in_4bit = config.get('load_in_4bit', True)
     max_new_tokens = config.get('max_new_tokens', max_new_tokens)
+    use_backbone = config.get('backbone', use_backbone)
 
     access_token = None
     if token_from_file:
@@ -149,7 +150,7 @@ def tune(test_nn, nn_train_epochs, skip_epoch, llm_path, llm_tune_conf, nn_gen_c
             if trans_mode:
                 trans_gen(epoch, out_path, chat_bot, conf_keys, nn_train_epochs, prompt_dict, test_nn, max_new_tokens, save_llm_output, nn_name_prefix)
             else:
-                nn_gen(epoch, out_path, chat_bot, conf_keys, nn_train_epochs, prompt_dict, test_nn, max_new_tokens, save_llm_output, nn_name_prefix, unsloth_max_input_length, prompt_batch)
+                nn_gen(epoch, out_path, chat_bot, conf_keys, nn_train_epochs, prompt_dict, test_nn, max_new_tokens, save_llm_output, nn_name_prefix, unsloth_max_input_length, prompt_batch, use_backbone=use_backbone)
 
         # fine tune model for 1 epoch / Using training_args and save copy
         print(f'[DEBUG]Perform finetune at epoch {epoch}.')
@@ -164,6 +165,12 @@ def tune(test_nn, nn_train_epochs, skip_epoch, llm_path, llm_tune_conf, nn_gen_c
                 TRANSFORM_OUT_DIR,
                 TRANSFORM_RES_DIR
             )
+        elif use_backbone:
+             from ab.gpt.util.prompt.SFTGenPrompt import SFTGenPrompt
+             data_processor = SFTGenPrompt(
+                context_length if context_length else model_loader.get_max_length(),
+                tokenizer
+             )
         else:
             if not use_unsloth:
                 data_processor = NNGenPrompt(context_length if context_length else model_loader.get_max_length(), tokenizer, train_config_path)
@@ -178,7 +185,7 @@ def tune(test_nn, nn_train_epochs, skip_epoch, llm_path, llm_tune_conf, nn_gen_c
         release_memory()
 
 
-def nn_gen(epoch, out_path, chat_bot, conf_keys, nn_train_epochs, prompt_dict, test_nn, max_new_tokens, save_llm_output, nn_name_prefix, unsloth_max_input_length, prompt_batch):
+def nn_gen(epoch, out_path, chat_bot, conf_keys, nn_train_epochs, prompt_dict, test_nn, max_new_tokens, save_llm_output, nn_name_prefix, unsloth_max_input_length, prompt_batch, use_backbone=False):
     # Move inside the loop to create new prompt with newly created models.
     print('Preparing prompts for generation, this might take a while...')
     
@@ -202,6 +209,7 @@ def nn_gen(epoch, out_path, chat_bot, conf_keys, nn_train_epochs, prompt_dict, t
         # Get addon nn-dataset codes (handle null addon_task)
         addon_task = prompt_dict_key.get('addon_task')
         addon_data = lemur.data(only_best_accuracy=True, task=addon_task) if addon_task else None
+        from ab.gpt.util.Util import extract_str
         for _, row in data.iterrows():
             para_dict = dict()
             for it in prompt_dict_key['input_list']:
@@ -236,6 +244,37 @@ def nn_gen(epoch, out_path, chat_bot, conf_keys, nn_train_epochs, prompt_dict, t
                 continue
 
         code, hp, tr, full_out = chat_bot.chat(prompt, engineer_prompt=False, max_new_tokens=max_new_tokens)
+
+        if use_backbone:
+            from ab.gpt.util.SFTUtil import skeleton_code
+            import textwrap
+            
+            # Extract full blocks (including signatures)
+            block_code = extract_str(full_out, '<block>', '</block>')
+            init_code = extract_str(full_out, '<init>', '</init>')
+            forward_code = extract_str(full_out, '<forward>', '</forward>')
+
+            if block_code and init_code and forward_code:
+                code = skeleton_code
+                
+                # Replace skeleton signatures with LLM-provided blocks (including signatures)
+                # Ensure correct indentation for internal methods
+                sig_block = "def drop_conv3x3_block(in_channels, out_channels, stride=1, padding=1, bias=False, dropout_prob=0.0):"
+                code = code.replace(sig_block, textwrap.dedent(block_code))
+                
+                sig_init = "    def __init__(self, in_shape: tuple, out_shape: tuple, prm: dict, device: torch.device) -> None:"
+                code = code.replace(sig_init, textwrap.indent(textwrap.dedent(init_code), "    "))
+                
+                sig_forward = "    def forward(self, x: torch.Tensor, is_probing: bool = False) -> torch.Tensor:"
+                code = code.replace(sig_forward, textwrap.indent(textwrap.dedent(forward_code), "    "))
+            else:
+                from ab.gpt.util.Util import extract_code
+                code = extract_code(full_out)
+        
+        if code is None:
+            print(f'[ERROR] No code generated for model B{idx}')
+            continue # Skip if no code is generated at all
+
         if save_llm_output: create_file(model_dir, new_out_file, full_out)
         makedirs(model_dir, exist_ok=True)
         
@@ -315,7 +354,7 @@ def nn_gen(epoch, out_path, chat_bot, conf_keys, nn_train_epochs, prompt_dict, t
     release_memory()
     # evaluate produced CV models
     if exists(models_dir):
-        NNEval.main(nn_name_prefix, nn_train_epochs, epoch)
+        NNEval.main(nn_name_prefix, nn_train_epochs, epoch, dataset='cifar-10')
         print('[DEBUG] Release_memory.')
         release_memory()
     print('Clear LEMUR query cache.')

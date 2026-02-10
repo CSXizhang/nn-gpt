@@ -156,7 +156,7 @@ def main(nn_name_prefix=NN_NAME_PREFIX, nn_train_epochs=NN_TRAIN_EPOCHS, only_ep
                         dataset=dataset,
                         metric=metric,
                         prm=prm,  # Pass the constructed prm
-                        save_to_db=save_to_db,
+                        save_to_db=False,
                         prefix=prefix_for_db,
                         save_path=model_dir_path
                     )
