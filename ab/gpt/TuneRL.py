@@ -4881,10 +4881,6 @@ def base_discovery_reward_fn(
             if backbone_prev_target_reward_target_acc is not None
             else beat_prev_target
         )
-        if has_formal_epoch and goal_tag_total_count > 0 and goal_tag_hit_rate < STAGE23_MIN_GOAL_HIT_RATE_FOR_HIGH_REWARD:
-            off_target_cap = STAGE23_OFF_TARGET_PLAIN_PARALLEL_CAP if graph_info.is_plain_parallel_triple else STAGE23_OFF_TARGET_REWARD_CAP
-            total_reward = min(total_reward, off_target_cap)
-            goal_family_gate_cap_applied = True
         if has_formal_epoch and effective_prev_target_reward_target_acc is not None and not effective_beat_prev_target:
             total_reward = min(total_reward, stage_profile["non_improving_cap"])
         if has_formal_epoch and dominant_descriptor_repeat:
@@ -4903,6 +4899,11 @@ def base_discovery_reward_fn(
         warmup_dense_reward = _compute_warmup_dense_reward(reward_target_value)
         total_reward = float(warmup_dense_reward or 0.0)
         total_reward = _apply_executability_clamp(res, total_reward, graph_info)
+
+    if has_formal_epoch and goal_tag_total_count > 0 and goal_tag_hit_rate < STAGE23_MIN_GOAL_HIT_RATE_FOR_HIGH_REWARD:
+        off_target_cap = STAGE23_OFF_TARGET_PLAIN_PARALLEL_CAP if graph_info.is_plain_parallel_triple else STAGE23_OFF_TARGET_REWARD_CAP
+        total_reward = min(total_reward, off_target_cap)
+        goal_family_gate_cap_applied = True
 
     res['reward'] = total_reward
     res['test_acc'] = test_acc
