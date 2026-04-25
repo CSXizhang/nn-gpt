@@ -365,6 +365,12 @@ STAGE3_PLAIN_FUSE_SCALE = 1.00
 STAGE3_NO_PROGRESS_SCALE = 1.15
 STAGE3_NON_IMPROVING_CAP = NON_IMPROVING_REWARD_CAP
 STAGE3_DESCRIPTOR_NON_IMPROVING_CAP = 0.00
+STAGE23_GOAL_FAMILY_SUCCESS_BONUS = 0.12
+STAGE23_LOW_GOAL_HIT_PENALTY = -0.18
+STAGE23_ZERO_GOAL_HIT_PENALTY = -0.35
+STAGE23_OFF_TARGET_REWARD_CAP = -0.05
+STAGE23_OFF_TARGET_PLAIN_PARALLEL_CAP = -0.12
+STAGE23_MIN_GOAL_HIT_RATE_FOR_HIGH_REWARD = 0.50
 RL_STAGE_KL_COEF = 0.005
 reward_batch_index = 0
 current_group_id = 0
@@ -3687,6 +3693,7 @@ def _discovery_failure_result(
         "r_goal_match": 0.0,
         "r_trainset_novelty": 0.0,
         "r_generalization": 0.0,
+        "r_goal_family_gate": 0.0,
         "r_structure_group": 0.0,
         "r_structure_archive": 0.0,
         "r_descriptor_diversity": 0.0,
@@ -3714,6 +3721,7 @@ def _discovery_failure_result(
             "r_goal_best": 0.0,
             "r_goal_match": 0.0,
             "r_generalization": 0.0,
+            "r_goal_family_gate": 0.0,
             "r_structure_group": 0.0,
             "r_structure_archive": 0.0,
             "r_descriptor_diversity": 0.0,
@@ -3735,6 +3743,7 @@ def _discovery_failure_result(
             "goal_tag_hit_count": 0,
             "goal_tag_total_count": 0,
             "goal_tag_hit_rate": 0.0,
+            "goal_family_gate_cap_applied": False,
         },
         "error": error,
         "current_stage_name": current_stage_name,
@@ -4096,6 +4105,7 @@ def _attach_group_context(
             "goal_tag_hit_count": 0,
             "goal_tag_total_count": 0,
             "goal_tag_hit_rate": 0.0,
+            "goal_family_gate_cap_applied": False,
             "prev_target_reward_target_acc": None,
             "best_target_reward_target_acc": None,
             "backbone_prev_target_reward_target_acc": None,
@@ -4123,6 +4133,7 @@ def _attach_group_context(
             "r_goal_best": res.get("r_goal_best", 0.0),
             "r_goal_match": res.get("r_goal_match", 0.0),
             "r_generalization": res.get("r_generalization", 0.0),
+            "r_goal_family_gate": res.get("r_goal_family_gate", 0.0),
             "r_structure_group": res.get("r_structure_group", 0.0),
             "r_structure_archive": res.get("r_structure_archive", 0.0),
             "r_descriptor_diversity": res.get("r_descriptor_diversity", 0.0),
@@ -4405,6 +4416,7 @@ def base_discovery_reward_fn(
     r_descriptor_diversity = 0.0
     r_cnn_diversity = 0.0
     r_formal_success_signal = 0.0
+    r_goal_family_gate = 0.0
     stage1_validity_scale = 0.0
     dominant_family_repeat = False
     dominant_descriptor_repeat = False
@@ -4412,6 +4424,7 @@ def base_discovery_reward_fn(
     plain_parallel_repeat = False
     descriptor_reward_cap_applied = False
     cnn_reward_cap_applied = False
+    goal_family_gate_cap_applied = False
     executable_candidate = _is_executable_candidate(res, graph_info)
     formal_success_candidate = _is_trainable_candidate(res, graph_info)
     has_formal_epoch = _has_completed_formal_epoch(res)
@@ -4625,6 +4638,14 @@ def base_discovery_reward_fn(
             backbone_reward_target_gain = float(reward_target_value - backbone_group_baseline_reward_target_acc)
             backbone_reward_target_improved = bool(backbone_reward_target_gain >= GROUP_IMPROVEMENT_DELTA)
 
+        if has_formal_epoch and goal_tag_total_count > 0:
+            if formal_success_candidate and goal_tag_hit_rate >= 1.0:
+                r_goal_family_gate = STAGE23_GOAL_FAMILY_SUCCESS_BONUS
+            elif goal_tag_hit_rate <= 0.0:
+                r_no_progress_penalty += STAGE23_ZERO_GOAL_HIT_PENALTY
+            elif goal_tag_hit_rate < STAGE23_MIN_GOAL_HIT_RATE_FOR_HIGH_REWARD:
+                r_no_progress_penalty += STAGE23_LOW_GOAL_HIT_PENALTY
+
         if has_formal_epoch and reward_target_value is not None:
             train_acc_value = float(train_acc or 0.0)
             reward_target_float = float(reward_target_value)
@@ -4836,6 +4857,7 @@ def base_discovery_reward_fn(
             + r_best_backbone_group
             + r_goal_best
             + r_generalization
+            + r_goal_family_gate
             + r_structure_group
             + r_structure_archive
             + r_descriptor_diversity
@@ -4859,6 +4881,10 @@ def base_discovery_reward_fn(
             if backbone_prev_target_reward_target_acc is not None
             else beat_prev_target
         )
+        if has_formal_epoch and goal_tag_total_count > 0 and goal_tag_hit_rate < STAGE23_MIN_GOAL_HIT_RATE_FOR_HIGH_REWARD:
+            off_target_cap = STAGE23_OFF_TARGET_PLAIN_PARALLEL_CAP if graph_info.is_plain_parallel_triple else STAGE23_OFF_TARGET_REWARD_CAP
+            total_reward = min(total_reward, off_target_cap)
+            goal_family_gate_cap_applied = True
         if has_formal_epoch and effective_prev_target_reward_target_acc is not None and not effective_beat_prev_target:
             total_reward = min(total_reward, stage_profile["non_improving_cap"])
         if has_formal_epoch and dominant_descriptor_repeat:
@@ -4902,6 +4928,7 @@ def base_discovery_reward_fn(
     res['reward_batch_index'] = reward_batch_index
     res['reward_group_id'] = reward_group_id
     res['group_warmup'] = group_warmup
+    res['r_goal_family_gate'] = r_goal_family_gate
     res['warmup_dense_reward'] = warmup_dense_reward
     res['current_stage_name'] = stage_name
     res['current_stage_index'] = RL_STAGE_TO_INDEX.get(stage_name, 0)
@@ -4970,6 +4997,7 @@ def base_discovery_reward_fn(
     res['dominant_cnn_repeat'] = dominant_cnn_repeat
     res['descriptor_reward_cap_applied'] = descriptor_reward_cap_applied
     res['cnn_reward_cap_applied'] = cnn_reward_cap_applied
+    res['goal_family_gate_cap_applied'] = goal_family_gate_cap_applied
     res['history_exploration_pressure'] = float(training_context.get('exploration_pressure') or 0.0)
     res['minimal_init_template'] = minimal_init_template
     res['graph_expr'] = graph_info.graph_expr
@@ -4988,6 +5016,7 @@ def base_discovery_reward_fn(
         'r_goal_best': r_goal_best,
         'r_goal_match': r_goal_match,
         'r_generalization': r_generalization,
+        'r_goal_family_gate': r_goal_family_gate,
         'r_structure_group': r_structure_group,
         'r_structure_archive': r_structure_archive,
         'r_descriptor_diversity': r_descriptor_diversity,
@@ -5059,6 +5088,7 @@ def base_discovery_reward_fn(
         'dominant_cnn_repeat': dominant_cnn_repeat,
         'descriptor_reward_cap_applied': descriptor_reward_cap_applied,
         'cnn_reward_cap_applied': cnn_reward_cap_applied,
+        'goal_family_gate_cap_applied': goal_family_gate_cap_applied,
         'history_exploration_pressure': float(training_context.get('exploration_pressure') or 0.0),
         'minimal_init_template': minimal_init_template,
         'depth': graph_info.depth,

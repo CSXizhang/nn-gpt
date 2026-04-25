@@ -16,9 +16,12 @@ set -euo pipefail
 
 : "${NNGPT_RUN_ID:?Set NNGPT_RUN_ID before sbatch.}"
 : "${NNGPT_RUN_ROOT:?Set NNGPT_RUN_ROOT before sbatch.}"
-: "${NNGPT_SEED_STAGE2_CHECKPOINT:?Set NNGPT_SEED_STAGE2_CHECKPOINT before sbatch.}"
 
 REPO_ROOT="/home/s471802/nn-gpt"
+SKIP_SEED_STAGE2_CHECKPOINT="${NNGPT_SKIP_SEED_STAGE2_CHECKPOINT:-0}"
+if [ "${SKIP_SEED_STAGE2_CHECKPOINT}" != "1" ]; then
+  : "${NNGPT_SEED_STAGE2_CHECKPOINT:?Set NNGPT_SEED_STAGE2_CHECKPOINT before sbatch.}"
+fi
 RUN_ROOT="$(python3 -c 'from pathlib import Path; import os; print(Path(os.environ["NNGPT_RUN_ROOT"]).expanduser().resolve())')"
 SKIP_RUN_ARCHIVE="${NNGPT_SKIP_RUN_ARCHIVE:-0}"
 if [ "${SKIP_RUN_ARCHIVE}" != "1" ]; then
@@ -146,14 +149,20 @@ elif [ -d "${NNGPT_SFT_MODEL_OUT}/checkpoints/stage2_formal_explore" ]; then
   resume_mode="stage"
   resume_source="本 run stage checkpoint: ${NNGPT_SFT_RESUME_STAGE_CHECKPOINT}"
 else
-  if [ ! -d "${NNGPT_SEED_STAGE2_CHECKPOINT}" ]; then
-    echo "Seed stage2 checkpoint not found: ${NNGPT_SEED_STAGE2_CHECKPOINT}" >&2
-    exit 1
+  if [ "${SKIP_SEED_STAGE2_CHECKPOINT}" = "1" ]; then
+    export NNGPT_RL_RESUME_STAGE="${NNGPT_RL_RESUME_STAGE:-stage2_formal_explore}"
+    resume_mode="fresh-stage-override"
+    resume_source="none; fresh base model with stage override: ${NNGPT_RL_RESUME_STAGE}"
+  else
+    if [ ! -d "${NNGPT_SEED_STAGE2_CHECKPOINT}" ]; then
+      echo "Seed stage2 checkpoint not found: ${NNGPT_SEED_STAGE2_CHECKPOINT}" >&2
+      exit 1
+    fi
+    export NNGPT_SFT_RESUME_STAGE_CHECKPOINT="${NNGPT_SEED_STAGE2_CHECKPOINT}"
+    export NNGPT_RL_RESUME_STAGE="stage2_formal_explore"
+    resume_mode="seed-stage2"
+    resume_source="共享 seed stage2 checkpoint: ${NNGPT_SFT_RESUME_STAGE_CHECKPOINT}"
   fi
-  export NNGPT_SFT_RESUME_STAGE_CHECKPOINT="${NNGPT_SEED_STAGE2_CHECKPOINT}"
-  export NNGPT_RL_RESUME_STAGE="stage2_formal_explore"
-  resume_mode="seed-stage2"
-  resume_source="共享 seed stage2 checkpoint: ${NNGPT_SFT_RESUME_STAGE_CHECKPOINT}"
 fi
 
 if [ "${SKIP_RUN_ARCHIVE}" != "1" ]; then

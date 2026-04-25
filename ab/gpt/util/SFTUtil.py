@@ -349,8 +349,11 @@ You are a Senior AI Architect. Produce one trainable dual-backbone image-classif
 
 ### Task Context
 - Optimization Track: {goal_name}
+- Required Structure Family: `{target_pattern}`
 - Optimization Target Tags: {target_tags}
 - Design Brief: {design_brief}
+- Tag Realization Rules:
+{goal_tag_parser_cues}
 - Seed Accuracy: `{accuracy}` (context only)
 
 [CODE SKELETON START]
@@ -366,7 +369,9 @@ You are a Senior AI Architect. Produce one trainable dual-backbone image-classif
 6. Keep `forward` as a direct computation graph. Do not use `if self.pattern`, extra `import` lines, extra classes, or dynamic wrapper logic.
 7. Use `adaptive_pool_flatten(...)` before concatenating or classifying branch outputs, and return classifier logits.
 8. Do not reference undefined names such as `dropout_prob`, `in_channels`, or `features`.
-9. Prioritize a runnable, trainable graph over novelty. Simple structure is acceptable if it trains cleanly. If you define `self.classifier`, still keep `self._input_spec` and the required dynamic sizing helper call.
+9. Set `self.pattern = '{target_pattern}'` exactly, and make the graph visibly satisfy the target tags.
+10. Do NOT use a plain final-only concat of raw backbone outputs. A high-accuracy ParallelTriple-style answer is off-target unless the target tags are visibly implemented.
+11. Prioritize a runnable, trainable graph, but use explicit stem/project/fractal/reuse/fusion modules when the target tags request them. If you define `self.classifier`, still keep `self._input_spec` and the required dynamic sizing helper call.
 
 ### Output Requirement (STRICT)
 Read the optimization feedback below, then write the final XML answer. The final answer must begin with `<block>` and end with `</forward>`.

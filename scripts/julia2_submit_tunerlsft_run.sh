@@ -23,6 +23,7 @@ JOB_NAME=""
 PYTHON_VENV=""
 DEPENDENCY=""
 SEED_STAGE2_CHECKPOINT="${SEED_STAGE2_CHECKPOINT_DEFAULT}"
+SKIP_SEED_STAGE2_CHECKPOINT=0
 ENV_OVERRIDES=()
 ARCHIVE_MODE="auto"
 
@@ -49,6 +50,7 @@ Options:
   --venv PATH                  可选 Python venv，默认由 sbatch 脚本使用 /home/s471802/.venv
   --dependency SPEC            可选 sbatch 依赖，如 afterany:<jobid>
   --seed-stage2-checkpoint P   可选共享 stage2 checkpoint 路径
+  --no-seed-stage2-checkpoint  不读取共享 stage checkpoint；可配合 NNGPT_RL_RESUME_STAGE fresh 进入指定阶段
   --env NAME=VALUE             追加训练环境变量，可重复
   --no-run-archive             不写 run_archive_index.md，用于 smoke/test/benchmark
   --archive-run                强制写 run_archive_index.md
@@ -176,7 +178,13 @@ while [[ $# -gt 0 ]]; do
       ;;
     --seed-stage2-checkpoint)
       SEED_STAGE2_CHECKPOINT="$2"
+      SKIP_SEED_STAGE2_CHECKPOINT=0
       shift 2
+      ;;
+    --no-seed-stage2-checkpoint)
+      SEED_STAGE2_CHECKPOINT=""
+      SKIP_SEED_STAGE2_CHECKPOINT=1
+      shift
       ;;
     --env)
       ENV_OVERRIDES+=("$2")
@@ -231,7 +239,7 @@ RUN_ENV_FILE="${RUN_ROOT}/run_env.sh"
 
 mkdir -p "${RUN_ROOT}" "${SLURM_DIR}" "${RUN_ROOT}/out"
 
-if [[ ! -d "${SEED_STAGE2_CHECKPOINT}" ]]; then
+if [[ "${SKIP_SEED_STAGE2_CHECKPOINT}" != "1" ]] && [[ ! -d "${SEED_STAGE2_CHECKPOINT}" ]]; then
   echo "Seed stage2 checkpoint not found: ${SEED_STAGE2_CHECKPOINT}" >&2
   exit 1
 fi
@@ -281,7 +289,7 @@ if [[ "${ARCHIVE_RUN}" == "1" ]]; then
     --qos "${QOS:-}" \
     --stdout-path "${stdout_path/\%j/<jobid>}" \
     --stderr-path "${stderr_path/\%j/<jobid>}" \
-    --seed-stage2-checkpoint "${SEED_STAGE2_CHECKPOINT}"
+    --seed-stage2-checkpoint "${SEED_STAGE2_CHECKPOINT:-none}"
 else
   echo "Run archive: skipped for test/benchmark run ${RUN_ID}" >&2
 fi
@@ -292,6 +300,9 @@ export_vars=(
   "NNGPT_RUN_ROOT=${RUN_ROOT}"
   "NNGPT_SEED_STAGE2_CHECKPOINT=${SEED_STAGE2_CHECKPOINT}"
 )
+if [[ "${SKIP_SEED_STAGE2_CHECKPOINT}" == "1" ]]; then
+  export_vars+=("NNGPT_SKIP_SEED_STAGE2_CHECKPOINT=1")
+fi
 if [[ "${ARCHIVE_RUN}" == "1" ]]; then
   export_vars+=("NNGPT_RUN_DOC_PATH=${DOC_PATH}")
 else

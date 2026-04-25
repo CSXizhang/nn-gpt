@@ -1649,11 +1649,12 @@ def run_sft_training():
         _sft_runtime_state_hooks(),
         legacy_state_filenames=("reward_state.json",),
     )
-    if resume_state_dir is not None and resume_stage_override:
+    if resume_stage_override:
         current_state_stage = str(TuneRL.current_stage_name)
         if current_state_stage != resume_stage_override:
+            label = "Resume stage override" if resume_state_dir is not None else "Fresh stage override"
             print(
-                "[SFT RL] Resume stage override "
+                f"[SFT RL] {label} "
                 f"checkpoint_stage={current_state_stage} requested_stage={resume_stage_override}"
             )
             TuneRL.current_stage_name = resume_stage_override
