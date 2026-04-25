@@ -536,21 +536,20 @@ def raw_reward_fn(
     if not meta.get("dual_backbone_ok"):
         res["reward"] = min(float(res["reward"]), -3.5)
     elif group_warmup and TuneRL._is_trainable_candidate(res, graph_info):
-        warmup_reward = float(res.get("warmup_dense_reward") or 0.0)
-        if res.get("goal_family_gate_cap_applied"):
-            discovery_meta = res.get("open_discovery", {})
-            is_plain_parallel = bool(
-                getattr(graph_info, "is_plain_parallel_triple", False)
-                or discovery_meta.get("is_plain_parallel_triple")
-            )
-            off_target_cap = (
-                TuneRL.STAGE23_OFF_TARGET_PLAIN_PARALLEL_CAP
-                if is_plain_parallel
-                else TuneRL.STAGE23_OFF_TARGET_REWARD_CAP
-            )
-            res["reward"] = min(warmup_reward, off_target_cap)
-        else:
-            res["reward"] = warmup_reward
+        res["reward"] = float(res.get("warmup_dense_reward") or 0.0)
+
+    if res.get("goal_family_gate_cap_applied"):
+        discovery_meta = res.get("open_discovery", {})
+        is_plain_parallel = bool(
+            getattr(graph_info, "is_plain_parallel_triple", False)
+            or discovery_meta.get("is_plain_parallel_triple")
+        )
+        off_target_cap = (
+            TuneRL.STAGE23_OFF_TARGET_PLAIN_PARALLEL_CAP
+            if is_plain_parallel
+            else TuneRL.STAGE23_OFF_TARGET_REWARD_CAP
+        )
+        res["reward"] = min(float(res.get("reward", -2.0)), off_target_cap)
 
     res["raw_extraction"] = {
         **meta,
