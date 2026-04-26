@@ -5216,6 +5216,13 @@ def _apply_batch_elite_bonuses(scored_results: List[Dict[str, Any]], group_conte
         res["batch_elite_tier"] = tier
         res["batch_elite_threshold_passed"] = threshold_passed
         total_reward, r_primary, r_tiebreak = _recompute_discovery_reward(res, graph_info)
+        if res.get("goal_family_gate_cap_applied"):
+            cap = (
+                STAGE23_OFF_TARGET_PLAIN_PARALLEL_CAP
+                if graph_info.is_plain_parallel_triple
+                else STAGE23_OFF_TARGET_REWARD_CAP
+            )
+            total_reward = min(total_reward, cap)
         res["reward"] = total_reward
         open_discovery = res.setdefault("open_discovery", {})
         open_discovery["r_batch_elite"] = bonus
