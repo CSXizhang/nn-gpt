@@ -45,7 +45,7 @@ from ab.gpt.util.prompt.NNGenPrompt import NNGenPrompt
 from ab.gpt.util.DeltaUtil import apply_delta, validate_delta, repair_code
 from ab.gpt.util.Const import nngpt_upload
 import ab.gpt.util.SFTUtil as SFTUtil
-import ab.gpt.TuneRL as TuneRL
+from ab.gpt.util.generation_dtype import align_generation_head_dtype
 from ab.gpt.brute.trans.TransformEval import run_eval
 from ab.gpt.util.prompt.TransformGenPrompt import TransformGenPrompt, load_data_from_folders
 from ab.gpt.agents.state import AgentState
@@ -802,7 +802,7 @@ def _finetune_epoch(
     del dataset
     release_memory()
 
-    TuneRL.align_generation_head_dtype(model, torch.bfloat16)
+    align_generation_head_dtype(model, torch.bfloat16, log_prefix="[TUNE]")
     chat_bot = ChatBot(model, tokenizer, temperature=temperature, top_k=top_k, top_p=top_p)
     return model, chat_bot
 
@@ -959,7 +959,7 @@ def tune(
 
     print('Using Max Length:', model_loader.get_max_length())
 
-    TuneRL.align_generation_head_dtype(model, torch.bfloat16)
+    align_generation_head_dtype(model, torch.bfloat16, log_prefix="[TUNE]")
     chat_bot = ChatBot(model, tokenizer, temperature=temperature, top_k=top_k, top_p=top_p)
 
     state = {
