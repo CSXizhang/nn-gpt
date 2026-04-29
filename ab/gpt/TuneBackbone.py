@@ -11,6 +11,7 @@ def main():
     parser.add_argument('--test_nn', type=int, default=30, help='Number of NNs to generate')
     parser.add_argument('--num_train_epochs', type=int, default=5, help='Number of LLM fine-tuning epochs')
     parser.add_argument('--num_cycles', type=int, default=None, help='Number of generate/eval/SFT cycles; defaults to llm config num_epochs')
+    parser.add_argument('--skip_epoch', type=int, default=0, help='Number of initial generation/eval cycles to skip')
     parser.add_argument('--nn_train_epochs', type=int, default=1, help='Number of training epochs for generated NNs')
     parser.add_argument('--sft_nn_prefixes', type=str, default='rl-bb-test1', help='Comma-separated NN prefixes used as SFT training data')
     parser.add_argument('--gen_nn_prefix', type=str, default='rl-bb-test1', help='NN prefix for generated/evaluated models')
@@ -50,7 +51,7 @@ def main():
         test_nn=args.test_nn,
         nn_train_epochs=args.nn_train_epochs,
         nn_name_prefix=args.gen_nn_prefix,
-        skip_epoch=0,   
+        skip_epoch=args.skip_epoch,
         llm_path=None,
         llm_tune_conf='backbone_prompt.json',
         nn_gen_conf=str(conf_train_dir / 'backbone_prompt.json'),
