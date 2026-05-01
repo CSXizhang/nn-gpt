@@ -813,6 +813,9 @@ def finetune_step(state: AgentState) -> dict:
     out_path = epoch_dir(epoch)
     print(f"[DEBUG] Perform finetune at epoch {epoch}")
 
+    state["chat_bot"] = None
+    release_memory()
+
     model, chat_bot = _finetune_epoch(
         epoch, out_path,
         state["model"], state["tokenizer"], state["model_loader"], state["lora_tuner"],
@@ -1026,6 +1029,8 @@ def tune(
             _evaluate_epoch(epoch, out_path, nn_name_prefix, nn_train_epochs, trans_mode, classification_mode)
 
         print(f'[DEBUG]Perform finetune at epoch {epoch}.')
+        chat_bot = None
+        release_memory()
         model, chat_bot = _finetune_epoch(
             epoch, out_path, model, tokenizer, model_loader, lora_tuner,
             context_length, use_unsloth, unsloth_max_input_length,
