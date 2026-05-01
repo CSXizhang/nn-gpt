@@ -303,7 +303,7 @@ Complete the three missing components. **DO NOT** write generic code. You must i
 
 2. **Component: `drop_conv3x3_block`**
    - Implement starting with `def drop_conv3x3_block(in_channels, out_channels, stride=1, padding=1, bias=False, dropout_prob=0.0):`.
-   - Return an `nn.Sequential` block (Conv2d -> BatchNorm2d -> Activation -> Dropout2d).
+   - You may use any CNN block structure (Conv2d, BatchNorm, Activation, Dropout2d, etc.). Ensure `dropout_prob` is used when `dropout_prob > 0`.
 
 3. **Component: `Net.__init__`**
    - Implement starting with `def __init__(self, in_shape: tuple, out_shape: tuple, prm: dict, device: torch.device) -> None:`.
