@@ -60,13 +60,13 @@ class SFTGenPrompt(Prompt):
             if block_code and init_code and forward_code and target_pattern:
                 assistant_response = f"<block>\n{block_code}\n</block>\n<init>\n{init_code}\n</init>\n<forward>\n{forward_code}\n</forward>"
                 messages = [
-                    {"role": "user", "content": SFTUtil.prompt_template.format(
-                        accuracy=accuracy, 
-                        target_pattern=target_pattern,
-                        skeleton_code=SFTUtil.skeleton_code, 
-                        available_patterns=", ".join(SFTUtil.available_patterns), 
-                        available_backbones=", ".join(SFTUtil.available_backbones)
-                    )},
+                    {
+                        "role": "user",
+                        "content": SFTUtil.format_backbone_prompt(
+                            accuracy=accuracy,
+                            target_pattern=target_pattern,
+                        ),
+                    },
                     {"role": "assistant", "content": assistant_response}
                 ]
                 text = self.tokenizer.apply_chat_template(
