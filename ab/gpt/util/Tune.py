@@ -109,6 +109,7 @@ def nn_gen(
     unsloth_max_input_length,
     prompt_batch,
     use_backbone=False,
+    sft_nn_prefixes=None,
 ):
     print("Preparing prompts for generation, this might take a while...")
 
@@ -146,8 +147,11 @@ def nn_gen(
                 enrich_dataframe(data)
             addon_data = None
         else:
+            data_kwargs = {"only_best_accuracy": True, "task": key_config["task"]}
+            if use_backbone and sft_nn_prefixes:
+                data_kwargs["nn_prefixes"] = sft_nn_prefixes
             data = (
-                lemur.data(only_best_accuracy=True, task=key_config["task"])
+                lemur.data(**data_kwargs)
                 .groupby(by="nn")
                 .sample(n=1)[:test_nn]
             )
@@ -586,6 +590,7 @@ def generate_step(state: AgentState) -> dict:
             state.get("unsloth_max_input_length"),
             state.get("prompt_batch", 1),
             use_backbone=state.get("use_backbone",False),
+            sft_nn_prefixes=state.get("sft_nn_prefixes"),
         )
 
     # Classification prompts may intentionally emit labels or structured output
@@ -1055,7 +1060,7 @@ def tune(
             if trans_mode:
                 trans_gen(epoch, out_path, chat_bot, conf_keys, nn_train_epochs, prompt_dict, test_nn, max_new_tokens, save_llm_output, nn_name_prefix)
             else:
-                nn_gen(epoch, out_path, chat_bot, conf_keys, nn_train_epochs, prompt_dict, test_nn, max_new_tokens, save_llm_output, nn_name_prefix, unsloth_max_input_length, prompt_batch, use_backbone=use_backbone)
+                nn_gen(epoch, out_path, chat_bot, conf_keys, nn_train_epochs, prompt_dict, test_nn, max_new_tokens, save_llm_output, nn_name_prefix, unsloth_max_input_length, prompt_batch, use_backbone=use_backbone, sft_nn_prefixes=sft_nn_prefixes)
 
             _evaluate_epoch(epoch, out_path, nn_name_prefix, nn_train_epochs, trans_mode, classification_mode)
 
