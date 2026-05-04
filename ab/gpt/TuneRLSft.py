@@ -1090,8 +1090,7 @@ def load_rl_dataset_sft(tokenizer) -> TuneRL.Dataset:
     runtime_settings = resolve_sft_runtime_settings(RewardUtil.get_distributed_runtime_info())
     data = TuneRL.api.data(task="img-classification", nn_prefixes=("rl-bb-test1",))
     if data.empty:
-        print("No 'rl-bb-test1' data found, falling back to all img-classification")
-        data = TuneRL.api.data(only_best_accuracy=True, task="img-classification", dataset="cifar-10")
+        raise RuntimeError("No 'rl-bb-test1' data found for SFT RL; sync the dataset prefix before training.")
 
     print(f"Loaded {len(data)} examples for SFT RL")
     TuneRL.bootstrap_trainset_reference_library(data)

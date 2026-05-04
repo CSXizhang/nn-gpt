@@ -4786,8 +4786,7 @@ def load_rl_dataset(tokenizer):
     """Load seed tasks for open-ended architecture discovery."""
     data = api.data(task='img-classification', nn_prefixes=("rl-bb-test1",))
     if data.empty:
-        print("No 'rl-bb-test1' data found, falling back to all img-classification")
-        data = api.data(only_best_accuracy=True, task='img-classification', dataset='cifar-10')
+        raise RuntimeError("No 'rl-bb-test1' data found for RL; sync the dataset prefix before training.")
 
     print(f"Loaded {len(data)} examples for RL")
     bootstrap_trainset_reference_library(data)
