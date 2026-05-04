@@ -160,6 +160,12 @@ def nn_gen(
 
         output_type = key_config.get("output_type", "code")
         nn_code_max_chars = key_config.get("nn_code_max_chars")
+        backbone_pattern_pool = []
+        if use_backbone and "nn_code" in data:
+            for code in data["nn_code"]:
+                pattern = SFTUtil.extract_target_pattern_from_code(code) if isinstance(code, str) else None
+                if pattern and pattern not in backbone_pattern_pool:
+                    backbone_pattern_pool.append(pattern)
 
         for _, row in data.iterrows():
             para_dict = {}
@@ -169,7 +175,10 @@ def nn_gen(
                 target_pattern = None
                 if "nn_code" in row and isinstance(row["nn_code"], str):
                     target_pattern = SFTUtil.extract_target_pattern_from_code(row["nn_code"])
-                target_pattern = target_pattern or SFTUtil.available_patterns[len(prompts) % len(SFTUtil.available_patterns)]
+                if target_pattern is None:
+                    if not backbone_pattern_pool:
+                        raise RuntimeError("No target patterns found in TuneBackbone generation seed data.")
+                    target_pattern = random.choice(backbone_pattern_pool)
                 para_dict["target_pattern"] = target_pattern
                 para_dict["backbone_prompt"] = SFTUtil.format_backbone_prompt(
                     accuracy=para_dict.get("accuracy", row.get("accuracy", "")),
