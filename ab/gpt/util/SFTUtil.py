@@ -190,13 +190,25 @@ class Net(nn.Module):
     def __init__(self, in_shape: tuple, out_shape: tuple, prm: dict, device: torch.device) -> None:
         
 
-    def infer_dimensions_dynamically(self, num_classes):
+    def infer_dimensions_dynamically(self, *args):
+        if len(args) == 1:
+            num_classes = args[0]
+            if not hasattr(self, "_input_spec"):
+                raise RuntimeError("_input_spec must be set before one-argument infer_dimensions_dynamically")
+            c, h, w = self._input_spec
+        elif len(args) == 2:
+            in_shape, num_classes = args
+            c = in_shape[1] if len(in_shape) == 4 else in_shape[0]
+            h = 224
+            w = 224
+            self._input_spec = (c, h, w)
+        else:
+            raise TypeError("infer_dimensions_dynamically expects (num_classes) or (in_shape, num_classes)")
         self.to(self.device)
         was_training = self.training
         self.eval()
         classifier = getattr(self, "classifier", None)
         with torch.no_grad():
-            c, h, w = self._input_spec
             dummy = torch.zeros(1, c, h, w).to(self.device)
             self.classifier = nn.Identity()
             output_feat = self.forward(dummy, is_probing=True)
@@ -316,7 +328,7 @@ You are implementing one trainable dual-backbone image-classification model. See
 - Target pattern: `{target_pattern}`. Set `self.pattern` to this value.
 - Implement only `drop_conv3x3_block`, `Net.__init__`, and `Net.forward`.
 - Use exactly two `TorchVision` backbones named `self.backbone_a` and `self.backbone_b` from [{available_backbones}].
-- Derive `c_in, h_in, w_in` from `in_shape` like the skeleton data does: use `in_shape[1:4]` for 4D input shapes, otherwise `in_shape[0:3]`; store `self._input_spec = (c_in, h_in, w_in)`, use `out_shape[0]` as the class count, and call `self.infer_dimensions_dynamically(...)` once after defining the modules used by `forward`.
+- Use `out_shape[0]` as the class count and call `self.infer_dimensions_dynamically(...)` once after defining the modules used by `forward`. The fixed skeleton accepts either `(out_shape[0])` with `self._input_spec` already set, or the historical `(in_shape, out_shape[0])` call used by existing SFT data.
 - Use the fixed helper as `_feature_to_input_image(tensor, adapter_name)` when a feature map must be converted back to the input image shape.
 - Read `dropout` from `prm` and route it into trainable dropout/drop block settings so `supported_hyperparameters()` matches the implementation.
 - Return only the three XML sections below, each containing the complete function or method definition.
@@ -361,7 +373,7 @@ You are a Senior AI Architect. Produce one trainable dual-backbone image-classif
 1. Output ONLY `<block>`, `<init>`, `<forward>`. No markdown, no explanation, no extra text.
 2. Implement only `drop_conv3x3_block`, `Net.__init__`, and `Net.forward`.
 3. Use EXACTLY two backbones named `self.backbone_a` and `self.backbone_b` from [{available_backbones}].
-4. In `__init__`, set `self.pattern`, `self.device`, `self.use_amp`, derive `c_in, h_in, w_in` from `in_shape`, set `self._input_spec = (c_in, h_in, w_in)`, then call the existing `self.infer_dimensions_dynamically(...)` helper once with the class count after the modules used by `forward` are defined.
+4. In `__init__`, set `self.pattern`, `self.device`, `self.use_amp`, then call the existing `self.infer_dimensions_dynamically(...)` helper once with the class count after the modules used by `forward` are defined. The fixed helper accepts either a prior `self._input_spec` plus class count, or the historical `(in_shape, class_count)` call.
 5. Treat the fixed infrastructure as read-only. Do not rewrite helper APIs or add replacement dimension-inference helpers.
 6. Keep `forward` as a direct computation graph. Do not use `if self.pattern`, extra `import` lines, extra classes, or dynamic wrapper logic.
 7. Use `adaptive_pool_flatten(...)` before concatenating or classifying branch outputs, and return classifier logits.
