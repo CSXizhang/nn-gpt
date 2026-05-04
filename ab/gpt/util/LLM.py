@@ -20,6 +20,19 @@ from transformers import (
 )
 
 
+def _forced_device_map_from_env():
+    raw = os.getenv("NNGPT_LLM_DEVICE_MAP", "").strip()
+    if not raw:
+        return None
+    if raw.lower() == "auto":
+        return "auto"
+    if raw.startswith("{"):
+        return json.loads(raw)
+    if raw.isdigit():
+        return {"": f"cuda:{raw}"}
+    return {"": raw}
+
+
 class LLM:
     def __init__(self,
                  model_path: str,
@@ -127,7 +140,10 @@ class LLM:
             use_zero3 = True
         
         # Build model kwargs (sanitize for ZeRO-3)
-        deepspeed_specific_prm = {} if use_zero3 else {"device_map": "auto"}
+        forced_device_map = None if use_zero3 else _forced_device_map_from_env()
+        deepspeed_specific_prm = {} if use_zero3 else {"device_map": forced_device_map or "auto"}
+        if forced_device_map is not None:
+            print(f"[LLM] Using NNGPT_LLM_DEVICE_MAP={forced_device_map}")
         model_kwargs = dict(
             trust_remote_code=True,
             max_memory={i: max_memory for i in range(torch.cuda.device_count())},
