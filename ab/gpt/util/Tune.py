@@ -11,6 +11,8 @@ import os
 import random
 import shutil
 import json
+import subprocess
+import sys
 from os import makedirs
 from os.path import isfile
 import glob
@@ -58,6 +60,7 @@ TRANSFORM_RES_DIR = trans_dir / 'result_epoch1'
 
 # Delta mode constants
 _MAX_DELTA_RETRIES = 2
+_EVAL_CUDA_VISIBLE_DEVICES_ENV = "NNGPT_TUNEBACKBONE_EVAL_CUDA_VISIBLE_DEVICES"
 
 
 def apply_sliding_window(example, max_length, stride, tokenizer):
@@ -620,11 +623,34 @@ def _evaluate_epoch(epoch, out_path, nn_name_prefix, nn_train_epochs, trans_mode
                 print(f"Error running evaluation main(): {e}", flush=True)
             print('Folder data reload will occur next epoch.')
         else:
-            NNEval.main(
-                nn_name_prefix=nn_name_prefix,
-                nn_train_epochs=nn_train_epochs,
-                only_epoch=epoch,
-            )
+            eval_cuda_visible_devices = os.getenv(_EVAL_CUDA_VISIBLE_DEVICES_ENV, "").strip()
+            if eval_cuda_visible_devices:
+                env = os.environ.copy()
+                env["CUDA_VISIBLE_DEVICES"] = eval_cuda_visible_devices
+                env["NNGPT_NNEVAL_USE_ALL_VISIBLE_GPUS"] = "1"
+                env.pop("NNGPT_NNEVAL_GPU_TOKENS", None)
+                cmd = [
+                    sys.executable,
+                    "-m",
+                    "ab.gpt.NNEval",
+                    "--nn_train_epochs",
+                    str(nn_train_epochs),
+                    "--only_epoch",
+                    str(epoch),
+                ]
+                if nn_name_prefix:
+                    cmd.extend(["--nn_name_prefix", str(nn_name_prefix)])
+                print(
+                    f"[TUNE] Running NNEval subprocess with "
+                    f"CUDA_VISIBLE_DEVICES={eval_cuda_visible_devices}"
+                )
+                subprocess.run(cmd, check=True, env=env)
+            else:
+                NNEval.main(
+                    nn_name_prefix=nn_name_prefix,
+                    nn_train_epochs=nn_train_epochs,
+                    only_epoch=epoch,
+                )
             print('[DEBUG] Release_memory.')
             release_memory()
 
