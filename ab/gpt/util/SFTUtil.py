@@ -2,7 +2,7 @@ import ast
 import re
 import textwrap
 
-available_backbones = ['convnext_tiny', 'densenet121', 'densenet161', 'densenet169', 'densenet201', 'efficientnet_b0', 'efficientnet_b1', 'efficientnet_b2', 'efficientnet_b3', 'efficientnet_b4', 'efficientnet_v2_s', 'googlenet', 'inception_v3', 'mnasnet0_5', 'mnasnet0_75', 'mnasnet1_0', 'mnasnet1_3', 'mobilenet_v2', 'mobilenet_v3_large', 'mobilenet_v3_small', 'regnet_x_400mf', 'regnet_x_800mf', 'regnet_x_1_6gf', 'regnet_x_3_2gf', 'regnet_y_400mf', 'regnet_y_800mf', 'resnet18', 'resnet34', 'resnet50', 'resnext50_32x4d', 'shufflenet_v2_x0_5', 'shufflenet_v2_x1_0', 'shufflenet_v2_x1_5', 'shufflenet_v2_x2_0', 'squeezenet1_0', 'squeezenet1_1', 'swin_t', 'swin_v2_t']
+available_backbones = ['convnext_tiny', 'densenet121', 'densenet161', 'densenet169', 'densenet201', 'efficientnet_b0', 'efficientnet_b1', 'efficientnet_b2', 'efficientnet_b3', 'efficientnet_b4', 'efficientnet_v2_s', 'googlenet', 'inception_v3', 'mnasnet0_5', 'mnasnet0_75', 'mnasnet1_0', 'mnasnet1_3', 'mobilenet_v2', 'mobilenet_v3_large', 'mobilenet_v3_small', 'regnet_x_400mf', 'regnet_x_800mf', 'regnet_x_1_6gf', 'regnet_x_3_2gf', 'regnet_y_400mf', 'regnet_y_800mf', 'regnet_y_1_6gf', 'regnet_y_3_2gf', 'resnet18', 'resnet34', 'resnet50', 'resnext50_32x4d', 'shufflenet_v2_x0_5', 'shufflenet_v2_x1_0', 'shufflenet_v2_x1_5', 'shufflenet_v2_x2_0', 'squeezenet1_0', 'squeezenet1_1', 'swin_t', 'swin_v2_t']
 
 available_patterns = [
     'Parallel_Triple', 
@@ -217,20 +217,26 @@ class Net(nn.Module):
             return x.reshape(B * T, C, H, W)
         raise ValueError(f"Expected 4D/5D input, got {tuple(x.shape)}")
 
-    def _feature_to_input_image(self, feat: torch.Tensor) -> torch.Tensor:
-        feat = self._norm4d(feat)
-        target_c, target_h, target_w = self._input_spec
-        feat = torch.nn.functional.adaptive_avg_pool2d(feat, (target_h, target_w))
-        if feat.shape[1] == target_c:
-            return feat
-        key = str(int(feat.shape[1]))
-        if not hasattr(self, "_feature_image_adapters"):
-            self._feature_image_adapters = nn.ModuleDict()
-        if key not in self._feature_image_adapters:
-            self._feature_image_adapters[key] = nn.Conv2d(
-                int(feat.shape[1]), target_c, kernel_size=1
-            ).to(self.device)
-        return self._feature_image_adapters[key](feat)
+    def _feature_to_input_image(self, x: torch.Tensor, adapter_name: str) -> torch.Tensor:
+        if x.dim() == 2:
+            x = x.unsqueeze(-1).unsqueeze(-1)
+        elif x.dim() == 3:
+            x = x.mean(dim=1).unsqueeze(-1).unsqueeze(-1)
+        elif x.dim() != 4:
+            x = x.flatten(1).unsqueeze(-1).unsqueeze(-1)
+
+        c_in, h, w = self._input_spec
+        in_channels = int(x.shape[1])
+        key = f"{adapter_name}_{in_channels}"
+        if not hasattr(self, "_input_adapters"):
+            self._input_adapters = nn.ModuleDict()
+        if key not in self._input_adapters:
+            self._input_adapters[key] = nn.Conv2d(in_channels, c_in, kernel_size=1).to(self.device)
+
+        x = self._input_adapters[key](x)
+        if x.shape[-2:] != (h, w):
+            x = torch.nn.functional.interpolate(x, size=(h, w), mode="bilinear", align_corners=False)
+        return x
 
     def forward(self, x: torch.Tensor, is_probing: bool = False) -> torch.Tensor:
         
@@ -310,7 +316,8 @@ You are implementing one trainable dual-backbone image-classification model. See
 - Target pattern: `{target_pattern}`. Set `self.pattern` to this value.
 - Implement only `drop_conv3x3_block`, `Net.__init__`, and `Net.forward`.
 - Use exactly two `TorchVision` backbones named `self.backbone_a` and `self.backbone_b` from [{available_backbones}].
-- Store `self._input_spec = tuple(in_shape[1:])`, use `out_shape[0]` as the class count, and call `self.infer_dimensions_dynamically(...)` once after defining the modules used by `forward`.
+- Derive `c_in, h_in, w_in` from `in_shape` like the skeleton data does: use `in_shape[1:4]` for 4D input shapes, otherwise `in_shape[0:3]`; store `self._input_spec = (c_in, h_in, w_in)`, use `out_shape[0]` as the class count, and call `self.infer_dimensions_dynamically(...)` once after defining the modules used by `forward`.
+- Use the fixed helper as `_feature_to_input_image(tensor, adapter_name)` when a feature map must be converted back to the input image shape.
 - Read `dropout` from `prm` and route it into trainable dropout/drop block settings so `supported_hyperparameters()` matches the implementation.
 - Return only the three XML sections below, each containing the complete function or method definition.
 
@@ -354,7 +361,7 @@ You are a Senior AI Architect. Produce one trainable dual-backbone image-classif
 1. Output ONLY `<block>`, `<init>`, `<forward>`. No markdown, no explanation, no extra text.
 2. Implement only `drop_conv3x3_block`, `Net.__init__`, and `Net.forward`.
 3. Use EXACTLY two backbones named `self.backbone_a` and `self.backbone_b` from [{available_backbones}].
-4. In `__init__`, set `self.pattern`, `self.device`, `self.use_amp`, and `self._input_spec = tuple(in_shape[1:])`, then call the existing `self.infer_dimensions_dynamically(...)` helper once with the class count after the modules used by `forward` are defined.
+4. In `__init__`, set `self.pattern`, `self.device`, `self.use_amp`, derive `c_in, h_in, w_in` from `in_shape`, set `self._input_spec = (c_in, h_in, w_in)`, then call the existing `self.infer_dimensions_dynamically(...)` helper once with the class count after the modules used by `forward` are defined.
 5. Treat the fixed infrastructure as read-only. Do not rewrite helper APIs or add replacement dimension-inference helpers.
 6. Keep `forward` as a direct computation graph. Do not use `if self.pattern`, extra `import` lines, extra classes, or dynamic wrapper logic.
 7. Use `adaptive_pool_flatten(...)` before concatenating or classifying branch outputs, and return classifier logits.
