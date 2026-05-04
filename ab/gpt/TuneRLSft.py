@@ -71,7 +71,7 @@ from ab.gpt.rl_pipeline.completion import (
     FORWARD_SIGNATURE,
     INIT_SIGNATURE,
     clear_extraction_meta_cache,
-    extract_completion_blocks_tolerant,
+    extract_completion_blocks_strict,
     extract_completion_meta,
 )
 import ab.gpt.rl_pipeline.trainer_runtime as TrainerRuntime
@@ -1066,11 +1066,7 @@ class DynamicSFTPromptDataset(TorchDataset):
             feedback_char_budget=SFT_FEEDBACK_CHAR_BUDGET,
         )
         feedback_section = "\n\n### Current Optimization Feedback\n" + feedback_text.strip() + "\n"
-        marker = "### Output Requirement (STRICT)"
-        if marker in user_prompt:
-            user_prompt = user_prompt.replace(marker, feedback_section + "\n" + marker, 1)
-        else:
-            user_prompt = user_prompt + feedback_section
+        user_prompt = user_prompt + feedback_section
         messages = [{"role": "user", "content": user_prompt}]
         return self.tokenizer.apply_chat_template(
             messages,
@@ -1497,7 +1493,7 @@ def patch_sft_runtime() -> tuple[str, str, str]:
     TuneRL.LOAD_EXISTING_MODEL = load_initial_adapter
     TuneRL.SAVED_MODEL_PATH = init_adapter_path if load_initial_adapter else ""
     TuneRL.PROMPT_TEMPLATE = SFT_DISCOVERY_PROMPT_TEMPLATE
-    TuneRL.extract_completion_blocks = extract_completion_blocks_tolerant
+    TuneRL.extract_completion_blocks = extract_completion_blocks_strict
     TuneRL.clear_extraction_meta_cache = clear_extraction_meta_cache
     TuneRL.evaluate_code_and_reward = evaluate_code_and_reward_cifar
     setattr(TuneRL.evaluate_code_and_reward, "_nngpt_eval_cfg_builder", build_sft_reward_eval_cfg)

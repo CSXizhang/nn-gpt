@@ -369,32 +369,12 @@ You are a Senior AI Architect. Produce one trainable dual-backbone image-classif
 {skeleton_code}
 [CODE SKELETON END]
 
-### Basic Requirements
-1. Output ONLY `<block>`, `<init>`, `<forward>`. No markdown, no explanation, no extra text.
-2. Implement only `drop_conv3x3_block`, `Net.__init__`, and `Net.forward`.
-3. Use EXACTLY two backbones named `self.backbone_a` and `self.backbone_b` from [{available_backbones}].
-4. In `__init__`, set `self.pattern`, `self.device`, `self.use_amp`, then call the existing `self.infer_dimensions_dynamically(...)` helper once with the class count after the modules used by `forward` are defined. The fixed helper accepts either a prior `self._input_spec` plus class count, or the historical `(in_shape, class_count)` call.
-5. Treat the fixed infrastructure as read-only. Do not rewrite helper APIs or add replacement dimension-inference helpers.
-6. Keep `forward` as a direct computation graph. Do not use `if self.pattern`, extra `import` lines, extra classes, or dynamic wrapper logic.
-7. Use `adaptive_pool_flatten(...)` before concatenating or classifying branch outputs, and return classifier logits.
-8. Do not reference undefined names such as `dropout_prob`, `in_channels`, or `features`.
-9. Prioritize a runnable, trainable graph over novelty. Simple structure is acceptable if it trains cleanly. If you define `self.classifier`, still keep `self._input_spec` and the required dynamic sizing helper call.
-
-### Output Requirement (STRICT)
-Read the optimization feedback below, then write the final XML answer. The final answer must begin with `<block>` and end with `</forward>`.
-
-<block>
-{block_signature}
-    ...
-</block>
-<init>
-{init_signature}
-    ...
-</init>
-<forward>
-{forward_signature}
-    ...
-</forward>
+### Structure Target
+- Implement the editable model parts from the skeleton: `drop_conv3x3_block`, `Net.__init__`, and `Net.forward`.
+- Use two backbones named `self.backbone_a` and `self.backbone_b` from [{available_backbones}].
+- Keep `forward` as a direct computation graph with real stem/project/bridge/fuse/fractal modules where useful.
+- Use `adaptive_pool_flatten(...)` before concatenating or classifying branch outputs, and return classifier logits.
+- Prioritize a runnable, trainable dual-backbone graph over novelty.
 """
 
 open_discovery_prompt_template = compact_backbone_rl_prompt_template

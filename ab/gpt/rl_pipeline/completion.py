@@ -105,105 +105,12 @@ def _scan_raw_attrs(*texts: str) -> List[str]:
     return _dedupe_keep_order(attrs)
 
 
-def _prepare_completion_for_xml(completion: str) -> str:
-    stripped = _strip_outer_code_fences(completion or "").lstrip()
-    if "<block>" not in stripped and "</block>" in stripped and "<init>" in stripped:
-        return stripped
-    if "<block>" not in stripped and "</block>" not in stripped and "<init>" in stripped:
-        init_pos = stripped.find("<init>")
-        pre_init = stripped[:init_pos].strip()
-        rest = stripped[init_pos:]
-        if pre_init:
-            return f"<block>\n{BLOCK_SIGNATURE}\n{pre_init}\n</block>\n{rest}"
-        return (
-            f"<block>\n{BLOCK_SIGNATURE}\n"
-            "    return nn.Sequential(nn.Conv2d(in_channels, out_channels, 3, stride, padding, bias=bias))\n"
-            f"</block>\n{rest}"
-        )
-    return stripped
-
-
-def _normalize_required_function(code: str, fn_name: str, signature: str) -> str:
+def _accept_exact_function(code: str, signature: str) -> str:
     code = _strip_outer_code_fences(code)
-    if not code:
-        return ""
     code = textwrap.dedent(code).strip()
-    if not code:
+    if not code.startswith(signature):
         return ""
-
-    lines = code.splitlines()
-    if lines and re.match(rf"^\s*def {re.escape(fn_name)}\s*\(", lines[0]):
-        body_lines = lines[1:]
-    else:
-        body_lines = lines
-
-    body_text = textwrap.dedent("\n".join(body_lines)).strip("\n")
-    if not body_text.strip():
-        return ""
-
-    normalized_body = [f"    {line}" if line.strip() else "" for line in body_text.splitlines()]
-    return f"{signature}\n" + "\n".join(normalized_body)
-
-
-def _normalize_block_code(block_code: str) -> str:
-    return _normalize_required_function(block_code, "drop_conv3x3_block", BLOCK_SIGNATURE)
-
-
-def _find_last_body_line_index(lines: Sequence[str], prefixes: Sequence[str]) -> int:
-    last_index = 0
-    for index, raw_line in enumerate(lines):
-        stripped = raw_line.strip()
-        if any(stripped.startswith(prefix) for prefix in prefixes):
-            last_index = index + 1
-    return last_index
-
-
-def _repair_init_abi(init_code: str) -> str:
-    if not init_code:
-        return ""
-    lines = init_code.splitlines()
-    if not lines:
-        return init_code
-
-    signature = lines[0]
-    body_lines = list(lines[1:])
-    if not body_lines:
-        return init_code
-
-    repaired_body: List[str] = []
-    for raw_line in body_lines:
-        if raw_line.strip().startswith("self.infer_dimensions_dynamically("):
-            continue
-        repaired_body.append(raw_line)
-
-    if not any(line.strip().startswith("self.device =") for line in repaired_body):
-        insert_at = _find_last_body_line_index(repaired_body, ("super().__init__()",))
-        repaired_body.insert(insert_at, "    self.device = device")
-
-    if not any(line.strip().startswith("self.use_amp =") for line in repaired_body):
-        insert_at = _find_last_body_line_index(repaired_body, ("super().__init__()", "self.device ="))
-        repaired_body.insert(insert_at, "    self.use_amp = torch.cuda.is_available()")
-
-    if not any("self._input_spec" in line and "=" in line for line in repaired_body):
-        insert_at = _find_last_body_line_index(
-            repaired_body,
-            ("super().__init__()", "self.device =", "self.use_amp =", "self.pattern ="),
-        )
-        repaired_body.insert(insert_at, "    self._input_spec = tuple(in_shape[1:])")
-
-    while repaired_body and not repaired_body[-1].strip():
-        repaired_body.pop()
-    repaired_body.append("    self.infer_dimensions_dynamically(out_shape[0])")
-    return "\n".join([signature, *repaired_body])
-
-
-def _normalize_init_code(init_code: str) -> str:
-    normalized = _normalize_required_function(init_code, "__init__", INIT_SIGNATURE)
-    return _repair_init_abi(normalized)
-
-
-def _normalize_forward_code(forward_code: str) -> str:
-    return _normalize_required_function(forward_code, "forward", FORWARD_SIGNATURE)
+    return code
 
 
 def _extract_defined_backbones(init_code: str) -> List[str]:
@@ -294,7 +201,7 @@ def _build_extraction_meta(
     }
 
 
-def extract_completion_payload_tolerant(completion: str) -> Tuple[Tuple[str, str, str], Dict[str, object]]:
+def extract_completion_payload_strict(completion: str) -> Tuple[Tuple[str, str, str], Dict[str, object]]:
     cache_key = _completion_cache_key(completion or "")
     cached = _EXTRACTION_META_CACHE.get(cache_key)
     if cached:
@@ -303,11 +210,25 @@ def extract_completion_payload_tolerant(completion: str) -> Tuple[Tuple[str, str
             dict(cached["meta"]),
         )
 
-    candidate = _prepare_completion_for_xml(completion or "")
-    block_code = _normalize_block_code(_extract_xml_tag(candidate, "block"))
-    init_code = _normalize_init_code(_extract_xml_tag(candidate, "init"))
-    forward_code = _normalize_forward_code(_extract_xml_tag(candidate, "forward"))
-    meta = _build_extraction_meta(completion or "", candidate, block_code, init_code, forward_code)
+    candidate = _strip_outer_code_fences(completion or "").lstrip()
+    raw_block_code = _extract_xml_tag(candidate, "block")
+    raw_init_code = _extract_xml_tag(candidate, "init")
+    raw_forward_code = _extract_xml_tag(candidate, "forward")
+    meta = _build_extraction_meta(
+        completion or "",
+        candidate,
+        raw_block_code,
+        raw_init_code,
+        raw_forward_code,
+    )
+    if meta.get("xml_tag_exact"):
+        block_code = _accept_exact_function(raw_block_code, BLOCK_SIGNATURE)
+        init_code = _accept_exact_function(raw_init_code, INIT_SIGNATURE)
+        forward_code = _accept_exact_function(raw_forward_code, FORWARD_SIGNATURE)
+    else:
+        block_code = ""
+        init_code = ""
+        forward_code = ""
 
     _EXTRACTION_META_CACHE[cache_key] = {
         "block_code": block_code,
@@ -318,11 +239,11 @@ def extract_completion_payload_tolerant(completion: str) -> Tuple[Tuple[str, str
     return ((block_code, init_code, forward_code), meta)
 
 
-def extract_completion_blocks_tolerant(completion: str) -> Tuple[str, str, str]:
-    blocks, _ = extract_completion_payload_tolerant(completion)
+def extract_completion_blocks_strict(completion: str) -> Tuple[str, str, str]:
+    blocks, _ = extract_completion_payload_strict(completion)
     return blocks
 
 
 def extract_completion_meta(completion: str) -> Dict[str, object]:
-    _, meta = extract_completion_payload_tolerant(completion)
+    _, meta = extract_completion_payload_strict(completion)
     return meta
