@@ -63,6 +63,16 @@ _MAX_DELTA_RETRIES = 2
 _EVAL_CUDA_VISIBLE_DEVICES_ENV = "NNGPT_TUNEBACKBONE_EVAL_CUDA_VISIBLE_DEVICES"
 
 
+def _normalize_nn_prefixes(nn_prefixes):
+    if nn_prefixes is None:
+        return None
+    if isinstance(nn_prefixes, str):
+        prefixes = tuple(item.strip() for item in nn_prefixes.split(",") if item.strip())
+    else:
+        prefixes = tuple(str(item).strip() for item in nn_prefixes if str(item).strip())
+    return prefixes or None
+
+
 def apply_sliding_window(example, max_length, stride, tokenizer):
     input_ids = example['input_ids']
     attention_mask = example['attention_mask']
@@ -112,6 +122,7 @@ def nn_gen(
     sft_nn_prefixes=None,
 ):
     print("Preparing prompts for generation, this might take a while...")
+    sft_nn_prefixes = _normalize_nn_prefixes(sft_nn_prefixes)
 
     use_delta = nn_name_prefix == "delta"
     if not use_delta and isinstance(prompt_dict, dict) and conf_keys:
@@ -957,6 +968,7 @@ def tune(
     unsloth_load_in_4bit = config.get("load_in_4bit", True)
     max_new_tokens = config.get("max_new_tokens", max_new_tokens)
     use_backbone = config.get("backbone", use_backbone)
+    sft_nn_prefixes = _normalize_nn_prefixes(sft_nn_prefixes)
 
     access_token = None
     if token_from_file:
