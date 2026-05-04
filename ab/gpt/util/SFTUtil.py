@@ -375,6 +375,24 @@ You are a Senior AI Architect. Produce one trainable dual-backbone image-classif
 - Keep `forward` as a direct computation graph with real stem/project/bridge/fuse/fractal modules where useful.
 - Use `adaptive_pool_flatten(...)` before concatenating or classifying branch outputs, and return classifier logits.
 - Prioritize a runnable, trainable dual-backbone graph over novelty.
+
+### Completion Contract
+- Return exactly the three XML sections below.
+- Each section must contain the complete function or method definition and start with the exact signature shown.
+- Do not return imports, `class Net`, the full skeleton, markdown fences, or prose outside these sections.
+
+<block>
+def drop_conv3x3_block(in_channels, out_channels, stride=1, padding=1, bias=False, dropout_prob=0.0):
+    ...
+</block>
+<init>
+def __init__(self, in_shape: tuple, out_shape: tuple, prm: dict, device: torch.device) -> None:
+    ...
+</init>
+<forward>
+def forward(self, x: torch.Tensor, is_probing: bool = False) -> torch.Tensor:
+    ...
+</forward>
 """
 
 open_discovery_prompt_template = compact_backbone_rl_prompt_template
