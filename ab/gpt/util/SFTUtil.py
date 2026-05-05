@@ -316,6 +316,59 @@ class Net(nn.Module):
         return train_accuracy, train_loss
 """
 
+backbone_prompt_skeleton_code = """import torch
+import torch.nn as nn
+import torchvision
+from torch.amp import autocast, GradScaler
+
+class TorchVision(nn.Module):
+    def __init__(self, model: str, weights: str = "DEFAULT", unwrap: bool = True, truncate: int = 1, in_channels: int = 3):
+        ...
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        ...
+
+def adaptive_pool_flatten(x):
+    ...
+def autocast_ctx(enabled=True):
+    ...
+def make_scaler(enabled=True):
+    ...
+def supported_hyperparameters():
+    return { 'lr', 'dropout', 'momentum' }
+
+def drop_conv3x3_block(in_channels, out_channels, stride=1, padding=1, bias=False, dropout_prob=0.0):
+    ...
+
+class FractalBlock(nn.Module):
+    ...
+
+class FractalUnit(nn.Module):
+    ...
+
+class Net(nn.Module):
+    def __init__(self, in_shape: tuple, out_shape: tuple, prm: dict, device: torch.device) -> None:
+        ...
+
+    def infer_dimensions_dynamically(self, *args):
+        # Fixed helper. With one arg, self._input_spec must already be (c, h, w).
+        # With two args, it sets self._input_spec from in_shape.
+        ...
+
+    def _feature_to_input_image(self, x: torch.Tensor, adapter_name: str) -> torch.Tensor:
+        # Fixed helper. Requires self._input_spec and self.device.
+        ...
+
+    def forward(self, x: torch.Tensor, is_probing: bool = False) -> torch.Tensor:
+        ...
+
+    def train_setup(self, prm):
+        # Fixed helper. Requires self.device, self.use_amp, self.backbone_a, self.backbone_b.
+        ...
+
+    def learn(self, train_data):
+        ...
+"""
+
 prompt_template="""
 ### Role
 You are implementing one trainable dual-backbone image-classification model. Seed accuracy: {accuracy}.
@@ -349,7 +402,7 @@ def format_backbone_prompt(*, accuracy, target_pattern):
     return prompt_template.format(
         accuracy=accuracy,
         target_pattern=target_pattern,
-        skeleton_code=skeleton_code,
+        skeleton_code=backbone_prompt_skeleton_code,
         available_backbones=", ".join(available_backbones),
     )
 
