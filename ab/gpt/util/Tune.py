@@ -840,6 +840,7 @@ def _finetune_epoch(
         dataset,
         tokenizer,
         out_path / base_model_name,
+        train_on_completions_only=use_backbone,
         resume_from_checkpoint=resume_trainer_checkpoint,
         checkpoint_label="trainer",
     )

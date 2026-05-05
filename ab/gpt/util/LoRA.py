@@ -174,8 +174,12 @@ class LoRA:
         """
         self.peft_model.config.use_cache = False
         
-        # Check if dataset has "text" field (pre-rendered) or needs formatting
-        has_text_field = "text" in dataset.column_names if hasattr(dataset, 'column_names') else False
+        # Check if dataset has pre-rendered text or prompt/completion pairs.
+        column_names = set(dataset.column_names) if hasattr(dataset, 'column_names') else set()
+        has_text_field = "text" in column_names
+        has_prompt_completion = {"prompt", "completion"}.issubset(column_names)
+        if has_prompt_completion:
+            train_on_completions_only = True
         
         # Split The dataset
         dataset = dataset.train_test_split(test_size=0.1)
@@ -187,7 +191,7 @@ class LoRA:
         print_trainable_parameters(self.peft_model)
 
         # Determine data collator and trainer kwargs
-        if train_on_completions_only:
+        if train_on_completions_only and not has_prompt_completion:
             if response_template is None:
                 # Try to auto-detect response template from first example
                 if has_text_field and len(train_dataset) > 0:
@@ -239,17 +243,13 @@ class LoRA:
                 return_tensors="pt"
             )
 
-        # Use SFTTrainer for pre-rendered text, or fallback to Trainer if needed
-        # TL;DR: Feed Dataset.from_list([...{"text": ...}...]) to SFTTrainer with dataset_text_field="text"
-        # Choose:
-        #   Simple: train on full text (packing=True)
-        #   Precise: DataCollatorForCompletionOnlyLM with response_template + packing=False
-        if has_text_field:
-            print("[INFO] Using SFTTrainer with pre-rendered text (dataset_text_field='text')")
-            # Packing: enable when NOT using completion-only masking (completion-only requires packing=False)
-            # Simple mode: packing=True (train on full text)
-            # Precise mode: packing=False + DataCollatorForCompletionOnlyLM (train on completions only)
-            use_packing = not train_on_completions_only
+        # Use SFTTrainer for pre-rendered text or prompt/completion pairs.
+        if has_text_field or has_prompt_completion:
+            if has_prompt_completion:
+                print("[INFO] Using SFTTrainer with prompt/completion dataset")
+            else:
+                print("[INFO] Using SFTTrainer with pre-rendered text (dataset_text_field='text')")
+            use_packing = False if has_prompt_completion else not train_on_completions_only
             print(f"[INFO] Packing enabled: {use_packing} ({'Simple mode: full text' if use_packing else 'Precise mode: completions only'})")
             
             # Configure tokenizer for SFT: truncate from left (keep assistant response), pad on right
@@ -269,14 +269,16 @@ class LoRA:
                 self.training_args.remove_unused_columns = False  # critical when using raw text
                 self.training_args.packing = use_packing  # Simple: True, Precise: False
                 self.training_args.max_seq_length = 4096  # DeepSeek-Coder-7B-Instruct-v1.5 has ~4K context (4k/4.1k)
-                self.training_args.dataset_text_field = "text"  # Feed Dataset with {"text": ...} format
+                if has_text_field:
+                    self.training_args.dataset_text_field = "text"  # Feed Dataset with {"text": ...} format
             else:
                 # If training_args is TrainingArguments, create SFTConfig with all attributes
                 sft_config = SFTConfig(**self.training_args.to_dict())
                 sft_config.remove_unused_columns = False  # critical when using raw text
                 sft_config.packing = use_packing  # Simple: True, Precise: False
                 sft_config.max_seq_length = 4096  # DeepSeek-Coder-7B-Instruct-v1.5 has ~4K context (4k/4.1k)
-                sft_config.dataset_text_field = "text"  # Feed Dataset with {"text": ...} format
+                if has_text_field:
+                    sft_config.dataset_text_field = "text"  # Feed Dataset with {"text": ...} format
                 self.training_args = sft_config
             
             # SFTTrainer will handle tokenization and truncation internally

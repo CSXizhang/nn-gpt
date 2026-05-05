@@ -35,7 +35,7 @@ class SFTGenPrompt(Prompt):
     def get_raw_dataset(self, only_best_accuracy, n_training_prompts=None) -> DataFrame:
         """
         Extracts data from Lemur and formats it using SFTUtil.
-        Returns DataFrame with 'text' column.
+        Returns prompt/completion chat columns so TRL can build completion masks.
         """
         print(f"extracting data from Lemur for SFT with nn_prefixes={self.nn_prefixes}...")
         df = lemur.data(
@@ -59,23 +59,16 @@ class SFTGenPrompt(Prompt):
             
             if block_code and init_code and forward_code and target_pattern:
                 assistant_response = f"<block>\n{block_code}\n</block>\n<init>\n{init_code}\n</init>\n<forward>\n{forward_code}\n</forward>"
-                messages = [
-                    {
-                        "role": "user",
-                        "content": SFTUtil.format_backbone_prompt(
-                            accuracy=accuracy,
-                            target_pattern=target_pattern,
-                        ),
-                    },
-                    {"role": "assistant", "content": assistant_response}
-                ]
-                text = self.tokenizer.apply_chat_template(
-                    messages, 
-                    tokenize=False, 
-                    add_generation_prompt=False,
-                    add_special_tokens=False
+                user_prompt = SFTUtil.format_backbone_prompt(
+                    accuracy=accuracy,
+                    target_pattern=target_pattern,
                 )
-                formatted_data.append({"text": text})
+                formatted_data.append(
+                    {
+                        "prompt": [{"role": "user", "content": user_prompt}],
+                        "completion": [{"role": "assistant", "content": assistant_response}],
+                    }
+                )
             else:
                  print(f"Skipping row {row.name} due to parsing failure or missing target_pattern")
 
@@ -85,7 +78,7 @@ class SFTGenPrompt(Prompt):
     def get_dataset(self, only_best_accuracy=False, seed=None, max_prompts=None, max_new_tokens=4096):
         """
         Override to return dataset WITHOUT tokenization/column stripping.
-        LoRA.py's train() method will see the 'text' column and use SFTTrainer.
+        LoRA.py's train() method will let SFTTrainer tokenize prompt/completion pairs.
         """
         raw_df = self.get_raw_dataset(only_best_accuracy, max_prompts)
         dataset = Dataset.from_pandas(raw_df)
