@@ -263,12 +263,12 @@ class LoRA:
             warnings.filterwarnings("ignore", message=".*sequence length.*longer than.*maximum.*")
             warnings.filterwarnings("ignore", message=".*Token indices sequence length.*")
             
-            # Set packing, max_seq_length, and dataset_text_field in SFTConfig to avoid warnings
+            # Set packing, max_length, and dataset_text_field in SFTConfig to avoid warnings
             # Convert to SFTConfig if not already, or set attributes directly
             if isinstance(self.training_args, SFTConfig):
                 self.training_args.remove_unused_columns = False  # critical when using raw text
                 self.training_args.packing = use_packing  # Simple: True, Precise: False
-                self.training_args.max_seq_length = 4096  # DeepSeek-Coder-7B-Instruct-v1.5 has ~4K context (4k/4.1k)
+                self.training_args.max_length = 4096  # DeepSeek-Coder-7B-Instruct-v1.5 has ~4K context (4k/4.1k)
                 if has_text_field:
                     self.training_args.dataset_text_field = "text"  # Feed Dataset with {"text": ...} format
             else:
@@ -276,7 +276,7 @@ class LoRA:
                 sft_config = SFTConfig(**self.training_args.to_dict())
                 sft_config.remove_unused_columns = False  # critical when using raw text
                 sft_config.packing = use_packing  # Simple: True, Precise: False
-                sft_config.max_seq_length = 4096  # DeepSeek-Coder-7B-Instruct-v1.5 has ~4K context (4k/4.1k)
+                sft_config.max_length = 4096  # DeepSeek-Coder-7B-Instruct-v1.5 has ~4K context (4k/4.1k)
                 if has_text_field:
                     sft_config.dataset_text_field = "text"  # Feed Dataset with {"text": ...} format
                 self.training_args = sft_config
@@ -290,8 +290,8 @@ class LoRA:
                 eval_dataset=eval_dataset,
                 args=self.training_args,
                 data_collator=collator  # Simple: DataCollatorForLanguageModeling, Precise: DataCollatorForCompletionOnlyLM
-                # packing, max_seq_length, and dataset_text_field are in training_args (SFTConfig)
-                # SFTTrainer will handle truncation based on max_seq_length and tokenizer settings
+                # packing, max_length, and dataset_text_field are in training_args (SFTConfig)
+                # SFTTrainer will handle truncation based on max_length and tokenizer settings
             )
         else:
             print("[WARN] Dataset does not have 'text' field. Using standard Trainer.")
