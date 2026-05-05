@@ -1,17 +1,13 @@
-import ast
-import hashlib
 import json
 import os
 import shutil
 import random
 import inspect
-import re
 import sys
 import tempfile
-import textwrap
 import time
 from pathlib import Path
-from typing import Any, Dict, List, Sequence, Tuple
+from typing import Any, Dict, List
 from torch.utils.data import Dataset as TorchDataset
 from ab.gpt.util.Const import conf_dir
 
@@ -70,6 +66,15 @@ SFT_VAL_METRIC_BASELINE = 0.10
 # os.environ["TRANSFORMERS_CACHE"] = SFT_TRANSFORMERS_CACHE
 
 import ab.gpt.TuneRL as TuneRL
+from ab.gpt.rl_pipeline.completion import (
+    BLOCK_SIGNATURE,
+    FORWARD_SIGNATURE,
+    INIT_SIGNATURE,
+    clear_extraction_meta_cache,
+    extract_completion_blocks_strict,
+    extract_completion_meta,
+)
+import ab.gpt.rl_pipeline.trainer_runtime as TrainerRuntime
 import ab.gpt.util.Reward as RewardUtil
 import ab.gpt.util.SFTUtil as SFTUtil
 import ab.gpt.util.training_runtime as TrainingRuntime
@@ -80,358 +85,6 @@ SFT_EVAL_TRANSFORM = TuneRL.FORMAL_REWARD_TRANSFORM
 _TRAIN_GPU_TOKENS_ENV = "NNGPT_TRAIN_GPU_TOKENS"
 _AUX_GPU_TOKENS_ENV = "NNGPT_AUX_GPU_TOKENS"
 _REWARD_GPU_TOKENS_ENV = "NNGPT_REWARD_GPU_TOKENS"
-
-REQUIRED_BACKBONE_NAMES = ("backbone_a", "backbone_b")
-BLOCK_SIGNATURE = "def drop_conv3x3_block(in_channels, out_channels, stride=1, padding=1, bias=False, dropout_prob=0.0):"
-INIT_SIGNATURE = "def __init__(self, in_shape: tuple, out_shape: tuple, prm: dict, device: torch.device) -> None:"
-FORWARD_SIGNATURE = "def forward(self, x: torch.Tensor, is_probing: bool = False) -> torch.Tensor:"
-
-_BLOCKED_ATTRS = {
-    "device",
-    "use_amp",
-    "_input_spec",
-    "pattern",
-    "classifier",
-    "infer_dimensions_dynamically",
-    "train_setup",
-    "learn",
-    "criterion",
-    "optimizer",
-    "_scaler",
-}
-
-_EXTRACTION_META_CACHE: Dict[str, Dict[str, object]] = {}
-
-
-def clear_extraction_meta_cache() -> None:
-    _EXTRACTION_META_CACHE.clear()
-
-
-class RawCodeLogger(TuneRL.SimpleCodeLogger):
-    def __init__(self, output_dir: str = "rl_output/raw"):
-        super().__init__(output_dir)
-        self.samples_file = os.path.join(output_dir, "generation_samples.jsonl")
-
-    def log_generation(self, prompt: str, completion: str, reward: float, api_result=None):
-        super().log_generation(prompt, completion, reward, api_result)
-
-
-def _strip_outer_code_fences(text: str) -> str:
-    if not text:
-        return ""
-    text = text.strip()
-    text = re.sub(r"^```(?:python)?\s*", "", text, flags=re.IGNORECASE)
-    text = re.sub(r"\s*```$", "", text)
-    return text.strip()
-
-
-def _extract_xml_tag(text: str, tag: str) -> str:
-    match = re.search(rf"<{tag}>\s*(.*?)\s*</{tag}>", text, re.IGNORECASE | re.DOTALL)
-    return TuneRL.clean_block(match.group(1)) if match else ""
-
-
-def _extract_function_block(text: str, fn_name: str) -> str:
-    lines = text.splitlines()
-    for start_index, line in enumerate(lines):
-        if not re.match(rf"^\s*def {re.escape(fn_name)}\s*\(", line):
-            continue
-        indent = len(line) - len(line.lstrip())
-        end_index = len(lines)
-        for scan_index in range(start_index + 1, len(lines)):
-            stripped = lines[scan_index].lstrip()
-            if not stripped:
-                continue
-            indent_scan = len(lines[scan_index]) - len(stripped)
-            if (stripped.startswith("def ") or stripped.startswith("class ")) and indent_scan <= indent:
-                end_index = scan_index
-                break
-        return textwrap.dedent("\n".join(lines[start_index:end_index])).strip()
-    return ""
-
-
-def _dedupe_keep_order(items: Sequence[str]) -> List[str]:
-    deduped: List[str] = []
-    seen = set()
-    for item in items:
-        if not item or item in seen:
-            continue
-        seen.add(item)
-        deduped.append(item)
-    return deduped
-
-
-def _clean_source_text(text: str) -> str:
-    if not text:
-        return ""
-    text = text.replace("\r\n", "\n").replace("\r", "\n")
-    text = text.replace("```python", "").replace("```", "")
-    text = text.replace("<s=", "=")
-    text = text.replace("torch.concat(", "torch.cat(")
-    text = text.replace("torch.concatenate(", "torch.cat(")
-    text = text.replace("self.adaptive_pool_flatten(", "adaptive_pool_flatten(")
-    return text.strip()
-
-
-def _completion_cache_key(text: str) -> str:
-    return hashlib.sha1((text or "").encode("utf-8")).hexdigest()
-
-
-def _infer_attr_role(attr_name: str) -> str:
-    lowered = attr_name.lower()
-    if "fractal" in lowered:
-        return "fractal"
-    if lowered.startswith("backbone"):
-        return "backbone"
-    if "stem" in lowered:
-        return "stem"
-    if any(token in lowered for token in ("project", "bridge", "adapter", "align")):
-        return "project"
-    if any(token in lowered for token in ("fuse", "merge", "gate", "mixer")):
-        return "fuse"
-    return "generic"
-
-
-def _has_structural_attr(attrs: Sequence[str]) -> bool:
-    return any(
-        _infer_attr_role(attr) in {"stem", "project", "fuse", "backbone", "fractal"}
-        for attr in attrs
-    )
-
-
-def _scan_raw_attrs(*texts: str) -> List[str]:
-    attrs: List[str] = []
-    for text in texts:
-        if not text:
-            continue
-        for attr in re.findall(r"self\.([A-Za-z_]\w*)\s*(?:\(|=)", text):
-            if attr in _BLOCKED_ATTRS or attr.startswith("__"):
-                continue
-            attrs.append(attr)
-    return _dedupe_keep_order(attrs)
-
-
-def _prepare_completion_for_xml(completion: str) -> str:
-    stripped = _strip_outer_code_fences(completion or "").lstrip()
-    if "<block>" not in stripped and "</block>" in stripped and "<init>" in stripped:
-        return stripped
-    if "<block>" not in stripped and "</block>" not in stripped and "<init>" in stripped:
-        init_pos = stripped.find("<init>")
-        pre_init = stripped[:init_pos].strip()
-        rest = stripped[init_pos:]
-        if pre_init:
-            return f"<block>\n{BLOCK_SIGNATURE}\n{pre_init}\n</block>\n{rest}"
-        return (
-            f"<block>\n{BLOCK_SIGNATURE}\n"
-            "    return nn.Sequential(nn.Conv2d(in_channels, out_channels, 3, stride, padding, bias=bias))\n"
-            f"</block>\n{rest}"
-        )
-    return stripped
-
-
-def _normalize_required_function(code: str, fn_name: str, signature: str) -> str:
-    code = _strip_outer_code_fences(code)
-    if not code:
-        return ""
-    code = textwrap.dedent(code).strip()
-    if not code:
-        return ""
-
-    lines = code.splitlines()
-    if lines and re.match(rf"^\s*def {re.escape(fn_name)}\s*\(", lines[0]):
-        body_lines = lines[1:]
-    else:
-        body_lines = lines
-
-    body_text = textwrap.dedent("\n".join(body_lines)).strip("\n")
-    if not body_text.strip():
-        return ""
-
-    normalized_body = [f"    {line}" if line.strip() else "" for line in body_text.splitlines()]
-    return f"{signature}\n" + "\n".join(normalized_body)
-
-
-def _normalize_block_code(block_code: str) -> str:
-    return _normalize_required_function(block_code, "drop_conv3x3_block", BLOCK_SIGNATURE)
-
-
-def _find_last_body_line_index(lines: Sequence[str], prefixes: Sequence[str]) -> int:
-    last_index = 0
-    for index, raw_line in enumerate(lines):
-        stripped = raw_line.strip()
-        if any(stripped.startswith(prefix) for prefix in prefixes):
-            last_index = index + 1
-    return last_index
-
-
-def _repair_init_abi(init_code: str) -> str:
-    if not init_code:
-        return ""
-    lines = init_code.splitlines()
-    if not lines:
-        return init_code
-
-    signature = lines[0]
-    body_lines = list(lines[1:])
-    if not body_lines:
-        return init_code
-
-    repaired_body: List[str] = []
-    for raw_line in body_lines:
-        if raw_line.strip().startswith("self.infer_dimensions_dynamically("):
-            continue
-        repaired_body.append(raw_line)
-
-    if not any(line.strip().startswith("self.device =") for line in repaired_body):
-        insert_at = _find_last_body_line_index(repaired_body, ("super().__init__()",))
-        repaired_body.insert(insert_at, "    self.device = device")
-
-    if not any(line.strip().startswith("self.use_amp =") for line in repaired_body):
-        insert_at = _find_last_body_line_index(repaired_body, ("super().__init__()", "self.device ="))
-        repaired_body.insert(insert_at, "    self.use_amp = torch.cuda.is_available()")
-
-    if not any("self._input_spec" in line and "=" in line for line in repaired_body):
-        insert_at = _find_last_body_line_index(
-            repaired_body,
-            ("super().__init__()", "self.device =", "self.use_amp =", "self.pattern ="),
-        )
-        repaired_body.insert(insert_at, "    self._input_spec = tuple(in_shape[1:])")
-
-    while repaired_body and not repaired_body[-1].strip():
-        repaired_body.pop()
-    repaired_body.append("    self.infer_dimensions_dynamically(out_shape[0])")
-    return "\n".join([signature, *repaired_body])
-
-
-def _normalize_init_code(init_code: str) -> str:
-    normalized = _normalize_required_function(init_code, "__init__", INIT_SIGNATURE)
-    return _repair_init_abi(normalized)
-
-
-def _normalize_forward_code(forward_code: str) -> str:
-    return _normalize_required_function(forward_code, "forward", FORWARD_SIGNATURE)
-
-
-def _extract_defined_backbones(init_code: str) -> List[str]:
-    return _dedupe_keep_order(re.findall(r"self\.(backbone_[A-Za-z]\w*)\s*=", init_code or ""))
-
-
-def _extract_used_backbones(forward_code: str) -> List[str]:
-    return _dedupe_keep_order(re.findall(r"self\.(backbone_[A-Za-z]\w*)\b", forward_code or ""))
-
-
-def _extract_backbone_model_names(init_code: str) -> List[str]:
-    matches: Dict[str, str] = {}
-    patterns = (
-        r"self\.(backbone_[ab])\s*=\s*TorchVision\(\s*model\s*=\s*['\"]([^'\"]+)['\"]",
-        r"self\.(backbone_[ab])\s*=\s*TorchVision\(\s*['\"]([^'\"]+)['\"]",
-    )
-    for pattern in patterns:
-        for match in re.finditer(pattern, init_code or ""):
-            matches.setdefault(match.group(1), match.group(2))
-    return [matches[name] for name in REQUIRED_BACKBONE_NAMES if name in matches]
-
-
-def _count_xml_tags(text: str, tag: str) -> Tuple[int, int]:
-    return (
-        len(re.findall(rf"<{tag}>", text, re.IGNORECASE)),
-        len(re.findall(rf"</{tag}>", text, re.IGNORECASE)),
-    )
-
-
-def _build_extraction_meta(
-    completion: str,
-    candidate: str,
-    block_code: str,
-    init_code: str,
-    forward_code: str,
-) -> Dict[str, object]:
-    xml_tag_count = sum(bool(code) for code in (block_code, init_code, forward_code))
-    xml_counts = {tag: _count_xml_tags(candidate, tag) for tag in ("block", "init", "forward")}
-    class_count = len(re.findall(r"^\s*class\s+\w+", candidate, re.MULTILINE))
-    import_count = len(re.findall(r"^\s*(?:from|import)\s+\w+", candidate, re.MULTILINE))
-    bad_signature_count = len(re.findall(r"\)\s*-\s*:", candidate))
-    raw_attrs = _scan_raw_attrs(candidate, block_code, init_code, forward_code)
-    structural_attr_detected = _has_structural_attr(raw_attrs)
-
-    defined_backbones = _extract_defined_backbones(init_code)
-    used_backbones = _extract_used_backbones(forward_code)
-    backbone_model_names = _extract_backbone_model_names(init_code)
-    required_backbone_set = set(REQUIRED_BACKBONE_NAMES)
-    dual_backbone_init_ok = set(defined_backbones) == required_backbone_set and len(defined_backbones) == 2
-    dual_backbone_forward_ok = required_backbone_set.issubset(set(used_backbones)) and len(set(used_backbones)) == 2
-    dual_backbone_ok = dual_backbone_init_ok and dual_backbone_forward_ok
-
-    exact_xml = all(start_count == 1 and end_count == 1 for start_count, end_count in xml_counts.values())
-    exact_signatures = {
-        "block": block_code.startswith(BLOCK_SIGNATURE),
-        "init": init_code.startswith(INIT_SIGNATURE),
-        "forward": forward_code.startswith(FORWARD_SIGNATURE),
-    }
-
-    quality_score = 0
-    quality_score += 2 if exact_xml else 0
-    quality_score += sum(1 for ok in exact_signatures.values() if ok)
-    quality_score += 2 if dual_backbone_ok else 0
-    quality_score += 1 if structural_attr_detected else 0
-    quality_score -= min(class_count, 2)
-    quality_score -= min(import_count, 2)
-    quality_score -= min(bad_signature_count, 2)
-
-    return {
-        "xml_tag_count": xml_tag_count,
-        "xml_tag_exact": exact_xml,
-        "xml_counts": xml_counts,
-        "class_count": class_count,
-        "import_count": import_count,
-        "bad_signature_count": bad_signature_count,
-        "structural_attr_detected": structural_attr_detected,
-        "quality_score": quality_score,
-        "exact_block_signature": exact_signatures["block"],
-        "exact_init_signature": exact_signatures["init"],
-        "exact_forward_signature": exact_signatures["forward"],
-        "defined_backbones": defined_backbones,
-        "used_backbones": used_backbones,
-        "backbone_model_names": backbone_model_names,
-        "dual_backbone_init_ok": dual_backbone_init_ok,
-        "dual_backbone_forward_ok": dual_backbone_forward_ok,
-        "dual_backbone_ok": dual_backbone_ok,
-        "candidate_line_count": len(candidate.splitlines()),
-    }
-
-
-def extract_completion_payload_tolerant(completion: str) -> Tuple[Tuple[str, str, str], Dict[str, object]]:
-    cache_key = _completion_cache_key(completion or "")
-    cached = _EXTRACTION_META_CACHE.get(cache_key)
-    if cached:
-        return (
-            (cached["block_code"], cached["init_code"], cached["forward_code"]),
-            dict(cached["meta"]),
-        )
-
-    candidate = _prepare_completion_for_xml(completion or "")
-    block_code = _normalize_block_code(_extract_xml_tag(candidate, "block"))
-    init_code = _normalize_init_code(_extract_xml_tag(candidate, "init"))
-    forward_code = _normalize_forward_code(_extract_xml_tag(candidate, "forward"))
-    meta = _build_extraction_meta(completion or "", candidate, block_code, init_code, forward_code)
-
-    _EXTRACTION_META_CACHE[cache_key] = {
-        "block_code": block_code,
-        "init_code": init_code,
-        "forward_code": forward_code,
-        "meta": meta,
-    }
-    return ((block_code, init_code, forward_code), meta)
-
-
-def extract_completion_blocks_tolerant(completion: str) -> Tuple[str, str, str]:
-    blocks, _ = extract_completion_payload_tolerant(completion)
-    return blocks
-
-
-def extract_completion_meta(completion: str) -> Dict[str, object]:
-    _, meta = extract_completion_payload_tolerant(completion)
-    return meta
-
 
 def raw_reward_fn(
     completion: str,
@@ -544,15 +197,6 @@ def raw_reward_fn(
     }
     res.setdefault("backbone_model_names", list(meta.get("backbone_model_names", [])))
     return res
-
-
-def _sft_runtime_state_hooks() -> TrainingRuntime.RuntimeStateHooks:
-    # SFT reuses the RL reward runtime state so checkpoint resume stays compatible.
-    return TrainingRuntime.RuntimeStateHooks(
-        capture=TuneRL.capture_reward_runtime_state,
-        restore=TuneRL.restore_reward_runtime_state,
-        reset=TuneRL.reset_reward_runtime_state,
-    )
 
 
 def _sft_runtime_state_hooks() -> TrainingRuntime.RuntimeStateHooks:
@@ -1422,11 +1066,7 @@ class DynamicSFTPromptDataset(TorchDataset):
             feedback_char_budget=SFT_FEEDBACK_CHAR_BUDGET,
         )
         feedback_section = "\n\n### Current Optimization Feedback\n" + feedback_text.strip() + "\n"
-        marker = "### Output Requirement (STRICT)"
-        if marker in user_prompt:
-            user_prompt = user_prompt.replace(marker, feedback_section + "\n" + marker, 1)
-        else:
-            user_prompt = user_prompt + feedback_section
+        user_prompt = user_prompt + feedback_section
         messages = [{"role": "user", "content": user_prompt}]
         return self.tokenizer.apply_chat_template(
             messages,
@@ -1450,8 +1090,7 @@ def load_rl_dataset_sft(tokenizer) -> TuneRL.Dataset:
     runtime_settings = resolve_sft_runtime_settings(RewardUtil.get_distributed_runtime_info())
     data = TuneRL.api.data(task="img-classification", nn_prefixes=("rl-bb-test1",))
     if data.empty:
-        print("No 'rl-bb-test1' data found, falling back to all img-classification")
-        data = TuneRL.api.data(only_best_accuracy=True, task="img-classification", dataset="cifar-10")
+        raise RuntimeError("No 'rl-bb-test1' data found for SFT RL; sync the dataset prefix before training.")
 
     print(f"Loaded {len(data)} examples for SFT RL")
     TuneRL.bootstrap_trainset_reference_library(data)
@@ -1596,7 +1235,6 @@ def _build_sft_grpo_config(
 
 def run_sft_training():
     import torch
-    from transformers import BitsAndBytesConfig
 
     if not torch.cuda.is_available():
         raise RuntimeError("SFT RL requires CUDA for GRPO training, but no CUDA device is available")
@@ -1742,74 +1380,50 @@ def run_sft_training():
     tokenizer_source = getattr(TuneRL, "tokenizer_source", TuneRL.base_model)
     if tokenizer_source != TuneRL.base_model:
         print(f"Using RL tokenizer: {tokenizer_source}")
-    tokenizer = TuneRL.AutoTokenizer.from_pretrained(tokenizer_source, trust_remote_code=True)
-    if tokenizer.pad_token is None:
-        tokenizer.pad_token = tokenizer.eos_token
+    tokenizer = TrainerRuntime.load_tokenizer(tokenizer_source)
 
     rl_dataset = TuneRL.load_rl_dataset(tokenizer)
     if len(rl_dataset) > runtime_settings["dataset_limit"]:
         rl_dataset = rl_dataset.select(range(runtime_settings["dataset_limit"]))
 
-    bnb_config = BitsAndBytesConfig(
-        load_in_4bit=True,
-        bnb_4bit_compute_dtype=precision["torch_dtype"],
-        bnb_4bit_use_double_quant=True,
-        bnb_4bit_quant_type="nf4",
-    )
-
-    model_load_kwargs: Dict[str, Any] = {
-        "trust_remote_code": True,
-        "quantization_config": bnb_config,
-        "torch_dtype": precision["torch_dtype"],
-    }
-    if not use_deepspeed:
-        model_load_kwargs["device_map"] = {"": train_device}
-    model = TuneRL.AutoModelForCausalLM.from_pretrained(
-        TuneRL.base_model,
-        **model_load_kwargs,
+    model = TrainerRuntime.load_quantized_causal_lm(
+        model_source=TuneRL.base_model,
+        precision=precision,
+        train_device=train_device,
+        use_deepspeed=use_deepspeed,
     )
     _ = hf_deepspeed_config
 
-    if load_initial_adapter:
-        if not init_adapter_path:
-            raise ValueError("SFT_INIT_ADAPTER is empty, but SFT_LOAD_INITIAL_ADAPTER is True.")
-        if not os.path.exists(init_adapter_path):
-            raise FileNotFoundError(f"Initial adapter not found: {init_adapter_path}")
-        print(f"Loading initial SFT adapter from {init_adapter_path}...")
-        model = TuneRL.PeftModel.from_pretrained(model, init_adapter_path)
-        model = model.merge_and_unload()
+    model = TrainerRuntime.maybe_merge_initial_adapter(
+        model,
+        enabled=load_initial_adapter,
+        adapter_path=init_adapter_path,
+        label="SFT",
+        empty_adapter_message="SFT_INIT_ADAPTER is empty, but SFT_LOAD_INITIAL_ADAPTER is True.",
+        missing_adapter_message=f"Initial adapter not found: {init_adapter_path}",
+        load_message=f"Loading initial SFT adapter from {init_adapter_path}...",
+    )
 
     model = TuneRL.prepare_model_for_kbit_training(model)
     TuneRL.align_generation_head_dtype(model, precision["torch_dtype"])
 
-    peft_config = TuneRL.LoraConfig(
+    peft_config = TrainerRuntime.build_lora_config(
         r=SFT_LORA_R,
-        lora_alpha=SFT_LORA_ALPHA,
-        target_modules=["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"],
-        lora_dropout=SFT_LORA_DROPOUT,
-        bias="none",
-        task_type="CAUSAL_LM",
+        alpha=SFT_LORA_ALPHA,
+        dropout=SFT_LORA_DROPOUT,
     )
-    if stage_adapter_dir is not None:
-        if not stage_adapter_dir.exists():
-            raise FileNotFoundError(f"Missing adapter directory under SFT stage checkpoint: {stage_adapter_dir}")
-        print(f"[SFT RL] Loading stage checkpoint adapter from {stage_adapter_dir}...")
-        model = TuneRL.PeftModel.from_pretrained(model, str(stage_adapter_dir), is_trainable=True)
-    else:
-        model = TuneRL.get_peft_model(model, peft_config)
+    model = TrainerRuntime.attach_or_resume_lora(
+        model,
+        peft_config=peft_config,
+        stage_adapter_dir=stage_adapter_dir,
+        log_prefix="[SFT RL]",
+        missing_adapter_message=f"Missing adapter directory under SFT stage checkpoint: {stage_adapter_dir}",
+    )
     TuneRL.align_generation_head_dtype(model, precision["torch_dtype"])
 
-    model.gradient_checkpointing_enable(
-        gradient_checkpointing_kwargs={"use_reentrant": False}
-    )
-    try:
-        model.enable_input_require_grads()
-    except Exception:
-        pass
-    gc_patch_stats = TuneRL.enforce_non_reentrant_gradient_checkpointing(model)
-    print(
-        "[SFT RL] Gradient checkpointing enforcement: "
-        f"roots={gc_patch_stats['roots']} modules={gc_patch_stats['modules']} use_reentrant=False"
+    TrainerRuntime.enable_non_reentrant_gradient_checkpointing(
+        model,
+        log_prefix="[SFT RL]",
     )
     model.print_trainable_parameters()
     TuneRL.active_rl_model = model
@@ -1821,7 +1435,7 @@ def run_sft_training():
         reward_funcs=TuneRL.compute_reward,
         args=grpo_config,
     )
-    trainer_gc_patch_stats = TuneRL.enforce_non_reentrant_gradient_checkpointing(trainer.model)
+    trainer_gc_patch_stats = TrainerRuntime.enforce_non_reentrant_gradient_checkpointing(trainer.model)
     print(
         "[SFT RL] Trainer gradient checkpointing enforcement: "
         f"roots={trainer_gc_patch_stats['roots']} modules={trainer_gc_patch_stats['modules']} use_reentrant=False"
@@ -1840,11 +1454,11 @@ def run_sft_training():
 
     print("Starting GRPO training for Backbone Search...")
     try:
-        if trainer_checkpoint is not None:
-            print(f"[SFT RL] Resuming trainer state from {trainer_checkpoint}...")
-            trainer.train(resume_from_checkpoint=str(trainer_checkpoint))
-        else:
-            trainer.train()
+        TrainerRuntime.train_grpo(
+            trainer=trainer,
+            trainer_checkpoint=trainer_checkpoint,
+            log_prefix="[SFT RL]",
+        )
     except Exception as exc:
         if TuneRL.is_cuda_oom_error(exc):
             TuneRL.log_cuda_oom_diagnostics("sft/trainer.train", exc)
@@ -1878,7 +1492,7 @@ def patch_sft_runtime() -> tuple[str, str, str]:
     TuneRL.LOAD_EXISTING_MODEL = load_initial_adapter
     TuneRL.SAVED_MODEL_PATH = init_adapter_path if load_initial_adapter else ""
     TuneRL.PROMPT_TEMPLATE = SFT_DISCOVERY_PROMPT_TEMPLATE
-    TuneRL.extract_completion_blocks = extract_completion_blocks_tolerant
+    TuneRL.extract_completion_blocks = extract_completion_blocks_strict
     TuneRL.clear_extraction_meta_cache = clear_extraction_meta_cache
     TuneRL.evaluate_code_and_reward = evaluate_code_and_reward_cifar
     setattr(TuneRL.evaluate_code_and_reward, "_nngpt_eval_cfg_builder", build_sft_reward_eval_cfg)
@@ -1930,7 +1544,7 @@ def bootstrap_sft_runtime() -> None:
             shutil.rmtree(TuneRL.run_epoch_dir(), ignore_errors=True)
             print(f"Cleaning existing trainer outputs in {trainer_out_dir}...")
             shutil.rmtree(trainer_out_dir, ignore_errors=True)
-        TuneRL.code_logger = RawCodeLogger(log_dir)
+        TuneRL.code_logger = TuneRL.SimpleCodeLogger(log_dir)
         sentinel_path.write_text(str(os.getpid()), encoding="utf-8")
         return
 

@@ -1,7 +1,8 @@
 import ast
+import re
 import textwrap
 
-available_backbones = ['convnext_tiny', 'densenet121', 'densenet161', 'densenet169', 'densenet201', 'efficientnet_b0', 'efficientnet_b1', 'efficientnet_b2', 'efficientnet_b3', 'efficientnet_b4', 'efficientnet_v2_s', 'googlenet', 'inception_v3', 'mnasnet0_5', 'mnasnet0_75', 'mnasnet1_0', 'mnasnet1_3', 'mobilenet_v2', 'mobilenet_v3_large', 'mobilenet_v3_small', 'regnet_x_400mf', 'regnet_x_800mf', 'regnet_x_1_6gf', 'regnet_x_3_2gf', 'regnet_y_400mf', 'regnet_y_800mf', 'resnet18', 'resnet34', 'resnet50', 'resnext50_32x4d', 'shufflenet_v2_x0_5', 'shufflenet_v2_x1_0', 'shufflenet_v2_x1_5', 'shufflenet_v2_x2_0', 'squeezenet1_0', 'squeezenet1_1', 'swin_t', 'swin_v2_t']
+available_backbones = ['convnext_tiny', 'densenet121', 'densenet161', 'densenet169', 'densenet201', 'efficientnet_b0', 'efficientnet_b1', 'efficientnet_b2', 'efficientnet_b3', 'efficientnet_b4', 'efficientnet_v2_s', 'googlenet', 'inception_v3', 'mnasnet0_5', 'mnasnet0_75', 'mnasnet1_0', 'mnasnet1_3', 'mobilenet_v2', 'mobilenet_v3_large', 'mobilenet_v3_small', 'regnet_x_400mf', 'regnet_x_800mf', 'regnet_x_1_6gf', 'regnet_x_3_2gf', 'regnet_y_400mf', 'regnet_y_800mf', 'regnet_y_1_6gf', 'regnet_y_3_2gf', 'resnet18', 'resnet34', 'resnet50', 'resnext50_32x4d', 'shufflenet_v2_x0_5', 'shufflenet_v2_x1_0', 'shufflenet_v2_x1_5', 'shufflenet_v2_x2_0', 'squeezenet1_0', 'squeezenet1_1', 'swin_t', 'swin_v2_t']
 
 available_patterns = [
     'Parallel_Triple', 
@@ -9,7 +10,11 @@ available_patterns = [
     'Backbone_B_to_Fractal', 
     'Dual_Backbone_Fuse_Then_Fractal',
     'Fractal_Then_Dual_Backbone',
-    'Split_Stem_Parallel_Fuse'
+    'Split_Stem_Parallel_Fuse',
+    'Fractal_to_DualBackbone',
+    'B_to_Fractal_plus_A',
+    'A_to_Fractal_plus_B',
+    'A_to_Fractal_to_B'
 ]
 
 legacy_patterns = tuple(available_patterns)
@@ -185,13 +190,25 @@ class Net(nn.Module):
     def __init__(self, in_shape: tuple, out_shape: tuple, prm: dict, device: torch.device) -> None:
         
 
-    def infer_dimensions_dynamically(self, num_classes):
+    def infer_dimensions_dynamically(self, *args):
+        if len(args) == 1:
+            num_classes = args[0]
+            if not hasattr(self, "_input_spec"):
+                raise RuntimeError("_input_spec must be set before one-argument infer_dimensions_dynamically")
+            c, h, w = self._input_spec
+        elif len(args) == 2:
+            in_shape, num_classes = args
+            c = in_shape[1] if len(in_shape) == 4 else in_shape[0]
+            h = 224
+            w = 224
+            self._input_spec = (c, h, w)
+        else:
+            raise TypeError("infer_dimensions_dynamically expects (num_classes) or (in_shape, num_classes)")
         self.to(self.device)
         was_training = self.training
         self.eval()
         classifier = getattr(self, "classifier", None)
         with torch.no_grad():
-            c, h, w = self._input_spec
             dummy = torch.zeros(1, c, h, w).to(self.device)
             self.classifier = nn.Identity()
             output_feat = self.forward(dummy, is_probing=True)
@@ -211,6 +228,27 @@ class Net(nn.Module):
             B, T, C, H, W = x.shape
             return x.reshape(B * T, C, H, W)
         raise ValueError(f"Expected 4D/5D input, got {tuple(x.shape)}")
+
+    def _feature_to_input_image(self, x: torch.Tensor, adapter_name: str) -> torch.Tensor:
+        if x.dim() == 2:
+            x = x.unsqueeze(-1).unsqueeze(-1)
+        elif x.dim() == 3:
+            x = x.mean(dim=1).unsqueeze(-1).unsqueeze(-1)
+        elif x.dim() != 4:
+            x = x.flatten(1).unsqueeze(-1).unsqueeze(-1)
+
+        c_in, h, w = self._input_spec
+        in_channels = int(x.shape[1])
+        key = f"{adapter_name}_{in_channels}"
+        if not hasattr(self, "_input_adapters"):
+            self._input_adapters = nn.ModuleDict()
+        if key not in self._input_adapters:
+            self._input_adapters[key] = nn.Conv2d(in_channels, c_in, kernel_size=1).to(self.device)
+
+        x = self._input_adapters[key](x)
+        if x.shape[-2:] != (h, w):
+            x = torch.nn.functional.interpolate(x, size=(h, w), mode="bilinear", align_corners=False)
+        return x
 
     def forward(self, x: torch.Tensor, is_probing: bool = False) -> torch.Tensor:
         
@@ -279,67 +317,41 @@ class Net(nn.Module):
 """
 
 prompt_template="""
-### Role & Context
-You are a Senior AI Architect. Your task is to implement a **specific** model instance based on a strict skeleton to achieve an accuracy of {accuracy}. 
-
-### Task Overview
-Complete the three missing components. **DO NOT** write generic code. You must implement the architecture using the target design pattern provided.
+### Role
+You are implementing one trainable dual-backbone image-classification model. Seed accuracy: {accuracy}.
 
 [CODE SKELETON START]
 {skeleton_code}
 [CODE SKELETON END]
 
-### Technical Specifications (MANDATORY REQUIREMENTS)
-
-1. **Target Pattern: `{target_pattern}`**
-   - YOU MUST explicitly set `self.pattern = '{target_pattern}'` inside `__init__`.
-   - YOU MUST implement the logic for this specific pattern throughout the code.
-   - **CRITICAL REQUIREMENT**: DO NOT just blindly copy the standard Parallel_Triple structure. You MUST be highly creative and design a truly unique structural flow in `forward`. Vary your module usage and connection topology!
-
-2. **Component: `drop_conv3x3_block`**
-   - Implement starting with `def drop_conv3x3_block(in_channels, out_channels, stride=1, padding=1, bias=False, dropout_prob=0.0):`.
-   - Return an `nn.Sequential` block (Conv2d -> BatchNorm2d -> Activation -> Dropout2d).
-
-3. **Component: `Net.__init__`**
-   - Implement starting with `def __init__(self, in_shape: tuple, out_shape: tuple, prm: dict, device: torch.device) -> None:`.
-   - **MANDATORY**: `self.pattern = '{target_pattern}'`
-   - **Backbone Selection**: Choose EXACTLY TWO models from [{available_backbones}].
-   - **Initialization**: 
-     - Initialize `self.backbone_a` and `self.backbone_b` using `TorchVision(model='...', in_channels=...)`.
-     - Initialize `self.features` (1-2 `FractalUnit` layers).
-     - Store the image input spec on `self._input_spec` so the provided dynamic sizing helper can probe the classifier dimension.
-     - Finish `__init__` by using the existing `infer_dimensions_dynamically` helper once with the class count from `out_shape`.
-   - **Example Implementation Fragment**:
-     ```python
-     self.pattern = '{target_pattern}'
-     self.backbone_a = TorchVision(model='resnet18', in_channels=in_shape[1]).to(device)
-     ...
-     ```
-
-4. **Component: `Net.forward`**
-   - Implement starting with `def forward(self, x: torch.Tensor, is_probing: bool = False) -> torch.Tensor:`.
-   - **Flow Control**: Implement the data flow for `{target_pattern}`. Use `adaptive_pool_flatten` for module outputs before fusion.
-   - **Fusion Patterns Logic Blueprint**:
-     * `Parallel_Triple`: `Result = Concat(backbone_a(x), backbone_b(x), features(x))`
-     * `Backbone_A_to_Fractal`: `Result = features(backbone_a(x))` (Sequential flow)
-     * `Split_Stem_Parallel_Fuse`: `stem_out = STEM(x); Result = Concat(backbone_a(stem_out), backbone_b(stem_out))`
-   - **CRITICAL - NO GHOSTING**: You MUST use ALL defined components in the `forward` pass.
-   - **CRITICAL RESTRICTION**: You MUST build the computational graph directly without using ANY `if self.pattern == ...` control flow or dynamic loops (like `getattr`/`hasattr`) inside `forward`.
-   - **PARAM REMINDER**: Always pass `in_channels=...` when creating `TorchVision` models.
-
-### Output Requirement (STRICT)
-Output ONLY the implementation within the XML tags. Each tag MUST contain the complete function/method definition (signature and body). No markdown, no conversation.
+### Contract
+- Target pattern: `{target_pattern}`. Set `self.pattern` to this value.
+- Implement only `drop_conv3x3_block`, `Net.__init__`, and `Net.forward`.
+- Use exactly two `TorchVision` backbones named `self.backbone_a` and `self.backbone_b` from [{available_backbones}].
+- Use `out_shape[0]` as the class count and call `self.infer_dimensions_dynamically(...)` once after defining the modules used by `forward`. The fixed skeleton accepts either `(out_shape[0])` with `self._input_spec` already set, or the historical `(in_shape, out_shape[0])` call used by existing SFT data.
+- Use the fixed helper as `_feature_to_input_image(tensor, adapter_name)` when a feature map must be converted back to the input image shape.
+- Read `dropout` from `prm` and route it into trainable dropout/drop block settings so `supported_hyperparameters()` matches the implementation.
+- Return only the three XML sections below, each containing the complete function or method definition.
 
 <block>
-# Full drop_conv3x3_block implementation
+# drop_conv3x3_block implementation
 </block>
 <init>
-# Full __init__ implementation
+# Net.__init__ implementation
 </init>
 <forward>
-# Full forward implementation
+# Net.forward implementation
 </forward>
 """
+
+
+def format_backbone_prompt(*, accuracy, target_pattern):
+    return prompt_template.format(
+        accuracy=accuracy,
+        target_pattern=target_pattern,
+        skeleton_code=skeleton_code,
+        available_backbones=", ".join(available_backbones),
+    )
 
 open_discovery_skeleton_code = skeleton_code
 
@@ -357,36 +369,102 @@ You are a Senior AI Architect. Produce one trainable dual-backbone image-classif
 {skeleton_code}
 [CODE SKELETON END]
 
-### Basic Requirements
-1. Output ONLY `<block>`, `<init>`, `<forward>`. No markdown, no explanation, no extra text.
-2. Implement only `drop_conv3x3_block`, `Net.__init__`, and `Net.forward`.
-3. Use EXACTLY two backbones named `self.backbone_a` and `self.backbone_b` from [{available_backbones}].
-4. In `__init__`, set `self.pattern`, `self.device`, `self.use_amp`, and `self._input_spec = tuple(in_shape[1:])`, then call the existing `self.infer_dimensions_dynamically(...)` helper once with the class count after the modules used by `forward` are defined.
-5. Treat the fixed infrastructure as read-only. Do not rewrite helper APIs or add replacement dimension-inference helpers.
-6. Keep `forward` as a direct computation graph. Do not use `if self.pattern`, extra `import` lines, extra classes, or dynamic wrapper logic.
-7. Use `adaptive_pool_flatten(...)` before concatenating or classifying branch outputs, and return classifier logits.
-8. Do not reference undefined names such as `dropout_prob`, `in_channels`, or `features`.
-9. Prioritize a runnable, trainable graph over novelty. Simple structure is acceptable if it trains cleanly. If you define `self.classifier`, still keep `self._input_spec` and the required dynamic sizing helper call.
+### Structure Target
+- Implement the editable model parts from the skeleton: `drop_conv3x3_block`, `Net.__init__`, and `Net.forward`.
+- Use two backbones named `self.backbone_a` and `self.backbone_b` from [{available_backbones}].
+- Keep `forward` as a direct computation graph with real stem/project/bridge/fuse/fractal modules where useful.
+- Use `adaptive_pool_flatten(...)` before concatenating or classifying branch outputs, and return classifier logits.
+- Prioritize a runnable, trainable dual-backbone graph over novelty.
 
-### Output Requirement (STRICT)
-Read the optimization feedback below, then write the final XML answer. The final answer must begin with `<block>` and end with `</forward>`.
+### Completion Contract
+- Return exactly the three XML sections below.
+- Each section must contain the complete function or method definition and start with the exact signature shown.
+- Do not return imports, `class Net`, the full skeleton, markdown fences, or prose outside these sections.
 
 <block>
-{block_signature}
+def drop_conv3x3_block(in_channels, out_channels, stride=1, padding=1, bias=False, dropout_prob=0.0):
     ...
 </block>
 <init>
-{init_signature}
+def __init__(self, in_shape: tuple, out_shape: tuple, prm: dict, device: torch.device) -> None:
     ...
 </init>
 <forward>
-{forward_signature}
+def forward(self, x: torch.Tensor, is_probing: bool = False) -> torch.Tensor:
     ...
 </forward>
 """
 
 open_discovery_prompt_template = compact_backbone_rl_prompt_template
 open_discovery_rl_prompt_template = compact_backbone_rl_prompt_template
+
+
+def extract_target_pattern_from_code(code_str):
+    try:
+        tree = ast.parse(code_str)
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Assign):
+                continue
+            for target in node.targets:
+                if (
+                    isinstance(target, ast.Attribute)
+                    and target.attr == 'pattern'
+                    and isinstance(target.value, ast.Name)
+                    and target.value.id == 'self'
+                ):
+                    value = node.value
+                    if isinstance(value, ast.Constant) and isinstance(value.value, str):
+                        return value.value
+    except Exception:
+        pass
+    match = re.search(r"self\.pattern\s*=\s*['\"]([^'\"]+)['\"]", code_str or "")
+    return match.group(1) if match else None
+
+
+def _extract_xml_tag(text, tag):
+    if not isinstance(text, str):
+        return None
+    pattern = re.compile(rf"<{tag}>\s*(.*?)\s*</{tag}>", re.IGNORECASE | re.DOTALL)
+    match = pattern.search(text)
+    return match.group(1).strip() if match else None
+
+
+def _strip_code_fence(code):
+    if not isinstance(code, str):
+        return None
+    cleaned = code.strip()
+    cleaned = re.sub(r"^```(?:python)?\s*", "", cleaned, flags=re.IGNORECASE)
+    cleaned = re.sub(r"\s*```$", "", cleaned)
+    return textwrap.dedent(cleaned).strip()
+
+
+def assemble_backbone_xml_completion(completion):
+    block_code = _strip_code_fence(_extract_xml_tag(completion, 'block'))
+    init_code = _strip_code_fence(_extract_xml_tag(completion, 'init'))
+    forward_code = _strip_code_fence(_extract_xml_tag(completion, 'forward'))
+    if not (block_code and init_code and forward_code):
+        return None
+
+    code = skeleton_code
+    replacements = (
+        (
+            "def drop_conv3x3_block(in_channels, out_channels, stride=1, padding=1, bias=False, dropout_prob=0.0):",
+            block_code,
+        ),
+        (
+            "    def __init__(self, in_shape: tuple, out_shape: tuple, prm: dict, device: torch.device) -> None:",
+            textwrap.indent(init_code, "    "),
+        ),
+        (
+            "    def forward(self, x: torch.Tensor, is_probing: bool = False) -> torch.Tensor:",
+            textwrap.indent(forward_code, "    "),
+        ),
+    )
+    for signature, replacement in replacements:
+        if signature not in code:
+            raise ValueError(f"Backbone skeleton signature not found: {signature}")
+        code = code.replace(signature, replacement, 1)
+    return code
 
 def parse_nn_code(code_str):
     try:

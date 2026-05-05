@@ -11,6 +11,8 @@ import os
 import random
 import shutil
 import json
+import subprocess
+import sys
 from os import makedirs
 from os.path import isfile
 import glob
@@ -44,6 +46,8 @@ from ab.gpt.util.Util import (
 from ab.gpt.util.prompt.NNGenPrompt import NNGenPrompt
 from ab.gpt.util.DeltaUtil import apply_delta, validate_delta, repair_code
 from ab.gpt.util.Const import nngpt_upload
+import ab.gpt.util.SFTUtil as SFTUtil
+from ab.gpt.util.generation_dtype import align_generation_head_dtype
 from ab.gpt.brute.trans.TransformEval import run_eval
 from ab.gpt.util.prompt.TransformGenPrompt import TransformGenPrompt, load_data_from_folders
 from ab.gpt.agents.state import AgentState
@@ -56,6 +60,7 @@ TRANSFORM_RES_DIR = trans_dir / 'result_epoch1'
 
 # Delta mode constants
 _MAX_DELTA_RETRIES = 2
+_EVAL_CUDA_VISIBLE_DEVICES_ENV = "NNGPT_TUNEBACKBONE_EVAL_CUDA_VISIBLE_DEVICES"
 
 
 def apply_sliding_window(example, max_length, stride, tokenizer):
@@ -104,6 +109,7 @@ def nn_gen(
     unsloth_max_input_length,
     prompt_batch,
     use_backbone=False,
+    sft_nn_prefixes=None,
 ):
     print("Preparing prompts for generation, this might take a while...")
 
@@ -125,7 +131,8 @@ def nn_gen(
         use_join = num_joint_nns >= 2
         if use_join:
             from ab.nn.util.db.Query import JoinConf
-
+            from ab.gpt.util.lemur_enrichment import patch_join_nn_query, enrich_dataframe
+            patch_join_nn_query()
             data = lemur.data(
                 only_best_accuracy=True,
                 task=key_config["task"],
@@ -136,10 +143,15 @@ def nn_gen(
                     enhance_nn=key_config.get("improve", False),
                 ),
             )[:test_nn]
+            if key_config.get("output_type") == "classification":
+                enrich_dataframe(data)
             addon_data = None
         else:
+            data_kwargs = {"only_best_accuracy": True, "task": key_config["task"]}
+            if use_backbone and sft_nn_prefixes:
+                data_kwargs["nn_prefixes"] = sft_nn_prefixes
             data = (
-                lemur.data(only_best_accuracy=True, task=key_config["task"])
+                lemur.data(**data_kwargs)
                 .groupby(by="nn")
                 .sample(n=1)[:test_nn]
             )
@@ -148,11 +160,30 @@ def nn_gen(
 
         output_type = key_config.get("output_type", "code")
         nn_code_max_chars = key_config.get("nn_code_max_chars")
+        backbone_pattern_pool = []
+        if use_backbone and "nn_code" in data:
+            for code in data["nn_code"]:
+                pattern = SFTUtil.extract_target_pattern_from_code(code) if isinstance(code, str) else None
+                if pattern and pattern not in backbone_pattern_pool:
+                    backbone_pattern_pool.append(pattern)
 
         for _, row in data.iterrows():
             para_dict = {}
             for it in key_config["input_list"]:
                 para_dict[it["para"]] = row[it["value"]]
+            if use_backbone:
+                target_pattern = None
+                if "nn_code" in row and isinstance(row["nn_code"], str):
+                    target_pattern = SFTUtil.extract_target_pattern_from_code(row["nn_code"])
+                if target_pattern is None:
+                    if not backbone_pattern_pool:
+                        raise RuntimeError("No target patterns found in TuneBackbone generation seed data.")
+                    target_pattern = random.choice(backbone_pattern_pool)
+                para_dict["target_pattern"] = target_pattern
+                para_dict["backbone_prompt"] = SFTUtil.format_backbone_prompt(
+                    accuracy=para_dict.get("accuracy", row.get("accuracy", "")),
+                    target_pattern=target_pattern,
+                )
             if nn_code_max_chars and "nn_code" in para_dict and isinstance(para_dict["nn_code"], str):
                 para_dict["nn_code"] = para_dict["nn_code"][:nn_code_max_chars]
 
@@ -333,6 +364,10 @@ def nn_gen(
             for (idx, prompt_text, origdf, output_type), output in zip(batch, batch_outputs):
                 model_dir = models_dir / f"B{idx}"
                 code, hp, tr, full_out = output
+                if use_backbone:
+                    code = SFTUtil.assemble_backbone_xml_completion(full_out)
+                    if code is None:
+                        print(f'[ERROR] Missing backbone XML tags for model B{idx}')
 
                 makedirs(model_dir, exist_ok=True)
                 if output_type == "classification":
@@ -564,6 +599,7 @@ def generate_step(state: AgentState) -> dict:
             state.get("unsloth_max_input_length"),
             state.get("prompt_batch", 1),
             use_backbone=state.get("use_backbone",False),
+            sft_nn_prefixes=state.get("sft_nn_prefixes"),
         )
 
     # Classification prompts may intentionally emit labels or structured output
@@ -601,11 +637,34 @@ def _evaluate_epoch(epoch, out_path, nn_name_prefix, nn_train_epochs, trans_mode
                 print(f"Error running evaluation main(): {e}", flush=True)
             print('Folder data reload will occur next epoch.')
         else:
-            NNEval.main(
-                nn_name_prefix=nn_name_prefix,
-                nn_train_epochs=nn_train_epochs,
-                only_epoch=epoch,
-            )
+            eval_cuda_visible_devices = os.getenv(_EVAL_CUDA_VISIBLE_DEVICES_ENV, "").strip()
+            if eval_cuda_visible_devices:
+                env = os.environ.copy()
+                env["CUDA_VISIBLE_DEVICES"] = eval_cuda_visible_devices
+                env["NNGPT_NNEVAL_USE_ALL_VISIBLE_GPUS"] = "1"
+                env.pop("NNGPT_NNEVAL_GPU_TOKENS", None)
+                cmd = [
+                    sys.executable,
+                    "-m",
+                    "ab.gpt.NNEval",
+                    "--nn_train_epochs",
+                    str(nn_train_epochs),
+                    "--only_epoch",
+                    str(epoch),
+                ]
+                if nn_name_prefix:
+                    cmd.extend(["--nn_name_prefix", str(nn_name_prefix)])
+                print(
+                    f"[TUNE] Running NNEval subprocess with "
+                    f"CUDA_VISIBLE_DEVICES={eval_cuda_visible_devices}"
+                )
+                subprocess.run(cmd, check=True, env=env)
+            else:
+                NNEval.main(
+                    nn_name_prefix=nn_name_prefix,
+                    nn_train_epochs=nn_train_epochs,
+                    only_epoch=epoch,
+                )
             print('[DEBUG] Release_memory.')
             release_memory()
 
@@ -739,6 +798,7 @@ def _finetune_epoch(
     temperature=1.0, top_k=50, top_p=0.9,
     resume_trainer_checkpoint=None,
     use_backbone=False,
+    sft_nn_prefixes=None,
 ):
     """
     Single source of truth for one finetune epoch.
@@ -757,7 +817,8 @@ def _finetune_epoch(
         from ab.gpt.util.prompt.SFTGenPrompt import SFTGenPrompt
         data_processor = SFTGenPrompt(
             context_length if context_length else model_loader.get_max_length(),
-            tokenizer
+            tokenizer,
+            nn_prefixes=sft_nn_prefixes,
         )
     else:
         length = (
@@ -786,6 +847,7 @@ def _finetune_epoch(
     del dataset
     release_memory()
 
+    align_generation_head_dtype(model, torch.bfloat16, log_prefix="[TUNE]")
     chat_bot = ChatBot(model, tokenizer, temperature=temperature, top_k=top_k, top_p=top_p)
     return model, chat_bot
 
@@ -795,6 +857,9 @@ def finetune_step(state: AgentState) -> dict:
     epoch = state["current_epoch"]
     out_path = epoch_dir(epoch)
     print(f"[DEBUG] Perform finetune at epoch {epoch}")
+
+    state["chat_bot"] = None
+    release_memory()
 
     model, chat_bot = _finetune_epoch(
         epoch, out_path,
@@ -807,6 +872,7 @@ def finetune_step(state: AgentState) -> dict:
         state.get("temperature", 1.0), state.get("top_k", 50), state.get("top_p", 0.9),
         state.get("trainer_resume_checkpoint"),
         state.get("use_backbone", False),
+        state.get("sft_nn_prefixes"),
     )
 
     return {
@@ -862,6 +928,8 @@ def tune(
     enable_merge=False,
     classification_mode=False,
     use_backbone=False,
+    sft_nn_prefixes=None,
+    num_cycles=None,
 ):
     if not isinstance(conf_keys, (list, tuple)):
         conf_keys = (conf_keys,)
@@ -880,7 +948,7 @@ def tune(
     else:
         print(f"[EVOLUTION] Using base model from config: {base_model_name}")
 
-    llm_tune_epochs = int(config["num_epochs"])
+    llm_tune_epochs = int(num_cycles) if num_cycles is not None else int(config["num_epochs"])
     use_deepspeed = config["use_deepspeed"]
     only_best_accuracy = config["only_best_accuracy"]
     context_length = config.get("context_length")
@@ -939,6 +1007,7 @@ def tune(
 
     print('Using Max Length:', model_loader.get_max_length())
 
+    align_generation_head_dtype(model, torch.bfloat16, log_prefix="[TUNE]")
     chat_bot = ChatBot(model, tokenizer, temperature=temperature, top_k=top_k, top_p=top_p)
 
     state = {
@@ -979,6 +1048,7 @@ def tune(
 
         "use_predictor": use_predictor,
         "use_backbone": use_backbone,
+        "sft_nn_prefixes": sft_nn_prefixes,
         "trainer_resume_checkpoint": trainer_resume_checkpoint,
         "enable_merge": enable_merge,
         "classification_mode": classification_mode,
@@ -999,11 +1069,13 @@ def tune(
             if trans_mode:
                 trans_gen(epoch, out_path, chat_bot, conf_keys, nn_train_epochs, prompt_dict, test_nn, max_new_tokens, save_llm_output, nn_name_prefix)
             else:
-                nn_gen(epoch, out_path, chat_bot, conf_keys, nn_train_epochs, prompt_dict, test_nn, max_new_tokens, save_llm_output, nn_name_prefix, unsloth_max_input_length, prompt_batch, use_backbone=use_backbone)
+                nn_gen(epoch, out_path, chat_bot, conf_keys, nn_train_epochs, prompt_dict, test_nn, max_new_tokens, save_llm_output, nn_name_prefix, unsloth_max_input_length, prompt_batch, use_backbone=use_backbone, sft_nn_prefixes=sft_nn_prefixes)
 
             _evaluate_epoch(epoch, out_path, nn_name_prefix, nn_train_epochs, trans_mode, classification_mode)
 
         print(f'[DEBUG]Perform finetune at epoch {epoch}.')
+        chat_bot = None
+        release_memory()
         model, chat_bot = _finetune_epoch(
             epoch, out_path, model, tokenizer, model_loader, lora_tuner,
             context_length, use_unsloth, unsloth_max_input_length,
@@ -1012,5 +1084,6 @@ def tune(
             temperature, top_k, top_p,
             trainer_resume_checkpoint,
             use_backbone=use_backbone,
+            sft_nn_prefixes=sft_nn_prefixes,
         )
         trainer_resume_checkpoint = None
