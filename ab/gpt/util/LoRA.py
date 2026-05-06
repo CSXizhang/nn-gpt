@@ -251,12 +251,14 @@ class LoRA:
                 print("[INFO] Using SFTTrainer with pre-rendered text (dataset_text_field='text')")
             use_packing = False if has_prompt_completion else not train_on_completions_only
             print(f"[INFO] Packing enabled: {use_packing} ({'Simple mode: full text' if use_packing else 'Precise mode: completions only'})")
+            sft_max_length = getattr(self.training_args, "max_length", None) or 4096
+            print(f"[INFO] SFT max_length: {sft_max_length}")
             
             # Configure tokenizer for SFT: truncate from left (keep assistant response), pad on right
             # This ensures sequences are truncated correctly when SFTTrainer tokenizes
             self.tokenizer.truncation_side = "left"
             self.tokenizer.padding_side = "right"
-            self.tokenizer.model_max_length = 4096  # DeepSeek-Coder-7B-Instruct-v1.5 has ~4K context
+            self.tokenizer.model_max_length = sft_max_length
             
             # Suppress sequence length warnings - SFTTrainer will handle truncation correctly
             import warnings
@@ -268,7 +270,7 @@ class LoRA:
             if isinstance(self.training_args, SFTConfig):
                 self.training_args.remove_unused_columns = False  # critical when using raw text
                 self.training_args.packing = use_packing  # Simple: True, Precise: False
-                self.training_args.max_length = 4096  # DeepSeek-Coder-7B-Instruct-v1.5 has ~4K context (4k/4.1k)
+                self.training_args.max_length = sft_max_length
                 if has_text_field:
                     self.training_args.dataset_text_field = "text"  # Feed Dataset with {"text": ...} format
             else:
@@ -276,7 +278,7 @@ class LoRA:
                 sft_config = SFTConfig(**self.training_args.to_dict())
                 sft_config.remove_unused_columns = False  # critical when using raw text
                 sft_config.packing = use_packing  # Simple: True, Precise: False
-                sft_config.max_length = 4096  # DeepSeek-Coder-7B-Instruct-v1.5 has ~4K context (4k/4.1k)
+                sft_config.max_length = sft_max_length
                 if has_text_field:
                     sft_config.dataset_text_field = "text"  # Feed Dataset with {"text": ...} format
                 self.training_args = sft_config

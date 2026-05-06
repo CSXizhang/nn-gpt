@@ -13,6 +13,7 @@ def main():
     parser.add_argument('--num_cycles', type=int, default=None, help='Number of generate/eval/SFT cycles; defaults to llm config num_epochs')
     parser.add_argument('--skip_epoch', type=int, default=0, help='Number of initial generation/eval cycles to skip')
     parser.add_argument('--nn_train_epochs', type=int, default=1, help='Number of training epochs for generated NNs')
+    parser.add_argument('--sft_max_length', type=int, default=6144, help='Maximum SFT sequence length')
     parser.add_argument(
         '--sft_nn_prefixes',
         type=lambda raw: tuple(item.strip() for item in raw.split(',') if item.strip()),
@@ -35,6 +36,7 @@ def main():
         save_strategy="no",
         report_to="none",
         remove_unused_columns=False,
+        max_length=args.sft_max_length,
         packing_strategy="wrapped",
         padding_free=False,
         gradient_checkpointing=True
