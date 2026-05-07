@@ -33,6 +33,7 @@ SFT_KL_COEF = 5e-4
 SFT_LORA_R = 16
 SFT_LORA_ALPHA = 32
 SFT_LORA_DROPOUT = 0.05
+SFT_RL_NN_PREFIXES = ("rl-bb-test1",)
 SFT_DEEPSPEED_DEFAULT_CONFIG = str(conf_dir / "DeepSpeedSftGrpo.json")
 SFT_MODE_DEFAULT = "auto"
 
@@ -351,6 +352,16 @@ def resolve_sft_init_adapter() -> str:
 
 def resolve_sft_load_initial_adapter() -> bool:
     return _env_flag("NNGPT_SFT_LOAD_INITIAL_ADAPTER", SFT_LOAD_INITIAL_ADAPTER)
+
+
+def resolve_sft_rl_nn_prefixes() -> tuple[str, ...]:
+    raw = os.getenv("NNGPT_SFT_RL_NN_PREFIXES", "").strip()
+    if not raw:
+        return tuple(SFT_RL_NN_PREFIXES)
+    prefixes = tuple(item.strip() for item in raw.split(",") if item.strip())
+    if not prefixes:
+        raise ValueError("NNGPT_SFT_RL_NN_PREFIXES must contain at least one prefix")
+    return prefixes
 
 
 def resolve_sft_save_rl_model() -> bool:
@@ -1122,11 +1133,12 @@ class DynamicSFTPromptDataset(TorchDataset):
 def load_rl_dataset_sft(tokenizer) -> TuneRL.Dataset:
     """Load SFT-aligned RL prompts while rendering feedback lazily at access time."""
     runtime_settings = resolve_sft_runtime_settings(RewardUtil.get_distributed_runtime_info())
-    data = TuneRL.api.data(task="img-classification", nn_prefixes=("rl-bb-test1",))
+    nn_prefixes = resolve_sft_rl_nn_prefixes()
+    data = TuneRL.api.data(task="img-classification", nn_prefixes=nn_prefixes)
     if data.empty:
-        raise RuntimeError("No 'rl-bb-test1' data found for SFT RL; sync the dataset prefix before training.")
+        raise RuntimeError(f"No data found for SFT RL prefixes {nn_prefixes}; sync the dataset prefix before training.")
 
-    print(f"Loaded {len(data)} examples for SFT RL")
+    print(f"Loaded {len(data)} examples for SFT RL prefixes={nn_prefixes}")
     TuneRL.bootstrap_trainset_reference_library(data)
 
     rows: List[Dict[str, Any]] = []
