@@ -1112,18 +1112,20 @@ class DynamicSFTPromptDataset(TorchDataset):
             init_signature=self.init_signature,
             forward_signature=self.forward_signature,
         )
-        feedback_text = TuneRL.render_prompt_feedback_text(
-            feedback_char_budget=SFT_FEEDBACK_CHAR_BUDGET,
-        )
-        feedback_section = "\n\n### Current Optimization Feedback\n" + feedback_text.strip() + "\n"
-        contract_heading = "\n### Completion Contract\n"
-        if contract_heading not in user_prompt:
-            raise RuntimeError("SFT RL prompt template is missing the completion contract heading")
-        user_prompt = user_prompt.replace(
-            contract_heading,
-            feedback_section + contract_heading,
-            1,
-        )
+        feedback_char_budget = _env_int("NNGPT_SFT_FEEDBACK_CHAR_BUDGET", SFT_FEEDBACK_CHAR_BUDGET)
+        if feedback_char_budget > 0:
+            feedback_text = TuneRL.render_prompt_feedback_text(
+                feedback_char_budget=feedback_char_budget,
+            )
+            feedback_section = "\n\n### Current Optimization Feedback\n" + feedback_text.strip() + "\n"
+            contract_heading = "\n### Completion Contract\n"
+            if contract_heading not in user_prompt:
+                raise RuntimeError("SFT RL prompt template is missing the completion contract heading")
+            user_prompt = user_prompt.replace(
+                contract_heading,
+                feedback_section + contract_heading,
+                1,
+            )
         messages = [{"role": "user", "content": user_prompt}]
         return self.tokenizer.apply_chat_template(
             messages,
