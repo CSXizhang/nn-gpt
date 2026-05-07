@@ -24,6 +24,7 @@ SFT_TRAINER_OUT = "grpo_backbone_outputs/sft"
 SFT_TEMPERATURE = 1.1
 SFT_NUM_GENERATIONS = 8
 SFT_GRAD_ACCUM = 8
+SFT_MAX_PROMPT_LENGTH = 4096
 SFT_MAX_COMPLETION_LENGTH = 1536
 SFT_DATASET_LIMIT = 500
 SFT_FEEDBACK_CHAR_BUDGET = 1200
@@ -610,6 +611,10 @@ def resolve_sft_runtime_settings(runtime: Dict[str, Any]) -> Dict[str, int]:
             SFT_DATASET_LIMIT,
         ),
         "grad_accum": grad_accum,
+        "max_prompt_length": _env_int(
+            "NNGPT_SFT_MAX_PROMPT_LENGTH",
+            SFT_MAX_PROMPT_LENGTH,
+        ),
         "max_completion_length": _env_int(
             "NNGPT_SFT_MAX_COMPLETION_LENGTH",
             SFT_MAX_COMPLETION_LENGTH,
@@ -1185,6 +1190,7 @@ def _build_sft_grpo_config(
     config_kwargs: Dict[str, Any] = {
         "temperature": SFT_TEMPERATURE,
         "learning_rate": SFT_LR,
+        "max_prompt_length": runtime_settings["max_prompt_length"],
         "max_completion_length": runtime_settings["max_completion_length"],
         "per_device_train_batch_size": 1,
         "gradient_accumulation_steps": runtime_settings["grad_accum"],
@@ -1371,6 +1377,7 @@ def run_sft_training():
     print(
         "[SFT RL] Runtime limits: "
         f"dataset_limit={runtime_settings['dataset_limit']} "
+        f"max_prompt_length={runtime_settings['max_prompt_length']} "
         f"max_completion_length={runtime_settings['max_completion_length']} "
         f"grad_accum={runtime_settings['grad_accum']} "
         f"effective_train_batch_size={runtime_settings['effective_train_batch_size']} "
