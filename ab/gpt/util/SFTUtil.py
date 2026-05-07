@@ -322,15 +322,22 @@ You are implementing one trainable dual-backbone image-classification model. See
 - Use the fixed helper as `_feature_to_input_image(tensor, adapter_name)` when a feature map must be converted back to the input image shape.
 - Read `dropout` from `prm` and route it into trainable dropout/drop block settings so `supported_hyperparameters()` matches the implementation.
 - Return only the three XML sections below, each containing the complete function or method definition.
+- Do not include markdown fences, prose, imports, class declarations, or explanations anywhere in the answer.
+- The first non-whitespace text must be `<block>` and the final non-whitespace text must be `</forward>`.
+- Inside each XML section, start with the exact function signature shown below; `drop_conv3x3_block` must be a function, not a class.
+- Instantiate backbones with `TorchVision("name", in_channels=c_in)` and do not mutate `.m.head` or unpack a backbone output as multiple tensors.
 
 <block>
-# drop_conv3x3_block implementation
+def drop_conv3x3_block(in_channels, out_channels, stride=1, padding=1, bias=False, dropout_prob=0.0):
+    ...
 </block>
 <init>
-# Net.__init__ implementation
+def __init__(self, in_shape: tuple, out_shape: tuple, prm: dict, device: torch.device) -> None:
+    ...
 </init>
 <forward>
-# Net.forward implementation
+def forward(self, x: torch.Tensor, is_probing: bool = False) -> torch.Tensor:
+    ...
 </forward>
 """
 
