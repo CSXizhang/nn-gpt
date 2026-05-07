@@ -35,6 +35,7 @@ SFT_LORA_R = 16
 SFT_LORA_ALPHA = 32
 SFT_LORA_DROPOUT = 0.05
 SFT_RL_NN_PREFIXES = ("rl-bb-test1",)
+SFT_RL_PROMPT_MODE = "sft_aligned"
 SFT_DEEPSPEED_DEFAULT_CONFIG = str(conf_dir / "DeepSpeedSftGrpo.json")
 SFT_MODE_DEFAULT = "auto"
 
@@ -363,6 +364,24 @@ def resolve_sft_rl_nn_prefixes() -> tuple[str, ...]:
     if not prefixes:
         raise ValueError("NNGPT_SFT_RL_NN_PREFIXES must contain at least one prefix")
     return prefixes
+
+
+def resolve_sft_rl_prompt_mode() -> str:
+    mode = _env_str("NNGPT_SFT_RL_PROMPT_MODE", SFT_RL_PROMPT_MODE).strip().lower()
+    aliases = {
+        "sft": "sft_aligned",
+        "sft-aligned": "sft_aligned",
+        "sft_aligned": "sft_aligned",
+        "goal": "goal_profiles",
+        "goal-profile": "goal_profiles",
+        "goal_profiles": "goal_profiles",
+        "open_discovery": "goal_profiles",
+    }
+    if mode not in aliases:
+        raise ValueError(
+            "NNGPT_SFT_RL_PROMPT_MODE must be one of: sft_aligned, goal_profiles"
+        )
+    return aliases[mode]
 
 
 def resolve_sft_save_rl_model() -> bool:
@@ -1057,7 +1076,15 @@ SFT_DISCOVERY_PROMPT_TEMPLATE = SFTUtil.open_discovery_rl_prompt_template
 
 
 class DynamicSFTPromptDataset(TorchDataset):
-    column_names = ["prompt", "accuracy", "goal_name", "target_tags", "goal_profile_id"]
+    column_names = [
+        "prompt",
+        "accuracy",
+        "goal_name",
+        "target_tags",
+        "goal_profile_id",
+        "target_pattern",
+        "prompt_mode",
+    ]
 
     def __init__(
         self,
@@ -1089,29 +1116,36 @@ class DynamicSFTPromptDataset(TorchDataset):
         )
 
     def _render_prompt(self, row: Dict[str, Any]) -> str:
-        profile = SFTUtil.open_discovery_goal_profiles[int(row["goal_profile_id"])]
-        target_pattern = SFTUtil.goal_profile_target_pattern(profile)
-        module_hints = (
-            "self.backbone_a",
-            "self.backbone_b",
-            *profile["module_hints"],
-        )
-        user_prompt = SFT_DISCOVERY_PROMPT_TEMPLATE.format(
-            accuracy=row["accuracy"],
-            skeleton_code=SFTUtil.open_discovery_skeleton_code,
-            available_backbones=", ".join(SFTUtil.available_backbones),
-            legacy_patterns=", ".join(SFTUtil.legacy_patterns),
-            goal_name=profile["name"],
-            target_tags=", ".join(profile["tags"]),
-            target_pattern=target_pattern,
-            design_brief=profile["brief"],
-            tag_realization=profile.get("realization", profile["brief"]),
-            goal_tag_parser_cues=SFTUtil.goal_tag_parser_cues(profile["tags"]),
-            module_hints=", ".join(module_hints),
-            block_signature=self.block_signature,
-            init_signature=self.init_signature,
-            forward_signature=self.forward_signature,
-        )
+        prompt_mode = str(row.get("prompt_mode") or "goal_profiles")
+        if prompt_mode == "sft_aligned":
+            user_prompt = SFTUtil.format_backbone_prompt(
+                accuracy=row["accuracy"],
+                target_pattern=str(row["target_pattern"]),
+            )
+        else:
+            profile = SFTUtil.open_discovery_goal_profiles[int(row["goal_profile_id"])]
+            target_pattern = SFTUtil.goal_profile_target_pattern(profile)
+            module_hints = (
+                "self.backbone_a",
+                "self.backbone_b",
+                *profile["module_hints"],
+            )
+            user_prompt = SFT_DISCOVERY_PROMPT_TEMPLATE.format(
+                accuracy=row["accuracy"],
+                skeleton_code=SFTUtil.open_discovery_skeleton_code,
+                available_backbones=", ".join(SFTUtil.available_backbones),
+                legacy_patterns=", ".join(SFTUtil.legacy_patterns),
+                goal_name=profile["name"],
+                target_tags=", ".join(profile["tags"]),
+                target_pattern=target_pattern,
+                design_brief=profile["brief"],
+                tag_realization=profile.get("realization", profile["brief"]),
+                goal_tag_parser_cues=SFTUtil.goal_tag_parser_cues(profile["tags"]),
+                module_hints=", ".join(module_hints),
+                block_signature=self.block_signature,
+                init_signature=self.init_signature,
+                forward_signature=self.forward_signature,
+            )
         feedback_char_budget = _env_int("NNGPT_SFT_FEEDBACK_CHAR_BUDGET", SFT_FEEDBACK_CHAR_BUDGET)
         if feedback_char_budget > 0:
             feedback_text = TuneRL.render_prompt_feedback_text(
@@ -1120,7 +1154,9 @@ class DynamicSFTPromptDataset(TorchDataset):
             feedback_section = "\n\n### Current Optimization Feedback\n" + feedback_text.strip() + "\n"
             contract_heading = "\n### Completion Contract\n"
             if contract_heading not in user_prompt:
-                raise RuntimeError("SFT RL prompt template is missing the completion contract heading")
+                contract_heading = "\n### Contract\n"
+            if contract_heading not in user_prompt:
+                raise RuntimeError("SFT RL prompt template is missing a contract heading")
             user_prompt = user_prompt.replace(
                 contract_heading,
                 feedback_section + contract_heading,
@@ -1141,6 +1177,8 @@ class DynamicSFTPromptDataset(TorchDataset):
             "goal_name": row["goal_name"],
             "target_tags": row["target_tags"],
             "goal_profile_id": row["goal_profile_id"],
+            "target_pattern": row["target_pattern"],
+            "prompt_mode": row["prompt_mode"],
         }
 
 
@@ -1148,26 +1186,51 @@ def load_rl_dataset_sft(tokenizer) -> TuneRL.Dataset:
     """Load SFT-aligned RL prompts while rendering feedback lazily at access time."""
     runtime_settings = resolve_sft_runtime_settings(RewardUtil.get_distributed_runtime_info())
     nn_prefixes = resolve_sft_rl_nn_prefixes()
+    prompt_mode = resolve_sft_rl_prompt_mode()
     data = TuneRL.api.data(task="img-classification", nn_prefixes=nn_prefixes)
     if data.empty:
         raise RuntimeError(f"No data found for SFT RL prefixes {nn_prefixes}; sync the dataset prefix before training.")
 
-    print(f"Loaded {len(data)} examples for SFT RL prefixes={nn_prefixes}")
+    print(f"Loaded {len(data)} examples for SFT RL prefixes={nn_prefixes} prompt_mode={prompt_mode}")
     TuneRL.bootstrap_trainset_reference_library(data)
 
     rows: List[Dict[str, Any]] = []
 
-    for _, row in data.iterrows():
-        accuracy = TuneRL._coerce_accuracy_baseline(row.get("accuracy"), context="seed row accuracy")
-        for profile_id, profile in enumerate(SFTUtil.open_discovery_goal_profiles):
+    if prompt_mode == "sft_aligned":
+        for row_index, row in data.iterrows():
+            full_code = row.get("nn_code")
+            target_pattern = SFTUtil.extract_target_pattern_from_code(full_code) if isinstance(full_code, str) else None
+            if not target_pattern:
+                print(f"Skipping row {row_index} due to missing target_pattern")
+                continue
+            accuracy = TuneRL._coerce_accuracy_baseline(row.get("accuracy"), context="seed row accuracy")
             rows.append(
                 {
                     "accuracy": accuracy,
-                    "goal_name": profile["name"],
-                    "target_tags": ", ".join(profile["tags"]),
-                    "goal_profile_id": profile_id,
+                    "goal_name": str(target_pattern),
+                    "target_tags": "",
+                    "goal_profile_id": -1,
+                    "target_pattern": str(target_pattern),
+                    "prompt_mode": "sft_aligned",
                 }
             )
+    else:
+        for _, row in data.iterrows():
+            accuracy = TuneRL._coerce_accuracy_baseline(row.get("accuracy"), context="seed row accuracy")
+            for profile_id, profile in enumerate(SFTUtil.open_discovery_goal_profiles):
+                rows.append(
+                    {
+                        "accuracy": accuracy,
+                        "goal_name": profile["name"],
+                        "target_tags": ", ".join(profile["tags"]),
+                        "goal_profile_id": profile_id,
+                        "target_pattern": SFTUtil.goal_profile_target_pattern(profile),
+                        "prompt_mode": "goal_profiles",
+                    }
+                )
+
+    if not rows:
+        raise RuntimeError(f"No SFT RL prompt rows built for prefixes={nn_prefixes} prompt_mode={prompt_mode}")
 
     random.Random(42).shuffle(rows)
     if len(rows) > runtime_settings["dataset_limit"]:
