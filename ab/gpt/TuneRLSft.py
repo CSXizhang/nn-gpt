@@ -216,6 +216,10 @@ def _repo_tokenizer_dir(model_id: str) -> Path:
     return Path("out/tokenizer") / model_id
 
 
+def resolve_sft_base_model_id() -> str:
+    return _env_str("NNGPT_SFT_BASE_MODEL_ID", SFT_BASE_MODEL_ID)
+
+
 def _has_model_files(model_dir: Path) -> bool:
     if not model_dir.is_dir():
         return False
@@ -247,20 +251,29 @@ def _has_tokenizer_files(tokenizer_dir: Path) -> bool:
 
 
 def resolve_sft_model_sources() -> tuple[str, str, str]:
-    repo_model_dir = _repo_model_dir(SFT_BASE_MODEL_ID)
-    repo_tokenizer_dir = _repo_tokenizer_dir(SFT_BASE_MODEL_ID)
+    base_model_id = resolve_sft_base_model_id()
+    base_model_path = Path(base_model_id).expanduser()
+    if base_model_path.is_dir():
+        if not _has_model_files(base_model_path):
+            raise RuntimeError(f"Configured SFT base model path has no model files: {base_model_path}")
+        if _has_tokenizer_files(base_model_path):
+            return str(base_model_path), str(base_model_path), "explicit-path"
+        return str(base_model_path), str(base_model_path), "explicit-path-no-tokenizer"
+
+    repo_model_dir = _repo_model_dir(base_model_id)
+    repo_tokenizer_dir = _repo_tokenizer_dir(base_model_id)
 
     if _has_model_files(repo_model_dir):
         if _has_tokenizer_files(repo_model_dir):
             return str(repo_model_dir), str(repo_model_dir), "out/llm"
         if _has_tokenizer_files(repo_tokenizer_dir):
             return str(repo_model_dir), str(repo_tokenizer_dir), "out/llm+out/tokenizer"
-        return str(repo_model_dir), SFT_BASE_MODEL_ID, "out/llm+model-id-tokenizer"
+        return str(repo_model_dir), base_model_id, "out/llm+model-id-tokenizer"
 
     if _has_tokenizer_files(repo_tokenizer_dir):
-        return SFT_BASE_MODEL_ID, str(repo_tokenizer_dir), "model-id+out/tokenizer"
+        return base_model_id, str(repo_tokenizer_dir), "model-id+out/tokenizer"
 
-    return SFT_BASE_MODEL_ID, SFT_BASE_MODEL_ID, "model-id-download"
+    return base_model_id, base_model_id, "model-id-download"
 
 
 def _env_flag(name: str, default: bool = False) -> bool:
@@ -1572,7 +1585,7 @@ def main() -> None:
     model_source, tokenizer_source, source_mode = patch_sft_runtime()
     bootstrap_sft_runtime()
 
-    print(f"[SFT RL] Base model id: {SFT_BASE_MODEL_ID}")
+    print(f"[SFT RL] Base model id: {resolve_sft_base_model_id()}")
     print(f"[SFT RL] Base model source ({source_mode}): {model_source}")
     if tokenizer_source != model_source:
         print(f"[SFT RL] Tokenizer source: {tokenizer_source}")
