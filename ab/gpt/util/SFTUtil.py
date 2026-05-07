@@ -322,31 +322,15 @@ You are implementing one trainable dual-backbone image-classification model. See
 - Use the fixed helper as `_feature_to_input_image(tensor, adapter_name)` when a feature map must be converted back to the input image shape.
 - Read `dropout` from `prm` and route it into trainable dropout/drop block settings so `supported_hyperparameters()` matches the implementation.
 - Return only the three XML sections below, each containing the complete function or method definition.
-- Do not include markdown fences, prose, imports, class declarations, or explanations anywhere in the answer.
-- The first non-whitespace text must be `<block>` and the final non-whitespace text must be `</forward>`.
-- Inside each XML section, start with the exact function signature shown below; `drop_conv3x3_block` must be a function, not a class.
-- Instantiate backbones with `TorchVision("name", in_channels=c_in)` and do not mutate `.m.head` or unpack a backbone output as multiple tensors.
-- In `Net.__init__`, always call `super().__init__()` before assigning modules.
-- Never unpack `in_shape` directly. Use `if len(in_shape) == 4: c_in, h_in, w_in = in_shape[1], in_shape[2], in_shape[3]` else use `in_shape[0], in_shape[1], in_shape[2]`.
-- Define `self.backbone_a`, `self.backbone_b`, and every module used by `forward` before calling `self.infer_dimensions_dynamically(out_shape[0])`; never call `train_setup` inside `__init__`.
-- In `forward`, normalize raw input with `self._norm4d(x).to(self.device)` before the first backbone; use `_feature_to_input_image(...)` only to convert a backbone/conv feature map before feeding it to another TorchVision backbone.
-- Do not instantiate `nn.Module` objects inside `forward`; create them in `__init__`.
 
 <block>
-def drop_conv3x3_block(in_channels, out_channels, stride=1, padding=1, bias=False, dropout_prob=0.0):
-    ...
+# drop_conv3x3_block implementation
 </block>
 <init>
-def __init__(self, in_shape: tuple, out_shape: tuple, prm: dict, device: torch.device) -> None:
-    super().__init__()
-    # compute c_in, h_in, w_in with the len(in_shape) branch above
-    # set self._input_spec, define modules used by forward, then call infer_dimensions_dynamically
-    ...
+# Net.__init__ implementation
 </init>
 <forward>
-def forward(self, x: torch.Tensor, is_probing: bool = False) -> torch.Tensor:
-    # normalize raw input, run existing modules, pool/flatten features, then classify
-    ...
+# Net.forward implementation
 </forward>
 """
 
