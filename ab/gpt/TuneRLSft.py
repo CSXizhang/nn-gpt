@@ -1457,12 +1457,15 @@ def run_sft_training():
     TuneRL.active_rl_model = model
     TuneRL.active_rl_tokenizer = tokenizer
 
-    trainer = TuneRL.GRPOTrainer(
-        model=model,
-        train_dataset=rl_dataset,
-        reward_funcs=TuneRL.compute_reward,
-        args=grpo_config,
-    )
+    trainer_kwargs = {
+        "model": model,
+        "train_dataset": rl_dataset,
+        "reward_funcs": TuneRL.compute_reward,
+        "args": grpo_config,
+    }
+    if "processing_class" in inspect.signature(TuneRL.GRPOTrainer.__init__).parameters:
+        trainer_kwargs["processing_class"] = tokenizer
+    trainer = TuneRL.GRPOTrainer(**trainer_kwargs)
     trainer_gc_patch_stats = TrainerRuntime.enforce_non_reentrant_gradient_checkpointing(trainer.model)
     print(
         "[SFT RL] Trainer gradient checkpointing enforcement: "
