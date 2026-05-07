@@ -74,6 +74,29 @@ def maybe_merge_initial_adapter(
     return model.merge_and_unload()
 
 
+def load_trainable_initial_adapter(
+    model,
+    *,
+    enabled: bool,
+    adapter_path: str,
+    label: str,
+    empty_adapter_message: Optional[str] = None,
+    missing_adapter_message: Optional[str] = None,
+    load_message: Optional[str] = None,
+):
+    if not enabled:
+        return model
+    if not adapter_path:
+        raise ValueError(empty_adapter_message or f"{label} adapter path is empty.")
+    if not os.path.exists(adapter_path):
+        raise FileNotFoundError(missing_adapter_message or f"{label} adapter not found: {adapter_path}")
+
+    from peft import PeftModel
+
+    print(load_message or f"Loading trainable initial {label} adapter from {adapter_path}...")
+    return PeftModel.from_pretrained(model, adapter_path, is_trainable=True)
+
+
 def build_lora_config(
     *,
     r: int,

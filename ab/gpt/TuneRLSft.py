@@ -16,12 +16,15 @@ from ab.gpt.util.Const import conf_dir
 SFT_BASE_MODEL_ID = "ABrain/NNGPT-Backbone-deepseek-coder-6.7b-instruct"
 SFT_INIT_ADAPTER = ""
 SFT_LOAD_INITIAL_ADAPTER = False
+SFT_INITIAL_ADAPTER_MODE = "trainable"
 SFT_SAVE_RL_MODEL = False
 SFT_MODEL_OUT = "rl_backbone_model_sft"
 SFT_LOG_DIR = "rl_output/sft"
 SFT_EPOCH_ROOT = "out/nngpt/llm/epoch_sft"
 SFT_TRAINER_OUT = "grpo_backbone_outputs/sft"
 SFT_TEMPERATURE = 0.8
+SFT_TOP_P = 0.95
+SFT_TOP_K = 50
 SFT_NUM_GENERATIONS = 8
 SFT_GRAD_ACCUM = 8
 SFT_MAX_PROMPT_LENGTH = 4096
@@ -363,6 +366,23 @@ def resolve_sft_load_initial_adapter() -> bool:
     return _env_flag("NNGPT_SFT_LOAD_INITIAL_ADAPTER", SFT_LOAD_INITIAL_ADAPTER)
 
 
+def resolve_sft_initial_adapter_mode() -> str:
+    mode = _env_str("NNGPT_SFT_INITIAL_ADAPTER_MODE", SFT_INITIAL_ADAPTER_MODE).strip().lower()
+    aliases = {
+        "train": "trainable",
+        "trainable": "trainable",
+        "peft": "trainable",
+        "peft_unmerged": "trainable",
+        "unmerged": "trainable",
+        "merge": "merge",
+        "merged": "merge",
+        "merge_and_unload": "merge",
+    }
+    if mode not in aliases:
+        raise ValueError("NNGPT_SFT_INITIAL_ADAPTER_MODE must be one of: trainable, merge")
+    return aliases[mode]
+
+
 def resolve_sft_rl_nn_prefixes() -> tuple[str, ...]:
     raw = os.getenv("NNGPT_SFT_RL_NN_PREFIXES", "").strip()
     if not raw:
@@ -397,6 +417,14 @@ def resolve_sft_save_rl_model() -> bool:
 
 def resolve_sft_temperature() -> float:
     return _env_float("NNGPT_SFT_TEMPERATURE", SFT_TEMPERATURE)
+
+
+def resolve_sft_top_p() -> float:
+    return _env_float("NNGPT_SFT_TOP_P", SFT_TOP_P)
+
+
+def resolve_sft_top_k() -> int:
+    return _env_int("NNGPT_SFT_TOP_K", SFT_TOP_K)
 
 
 def resolve_sft_model_out() -> str:
@@ -1314,6 +1342,18 @@ def _build_sft_grpo_config(
         "max_steps",
         runtime_settings.get("max_steps"),
     )
+    _set_optional_grpo_config(
+        config_kwargs,
+        signature_parameters,
+        "top_p",
+        resolve_sft_top_p(),
+    )
+    _set_optional_grpo_config(
+        config_kwargs,
+        signature_parameters,
+        "top_k",
+        resolve_sft_top_k(),
+    )
     use_vllm = _env_flag("NNGPT_SFT_USE_VLLM", False)
     if use_vllm:
         _set_optional_grpo_config(
@@ -1375,6 +1415,7 @@ def run_sft_training():
         raise RuntimeError("SFT RL requires CUDA for GRPO training, but no CUDA device is available")
     resume_spec = _resolve_sft_resume_spec()
     load_initial_adapter = resolve_sft_load_initial_adapter()
+    initial_adapter_mode = resolve_sft_initial_adapter_mode()
     init_adapter_path = resolve_sft_init_adapter()
     save_rl_model = resolve_sft_save_rl_model()
     model_out_path = resolve_sft_model_out()
@@ -1524,31 +1565,56 @@ def run_sft_training():
     )
     _ = hf_deepspeed_config
 
-    model = TrainerRuntime.maybe_merge_initial_adapter(
-        model,
-        enabled=load_initial_adapter,
-        adapter_path=init_adapter_path,
-        label="SFT",
-        empty_adapter_message="SFT_INIT_ADAPTER is empty, but SFT_LOAD_INITIAL_ADAPTER is True.",
-        missing_adapter_message=f"Initial adapter not found: {init_adapter_path}",
-        load_message=f"Loading initial SFT adapter from {init_adapter_path}...",
-    )
+    if load_initial_adapter and initial_adapter_mode == "merge" and stage_adapter_dir is None:
+        model = TrainerRuntime.maybe_merge_initial_adapter(
+            model,
+            enabled=True,
+            adapter_path=init_adapter_path,
+            label="SFT",
+            empty_adapter_message="SFT_INIT_ADAPTER is empty, but SFT_LOAD_INITIAL_ADAPTER is True.",
+            missing_adapter_message=f"Initial adapter not found: {init_adapter_path}",
+            load_message=f"Loading initial SFT adapter from {init_adapter_path} for merge...",
+        )
 
     model = TuneRL.prepare_model_for_kbit_training(model)
     TuneRL.align_generation_head_dtype(model, precision["torch_dtype"])
 
-    peft_config = TrainerRuntime.build_lora_config(
-        r=SFT_LORA_R,
-        alpha=SFT_LORA_ALPHA,
-        dropout=SFT_LORA_DROPOUT,
-    )
-    model = TrainerRuntime.attach_or_resume_lora(
-        model,
-        peft_config=peft_config,
-        stage_adapter_dir=stage_adapter_dir,
-        log_prefix="[SFT RL]",
-        missing_adapter_message=f"Missing adapter directory under SFT stage checkpoint: {stage_adapter_dir}",
-    )
+    if stage_adapter_dir is not None:
+        peft_config = TrainerRuntime.build_lora_config(
+            r=SFT_LORA_R,
+            alpha=SFT_LORA_ALPHA,
+            dropout=SFT_LORA_DROPOUT,
+        )
+        model = TrainerRuntime.attach_or_resume_lora(
+            model,
+            peft_config=peft_config,
+            stage_adapter_dir=stage_adapter_dir,
+            log_prefix="[SFT RL]",
+            missing_adapter_message=f"Missing adapter directory under SFT stage checkpoint: {stage_adapter_dir}",
+        )
+    elif load_initial_adapter and initial_adapter_mode == "trainable":
+        model = TrainerRuntime.load_trainable_initial_adapter(
+            model,
+            enabled=True,
+            adapter_path=init_adapter_path,
+            label="SFT",
+            empty_adapter_message="SFT_INIT_ADAPTER is empty, but SFT_LOAD_INITIAL_ADAPTER is True.",
+            missing_adapter_message=f"Initial adapter not found: {init_adapter_path}",
+            load_message=f"Loading trainable initial SFT adapter from {init_adapter_path}...",
+        )
+    else:
+        peft_config = TrainerRuntime.build_lora_config(
+            r=SFT_LORA_R,
+            alpha=SFT_LORA_ALPHA,
+            dropout=SFT_LORA_DROPOUT,
+        )
+        model = TrainerRuntime.attach_or_resume_lora(
+            model,
+            peft_config=peft_config,
+            stage_adapter_dir=None,
+            log_prefix="[SFT RL]",
+            missing_adapter_message=f"Missing adapter directory under SFT stage checkpoint: {stage_adapter_dir}",
+        )
     TuneRL.align_generation_head_dtype(model, precision["torch_dtype"])
 
     TrainerRuntime.enable_non_reentrant_gradient_checkpointing(
@@ -1717,6 +1783,7 @@ def main() -> None:
         print(f"[SFT RL] Tokenizer source: {tokenizer_source}")
     print(f"[SFT RL] Resume mode: {resume_spec['mode']}")
     print(f"[SFT RL] Load init adapter: {resolve_sft_load_initial_adapter()}")
+    print(f"[SFT RL] Initial adapter mode: {resolve_sft_initial_adapter_mode()}")
     if resolve_sft_load_initial_adapter():
         print(f"[SFT RL] Init adapter path: {resolve_sft_init_adapter()}")
     if resume_spec["trainer_checkpoint"] is not None:
@@ -1729,6 +1796,8 @@ def main() -> None:
     print(f"[SFT RL] Stage1 only: {TuneRL.env_flag('NNGPT_RL_STAGE1_ONLY', False)}")
     print(f"[SFT RL] Num epochs: {resolve_sft_num_epochs()}")
     print(f"[SFT RL] Temperature: {resolve_sft_temperature()}")
+    print(f"[SFT RL] Top-p: {resolve_sft_top_p()}")
+    print(f"[SFT RL] Top-k: {resolve_sft_top_k()}")
     print(f"[SFT RL] KL coef: {TuneRL.env_float('NNGPT_RL_KL_COEF', SFT_KL_COEF):.6f}")
     print(
         f"[SFT RL] Eval plan: stage1=static_only(no-check_nn), stage2/3=nn-dataset-formal(cifar-10), "
