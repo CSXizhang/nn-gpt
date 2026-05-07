@@ -21,7 +21,7 @@ SFT_MODEL_OUT = "rl_backbone_model_sft"
 SFT_LOG_DIR = "rl_output/sft"
 SFT_EPOCH_ROOT = "out/nngpt/llm/epoch_sft"
 SFT_TRAINER_OUT = "grpo_backbone_outputs/sft"
-SFT_TEMPERATURE = 1.1
+SFT_TEMPERATURE = 0.8
 SFT_NUM_GENERATIONS = 8
 SFT_GRAD_ACCUM = 8
 SFT_MAX_PROMPT_LENGTH = 4096
@@ -321,6 +321,13 @@ def _env_int(name: str, default: int) -> int:
     return int(raw)
 
 
+def _env_float(name: str, default: float) -> float:
+    raw = os.getenv(name)
+    if raw is None or raw == "":
+        return float(default)
+    return float(raw)
+
+
 def _env_optional_int(name: str) -> int | None:
     raw = os.getenv(name)
     if raw is None or raw == "":
@@ -386,6 +393,10 @@ def resolve_sft_rl_prompt_mode() -> str:
 
 def resolve_sft_save_rl_model() -> bool:
     return _env_flag("NNGPT_SFT_SAVE_RL_MODEL", SFT_SAVE_RL_MODEL)
+
+
+def resolve_sft_temperature() -> float:
+    return _env_float("NNGPT_SFT_TEMPERATURE", SFT_TEMPERATURE)
 
 
 def resolve_sft_model_out() -> str:
@@ -1260,7 +1271,7 @@ def _build_sft_grpo_config(
 ) -> Any:
     signature_parameters = _sft_grpo_signature_parameters()
     config_kwargs: Dict[str, Any] = {
-        "temperature": SFT_TEMPERATURE,
+        "temperature": resolve_sft_temperature(),
         "learning_rate": SFT_LR,
         "max_prompt_length": runtime_settings["max_prompt_length"],
         "max_completion_length": runtime_settings["max_completion_length"],
@@ -1717,7 +1728,7 @@ def main() -> None:
     print(f"[SFT RL] Model out: {resolve_sft_model_out()}")
     print(f"[SFT RL] Stage1 only: {TuneRL.env_flag('NNGPT_RL_STAGE1_ONLY', False)}")
     print(f"[SFT RL] Num epochs: {resolve_sft_num_epochs()}")
-    print(f"[SFT RL] Temperature: {SFT_TEMPERATURE}")
+    print(f"[SFT RL] Temperature: {resolve_sft_temperature()}")
     print(f"[SFT RL] KL coef: {TuneRL.env_float('NNGPT_RL_KL_COEF', SFT_KL_COEF):.6f}")
     print(
         f"[SFT RL] Eval plan: stage1=static_only(no-check_nn), stage2/3=nn-dataset-formal(cifar-10), "
