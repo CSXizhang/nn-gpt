@@ -190,20 +190,10 @@ class Net(nn.Module):
     def __init__(self, in_shape: tuple, out_shape: tuple, prm: dict, device: torch.device) -> None:
         
 
-    def infer_dimensions_dynamically(self, *args):
-        if len(args) == 1:
-            num_classes = args[0]
-            if not hasattr(self, "_input_spec"):
-                raise RuntimeError("_input_spec must be set before one-argument infer_dimensions_dynamically")
-            c, h, w = self._input_spec
-        elif len(args) == 2:
-            in_shape, num_classes = args
-            c = in_shape[1] if len(in_shape) == 4 else in_shape[0]
-            h = 224
-            w = 224
-            self._input_spec = (c, h, w)
-        else:
-            raise TypeError("infer_dimensions_dynamically expects (num_classes) or (in_shape, num_classes)")
+    def infer_dimensions_dynamically(self, num_classes):
+        if not hasattr(self, "_input_spec"):
+            raise RuntimeError("_input_spec must be set before infer_dimensions_dynamically")
+        c, h, w = self._input_spec
         self.to(self.device)
         was_training = self.training
         self.eval()
@@ -328,7 +318,7 @@ You are implementing one trainable dual-backbone image-classification model. See
 - Target pattern: `{target_pattern}`. Set `self.pattern` to this value.
 - Implement only `drop_conv3x3_block`, `Net.__init__`, and `Net.forward`.
 - Use exactly two `TorchVision` backbones named `self.backbone_a` and `self.backbone_b` from [{available_backbones}].
-- Use `out_shape[0]` as the class count and call `self.infer_dimensions_dynamically(...)` once after defining the modules used by `forward`. The fixed skeleton accepts either `(out_shape[0])` with `self._input_spec` already set, or the historical `(in_shape, out_shape[0])` call used by existing SFT data.
+- Set `self._input_spec = (c_in, h_in, w_in)` in `Net.__init__`, then call `self.infer_dimensions_dynamically(out_shape[0])` exactly once after defining the modules used by `forward`.
 - Use the fixed helper as `_feature_to_input_image(tensor, adapter_name)` when a feature map must be converted back to the input image shape.
 - Read `dropout` from `prm` and route it into trainable dropout/drop block settings so `supported_hyperparameters()` matches the implementation.
 - Return only the three XML sections below, each containing the complete function or method definition.
