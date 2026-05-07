@@ -220,6 +220,10 @@ def resolve_sft_base_model_id() -> str:
     return _env_str("NNGPT_SFT_BASE_MODEL_ID", SFT_BASE_MODEL_ID)
 
 
+def resolve_sft_tokenizer_id() -> str:
+    return _env_str("NNGPT_SFT_TOKENIZER_ID", "")
+
+
 def _has_model_files(model_dir: Path) -> bool:
     if not model_dir.is_dir():
         return False
@@ -252,10 +256,18 @@ def _has_tokenizer_files(tokenizer_dir: Path) -> bool:
 
 def resolve_sft_model_sources() -> tuple[str, str, str]:
     base_model_id = resolve_sft_base_model_id()
+    tokenizer_id = resolve_sft_tokenizer_id()
     base_model_path = Path(base_model_id).expanduser()
     if base_model_path.is_dir():
         if not _has_model_files(base_model_path):
             raise RuntimeError(f"Configured SFT base model path has no model files: {base_model_path}")
+        if tokenizer_id:
+            tokenizer_path = Path(tokenizer_id).expanduser()
+            if tokenizer_path.is_dir():
+                if not _has_tokenizer_files(tokenizer_path):
+                    raise RuntimeError(f"Configured SFT tokenizer path has no tokenizer files: {tokenizer_path}")
+                return str(base_model_path), str(tokenizer_path), "explicit-path+explicit-tokenizer-path"
+            return str(base_model_path), tokenizer_id, "explicit-path+explicit-tokenizer-id"
         if _has_tokenizer_files(base_model_path):
             return str(base_model_path), str(base_model_path), "explicit-path"
         out_llm_root = Path("out/llm").resolve()
