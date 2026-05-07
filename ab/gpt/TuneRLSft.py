@@ -258,7 +258,16 @@ def resolve_sft_model_sources() -> tuple[str, str, str]:
             raise RuntimeError(f"Configured SFT base model path has no model files: {base_model_path}")
         if _has_tokenizer_files(base_model_path):
             return str(base_model_path), str(base_model_path), "explicit-path"
-        return str(base_model_path), str(base_model_path), "explicit-path-no-tokenizer"
+        out_llm_root = Path("out/llm").resolve()
+        try:
+            relative_model_id = str(base_model_path.resolve().relative_to(out_llm_root))
+        except ValueError:
+            relative_model_id = ""
+        if relative_model_id:
+            repo_tokenizer_dir = _repo_tokenizer_dir(relative_model_id)
+            if _has_tokenizer_files(repo_tokenizer_dir):
+                return str(base_model_path), str(repo_tokenizer_dir), "explicit-path+out/tokenizer"
+        raise RuntimeError(f"Configured SFT base model path has no tokenizer files: {base_model_path}")
 
     repo_model_dir = _repo_model_dir(base_model_id)
     repo_tokenizer_dir = _repo_tokenizer_dir(base_model_id)
