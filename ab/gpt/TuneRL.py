@@ -1801,6 +1801,23 @@ def _resolve_resume_checkpoint_dir() -> Optional[Path]:
     return None
 
 
+def apply_resume_stage_override(requested_stage: str, *, log_prefix: str) -> bool:
+    global current_stage_name
+
+    requested_stage = str(requested_stage or "").strip()
+    if not requested_stage:
+        return False
+    current_state_stage = str(current_stage_name)
+    if current_state_stage == requested_stage:
+        return False
+    print(
+        f"{log_prefix} Resume stage override "
+        f"checkpoint_stage={current_state_stage} requested_stage={requested_stage}"
+    )
+    current_stage_name = requested_stage
+    return True
+
+
 def _load_json_if_exists(path: Path) -> Optional[Dict[str, Any]]:
     if not path.exists():
         return None
@@ -4859,13 +4876,7 @@ def main():
             legacy_state_filenames=("reward_state.json",),
         )
         if resume_stage_override:
-            current_state_stage = str(current_stage_name)
-            if current_state_stage != resume_stage_override:
-                print(
-                    "[RL] Resume stage override "
-                    f"checkpoint_stage={current_state_stage} requested_stage={resume_stage_override}"
-                )
-                current_stage_name = resume_stage_override
+            apply_resume_stage_override(resume_stage_override, log_prefix="[RL]")
         print(
             "[RL] Resuming from checkpoint "
             f"dir={resume_checkpoint_dir} stage={current_stage_name} "
@@ -4879,6 +4890,8 @@ def main():
             _reward_runtime_hooks(),
             legacy_state_filenames=("reward_state.json",),
         )
+        if resume_stage_override:
+            apply_resume_stage_override(resume_stage_override, log_prefix="[RL]")
     precision = best_mixed_precision()
     runtime = get_distributed_runtime_info()
     runtime_settings = resolve_rl_runtime_settings(runtime)
