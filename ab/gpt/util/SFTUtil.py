@@ -464,6 +464,8 @@ def parse_nn_code(code_str):
         block_code = None
         init_code = None
         forward_code = None
+        init_node = None
+        forward_node = None
 
         def get_source(node):
             return ast.get_source_segment(code_str, node)
@@ -477,13 +479,24 @@ def parse_nn_code(code_str):
                     if isinstance(sub_node, ast.FunctionDef):
                         if sub_node.name == '__init__':
                             init_code = get_source(sub_node)
+                            init_node = sub_node
                         elif sub_node.name == 'forward':
                             forward_code = get_source(sub_node)
+                            forward_node = sub_node
 
         def clean_code(c):
             return textwrap.dedent(c).strip() if c else None
 
-        return clean_code(block_code), clean_code(init_code), clean_code(forward_code)
+        def clean_method_code(node):
+            if node is None:
+                return None
+            return ast.unparse(node).strip()
+
+        return (
+            clean_code(block_code),
+            clean_method_code(init_node),
+            clean_method_code(forward_node),
+        )
 
     except Exception as e:
         print(f"AST Parsing Failed: {e}")
