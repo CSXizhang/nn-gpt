@@ -386,6 +386,13 @@ def resolve_sft_initial_adapter_mode() -> str:
 def resolve_sft_rl_nn_prefixes() -> tuple[str, ...]:
     raw = os.getenv("NNGPT_SFT_RL_NN_PREFIXES", "").strip()
     if not raw:
+        init_adapter = resolve_sft_init_adapter().strip()
+        if resolve_sft_load_initial_adapter() and init_adapter:
+            raise RuntimeError(
+                "NNGPT_SFT_RL_NN_PREFIXES must be set when loading an initial "
+                "SFT adapter; otherwise RL may train against a different SFT "
+                "data distribution."
+            )
         return tuple(SFT_RL_NN_PREFIXES)
     prefixes = tuple(item.strip() for item in raw.split(",") if item.strip())
     if not prefixes:
