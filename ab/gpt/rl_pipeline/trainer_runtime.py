@@ -74,12 +74,69 @@ def maybe_merge_initial_adapter(
     return model.merge_and_unload()
 
 
+def _dtype_numel_summary(model, *, lora_only: bool) -> Dict[str, int]:
+    counts: Dict[str, int] = {}
+    for name, param in model.named_parameters():
+        if lora_only and "lora_" not in name:
+            continue
+        if not torch.is_floating_point(param.data):
+            continue
+        key = str(param.dtype)
+        counts[key] = counts.get(key, 0) + int(param.numel())
+    return counts
+
+
+def _trainable_dtype_numel_summary(model, *, lora_only: bool) -> Dict[str, int]:
+    counts: Dict[str, int] = {}
+    for name, param in model.named_parameters():
+        if lora_only and "lora_" not in name:
+            continue
+        if not param.requires_grad or not torch.is_floating_point(param.data):
+            continue
+        key = str(param.dtype)
+        counts[key] = counts.get(key, 0) + int(param.numel())
+    return counts
+
+
+def cast_lora_parameter_dtype(
+    model,
+    *,
+    dtype: torch.dtype,
+    label: str,
+):
+    before = _dtype_numel_summary(model, lora_only=True)
+    before_trainable = _trainable_dtype_numel_summary(model, lora_only=True)
+    if not before:
+        raise RuntimeError(f"No LoRA parameters found while casting {label} adapter to {dtype}.")
+
+    changed = 0
+    for name, param in model.named_parameters():
+        if "lora_" not in name or not torch.is_floating_point(param.data):
+            continue
+        if param.dtype == dtype:
+            continue
+        changed += int(param.numel())
+        param.data = param.data.to(dtype=dtype)
+        if param.grad is not None:
+            param.grad = param.grad.to(dtype=dtype)
+
+    after = _dtype_numel_summary(model, lora_only=True)
+    after_trainable = _trainable_dtype_numel_summary(model, lora_only=True)
+    print(
+        f"{label} LoRA dtype cast: target={dtype} changed={changed} "
+        f"before={before} before_trainable={before_trainable} "
+        f"after={after} after_trainable={after_trainable}"
+    )
+    return model
+
+
 def load_trainable_initial_adapter(
     model,
     *,
     enabled: bool,
     adapter_path: str,
     label: str,
+    adapter_dtype: Optional[torch.dtype] = None,
     empty_adapter_message: Optional[str] = None,
     missing_adapter_message: Optional[str] = None,
     load_message: Optional[str] = None,
@@ -94,7 +151,10 @@ def load_trainable_initial_adapter(
     from peft import PeftModel
 
     print(load_message or f"Loading trainable initial {label} adapter from {adapter_path}...")
-    return PeftModel.from_pretrained(model, adapter_path, is_trainable=True)
+    model = PeftModel.from_pretrained(model, adapter_path, is_trainable=True)
+    if adapter_dtype is not None:
+        model = cast_lora_parameter_dtype(model, dtype=adapter_dtype, label=f"Initial {label}")
+    return model
 
 
 def build_lora_config(

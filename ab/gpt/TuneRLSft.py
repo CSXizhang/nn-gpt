@@ -17,6 +17,7 @@ SFT_BASE_MODEL_ID = "ABrain/NNGPT-Backbone-deepseek-coder-6.7b-instruct"
 SFT_INIT_ADAPTER = ""
 SFT_LOAD_INITIAL_ADAPTER = False
 SFT_INITIAL_ADAPTER_MODE = "trainable"
+SFT_INITIAL_ADAPTER_DTYPE = "fp32"
 SFT_SAVE_RL_MODEL = False
 SFT_MODEL_OUT = "rl_backbone_model_sft"
 SFT_LOG_DIR = "rl_output/sft"
@@ -381,6 +382,43 @@ def resolve_sft_initial_adapter_mode() -> str:
     if mode not in aliases:
         raise ValueError("NNGPT_SFT_INITIAL_ADAPTER_MODE must be one of: trainable, merge")
     return aliases[mode]
+
+
+def resolve_sft_initial_adapter_dtype_label() -> str:
+    raw = _env_str("NNGPT_SFT_INITIAL_ADAPTER_DTYPE", SFT_INITIAL_ADAPTER_DTYPE).strip().lower()
+    aliases = {
+        "": "fp32",
+        "float32": "fp32",
+        "fp32": "fp32",
+        "full": "fp32",
+        "float16": "fp16",
+        "fp16": "fp16",
+        "half": "fp16",
+        "bfloat16": "bf16",
+        "bf16": "bf16",
+        "mixed": "precision",
+        "precision": "precision",
+        "auto": "precision",
+    }
+    if raw not in aliases:
+        raise ValueError("NNGPT_SFT_INITIAL_ADAPTER_DTYPE must be one of: fp32, fp16, bf16, precision")
+    return aliases[raw]
+
+
+def resolve_sft_initial_adapter_dtype(label: str, precision: Dict[str, Any]) -> Any:
+    import torch
+
+    if label == "precision":
+        return precision["torch_dtype"]
+    if label == "fp32":
+        return torch.float32
+    if label == "fp16":
+        return torch.float16
+    if label == "bf16":
+        if torch.cuda.is_available() and not torch.cuda.is_bf16_supported():
+            raise RuntimeError("NNGPT_SFT_INITIAL_ADAPTER_DTYPE=bf16 requested, but CUDA bf16 is not supported.")
+        return torch.bfloat16
+    raise ValueError(f"Unsupported SFT initial adapter dtype label: {label}")
 
 
 def resolve_sft_rl_nn_prefixes() -> tuple[str, ...]:
@@ -1473,6 +1511,10 @@ def run_sft_training():
     if resume_stage_override:
         TuneRL.apply_resume_stage_override(resume_stage_override, log_prefix="[SFT RL]")
     precision = TuneRL.best_mixed_precision()
+    initial_adapter_dtype_label = resolve_sft_initial_adapter_dtype_label()
+    if load_initial_adapter and initial_adapter_mode != "trainable" and initial_adapter_dtype_label != "fp32":
+        raise ValueError("NNGPT_SFT_INITIAL_ADAPTER_DTYPE only applies to trainable initial adapters.")
+    initial_adapter_dtype = resolve_sft_initial_adapter_dtype(initial_adapter_dtype_label, precision)
     grpo_config = _build_sft_grpo_config(
         precision=precision,
         use_deepspeed=use_deepspeed,
@@ -1504,6 +1546,11 @@ def run_sft_training():
     print(f"[SFT RL] Fixed training device: {train_device}")
     print(f"[SFT RL] Visible CUDA devices: {visible_cuda_devices}")
     print(f"[SFT RL] Mixed precision: {precision['label']} (torch_dtype={precision['torch_dtype']})")
+    if load_initial_adapter and initial_adapter_mode == "trainable":
+        print(
+            "[SFT RL] Initial adapter dtype: "
+            f"{initial_adapter_dtype_label} (torch_dtype={initial_adapter_dtype})"
+        )
     print(f"[SFT RL] Current stage: {TuneRL.current_stage_name}")
     print(
         "[SFT RL] Runtime limits: "
@@ -1605,6 +1652,7 @@ def run_sft_training():
             enabled=True,
             adapter_path=init_adapter_path,
             label="SFT",
+            adapter_dtype=initial_adapter_dtype,
             empty_adapter_message="SFT_INIT_ADAPTER is empty, but SFT_LOAD_INITIAL_ADAPTER is True.",
             missing_adapter_message=f"Initial adapter not found: {init_adapter_path}",
             load_message=f"Loading trainable initial SFT adapter from {init_adapter_path}...",
@@ -1793,6 +1841,7 @@ def main() -> None:
     print(f"[SFT RL] Initial adapter mode: {resolve_sft_initial_adapter_mode()}")
     if resolve_sft_load_initial_adapter():
         print(f"[SFT RL] Init adapter path: {resolve_sft_init_adapter()}")
+        print(f"[SFT RL] Initial adapter dtype request: {resolve_sft_initial_adapter_dtype_label()}")
     if resume_spec["trainer_checkpoint"] is not None:
         print(f"[SFT RL] Resume trainer checkpoint: {resume_spec['trainer_checkpoint']}")
     if resume_spec["stage_checkpoint_dir"] is not None:
