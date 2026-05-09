@@ -43,6 +43,8 @@ SFT_RL_PROMPT_MODE = "sft_aligned"
 SFT_DEEPSPEED_DEFAULT_CONFIG = str(conf_dir / "DeepSpeedSftGrpo.json")
 SFT_MODE_DEFAULT = "auto"
 SFT_REWARD_EXCLUDE_TRAIN_GPU = False
+SFT_COMPACT_AFTER_MODEL_LOAD = False
+SFT_COMPACT_FLOAT_PARAMS = False
 
 # CIFAR-10 reward evaluation via nn-dataset / NNEval-aligned formal acc.
 SFT_EVAL_IMAGE_SIZE = 128
@@ -557,6 +559,14 @@ def _resolve_sft_mode(visible_gpu_tokens: List[str]) -> Dict[str, str]:
 
 def resolve_sft_reward_exclude_train_gpu() -> bool:
     return _env_flag("NNGPT_SFT_REWARD_EXCLUDE_TRAIN_GPU", SFT_REWARD_EXCLUDE_TRAIN_GPU)
+
+
+def resolve_sft_compact_after_model_load() -> bool:
+    return _env_flag("NNGPT_SFT_COMPACT_AFTER_MODEL_LOAD", SFT_COMPACT_AFTER_MODEL_LOAD)
+
+
+def resolve_sft_compact_float_params() -> bool:
+    return _env_flag("NNGPT_SFT_COMPACT_FLOAT_PARAMS", SFT_COMPACT_FLOAT_PARAMS)
 
 
 def _sft_reward_gpu_tokens_for_plan(
@@ -1654,6 +1664,8 @@ def run_sft_training():
         train_device=train_device,
         use_deepspeed=use_deepspeed,
     )
+    if resolve_sft_compact_after_model_load():
+        TrainerRuntime.compact_cuda_cache(log_prefix="[SFT RL]", stage="after_base_model_load")
     _ = hf_deepspeed_config
 
     if load_initial_adapter and initial_adapter_mode == "merge" and stage_adapter_dir is None:
@@ -1669,6 +1681,14 @@ def run_sft_training():
 
     model = TuneRL.prepare_model_for_kbit_training(model)
     TuneRL.align_generation_head_dtype(model, precision["torch_dtype"])
+    if resolve_sft_compact_float_params():
+        model = TrainerRuntime.cast_non_lora_float_parameter_dtype(
+            model,
+            dtype=precision["torch_dtype"],
+            label="[SFT RL] Prepared model",
+        )
+    if resolve_sft_compact_after_model_load():
+        TrainerRuntime.compact_cuda_cache(log_prefix="[SFT RL]", stage="after_prepare_kbit")
 
     if stage_adapter_dir is not None:
         peft_config = TrainerRuntime.build_lora_config(
@@ -1708,11 +1728,21 @@ def run_sft_training():
             missing_adapter_message=f"Missing adapter directory under SFT stage checkpoint: {stage_adapter_dir}",
         )
     TuneRL.align_generation_head_dtype(model, precision["torch_dtype"])
+    if resolve_sft_compact_float_params():
+        model = TrainerRuntime.cast_non_lora_float_parameter_dtype(
+            model,
+            dtype=precision["torch_dtype"],
+            label="[SFT RL] PEFT model",
+        )
+    if resolve_sft_compact_after_model_load():
+        TrainerRuntime.compact_cuda_cache(log_prefix="[SFT RL]", stage="after_adapter_load")
 
     TrainerRuntime.enable_non_reentrant_gradient_checkpointing(
         model,
         log_prefix="[SFT RL]",
     )
+    if resolve_sft_compact_after_model_load():
+        TrainerRuntime.compact_cuda_cache(log_prefix="[SFT RL]", stage="after_gradient_checkpointing")
     model.print_trainable_parameters()
     TuneRL.active_rl_model = model
     TuneRL.active_rl_tokenizer = tokenizer
@@ -1741,6 +1771,8 @@ def run_sft_training():
             trainer.add_callback(runtime_callback)
     warmup_diagnostics = RewardUtil.prewarm_eval_workers(timeout_seconds=60.0, require_gpu=True)
     _validate_gpu_reward_worker_bindings(warmup_diagnostics)
+    if resolve_sft_compact_after_model_load():
+        TrainerRuntime.compact_cuda_cache(log_prefix="[SFT RL]", stage="before_grpo_train")
     TuneRL.register_stage_checkpoint_signal_handlers()
 
     print("Starting GRPO training for Backbone Search...")
@@ -1879,6 +1911,8 @@ def main() -> None:
     print(f"[SFT RL] Load init adapter: {resolve_sft_load_initial_adapter()}")
     print(f"[SFT RL] Initial adapter mode: {resolve_sft_initial_adapter_mode()}")
     print(f"[SFT RL] Reward excludes train GPU: {resolve_sft_reward_exclude_train_gpu()}")
+    print(f"[SFT RL] Compact after model load: {resolve_sft_compact_after_model_load()}")
+    print(f"[SFT RL] Compact float params: {resolve_sft_compact_float_params()}")
     if resolve_sft_load_initial_adapter():
         print(f"[SFT RL] Init adapter path: {resolve_sft_init_adapter()}")
         print(f"[SFT RL] Initial adapter dtype request: {resolve_sft_initial_adapter_dtype_label()}")

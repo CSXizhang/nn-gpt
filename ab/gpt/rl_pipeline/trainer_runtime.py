@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import functools
+import gc
 import os
 from pathlib import Path
 from typing import Any, Dict, Optional, Set
@@ -96,6 +97,62 @@ def _trainable_dtype_numel_summary(model, *, lora_only: bool) -> Dict[str, int]:
         key = str(param.dtype)
         counts[key] = counts.get(key, 0) + int(param.numel())
     return counts
+
+
+def compact_cuda_cache(
+    *,
+    log_prefix: str,
+    stage: str,
+    reset_peak_stats: bool = True,
+) -> None:
+    if not torch.cuda.is_available():
+        return
+    device = torch.cuda.current_device()
+    before_allocated = float(torch.cuda.memory_allocated(device)) / float(1024 ** 3)
+    before_reserved = float(torch.cuda.memory_reserved(device)) / float(1024 ** 3)
+    gc.collect()
+    torch.cuda.empty_cache()
+    if reset_peak_stats:
+        try:
+            torch.cuda.reset_peak_memory_stats(device)
+        except Exception:
+            pass
+    after_allocated = float(torch.cuda.memory_allocated(device)) / float(1024 ** 3)
+    after_reserved = float(torch.cuda.memory_reserved(device)) / float(1024 ** 3)
+    print(
+        f"{log_prefix} CUDA cache compact stage={stage} "
+        f"allocated_gib={before_allocated:.2f}->{after_allocated:.2f} "
+        f"reserved_gib={before_reserved:.2f}->{after_reserved:.2f}"
+    )
+
+
+def cast_non_lora_float_parameter_dtype(
+    model,
+    *,
+    dtype: torch.dtype,
+    label: str,
+):
+    before = _dtype_numel_summary(model, lora_only=False)
+    changed = 0
+    skipped_lora = 0
+    for name, param in model.named_parameters():
+        if not torch.is_floating_point(param.data):
+            continue
+        if "lora_" in name:
+            skipped_lora += int(param.numel())
+            continue
+        if param.dtype == dtype:
+            continue
+        changed += int(param.numel())
+        param.data = param.data.to(dtype=dtype)
+        if param.grad is not None:
+            param.grad = param.grad.to(dtype=dtype)
+    after = _dtype_numel_summary(model, lora_only=False)
+    print(
+        f"{label} non-LoRA float dtype cast: target={dtype} changed={changed} "
+        f"skipped_lora={skipped_lora} before={before} after={after}"
+    )
+    return model
 
 
 def cast_lora_parameter_dtype(
