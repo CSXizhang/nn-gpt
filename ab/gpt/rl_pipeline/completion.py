@@ -11,6 +11,9 @@ REQUIRED_BACKBONE_NAMES = ("backbone_a", "backbone_b")
 BLOCK_SIGNATURE = "def drop_conv3x3_block(in_channels, out_channels, stride=1, padding=1, bias=False, dropout_prob=0.0):"
 INIT_SIGNATURE = "def __init__(self, in_shape: tuple, out_shape: tuple, prm: dict, device: torch.device) -> None:"
 FORWARD_SIGNATURE = "def forward(self, x: torch.Tensor, is_probing: bool = False) -> torch.Tensor:"
+FORWARD_SIGNATURE_ALIASES = (
+    "def forward(self, x: torch.Tensor, is_probing: bool=False) -> torch.Tensor:",
+)
 
 _BLOCKED_ATTRS = {
     "device",
@@ -105,9 +108,19 @@ def _scan_raw_attrs(*texts: str) -> List[str]:
     return _dedupe_keep_order(attrs)
 
 
-def _accept_exact_function(code: str, signature: str) -> str:
+def _accept_exact_function(
+    code: str,
+    signature: str,
+    *,
+    aliases: Sequence[str] = (),
+) -> str:
     code = _strip_outer_code_fences(code)
     code = textwrap.dedent(code).strip()
+    if code.startswith(signature):
+        return code
+    for alias in aliases:
+        if code.startswith(alias):
+            return signature + code[len(alias):]
     if not code.startswith(signature):
         return ""
     return code
@@ -167,7 +180,8 @@ def _build_extraction_meta(
     exact_signatures = {
         "block": block_code.startswith(BLOCK_SIGNATURE),
         "init": init_code.startswith(INIT_SIGNATURE),
-        "forward": forward_code.startswith(FORWARD_SIGNATURE),
+        "forward": forward_code.startswith(FORWARD_SIGNATURE)
+        or any(forward_code.startswith(alias) for alias in FORWARD_SIGNATURE_ALIASES),
     }
 
     quality_score = 0
@@ -224,7 +238,11 @@ def extract_completion_payload_strict(completion: str) -> Tuple[Tuple[str, str, 
     if meta.get("xml_tag_exact"):
         block_code = _accept_exact_function(raw_block_code, BLOCK_SIGNATURE)
         init_code = _accept_exact_function(raw_init_code, INIT_SIGNATURE)
-        forward_code = _accept_exact_function(raw_forward_code, FORWARD_SIGNATURE)
+        forward_code = _accept_exact_function(
+            raw_forward_code,
+            FORWARD_SIGNATURE,
+            aliases=FORWARD_SIGNATURE_ALIASES,
+        )
     else:
         block_code = ""
         init_code = ""
