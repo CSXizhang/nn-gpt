@@ -306,6 +306,16 @@ class Net(nn.Module):
         return train_accuracy, train_loss
 """
 
+def _build_prompt_skeleton(code):
+    train_setup_marker = "    def train_setup(self, prm):"
+    if train_setup_marker in code:
+        code = code[:code.index(train_setup_marker)]
+    code = re.sub(r"\n# =+\n# .+?\n# =+\n", "\n", code, flags=re.DOTALL)
+    code = re.sub(r"\n{3,}", "\n\n", code)
+    return code.rstrip() + "\n"
+
+prompt_skeleton_code = _build_prompt_skeleton(skeleton_code)
+
 prompt_template="""
 ### Role
 You are implementing one trainable dual-backbone image-classification model. Seed accuracy: {accuracy}.
@@ -339,11 +349,11 @@ def format_backbone_prompt(*, accuracy, target_pattern):
     return prompt_template.format(
         accuracy=accuracy,
         target_pattern=target_pattern,
-        skeleton_code=skeleton_code,
+        skeleton_code=prompt_skeleton_code,
         available_backbones=", ".join(available_backbones),
     )
 
-open_discovery_skeleton_code = skeleton_code
+open_discovery_skeleton_code = prompt_skeleton_code
 
 compact_backbone_rl_prompt_template = """
 ### Role & Goal
