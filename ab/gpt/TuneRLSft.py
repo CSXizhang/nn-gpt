@@ -42,6 +42,7 @@ SFT_RL_NN_PREFIXES = ("rl-bb-test1",)
 SFT_RL_PROMPT_MODE = "sft_aligned"
 SFT_DEEPSPEED_DEFAULT_CONFIG = str(conf_dir / "DeepSpeedSftGrpo.json")
 SFT_MODE_DEFAULT = "auto"
+SFT_REWARD_EXCLUDE_TRAIN_GPU = False
 
 # CIFAR-10 reward evaluation via nn-dataset / NNEval-aligned formal acc.
 SFT_EVAL_IMAGE_SIZE = 128
@@ -554,7 +555,29 @@ def _resolve_sft_mode(visible_gpu_tokens: List[str]) -> Dict[str, str]:
     }
 
 
-def _configure_sft_gpu_role_env(visible_cuda_devices: int) -> Dict[str, List[str] | str]:
+def resolve_sft_reward_exclude_train_gpu() -> bool:
+    return _env_flag("NNGPT_SFT_REWARD_EXCLUDE_TRAIN_GPU", SFT_REWARD_EXCLUDE_TRAIN_GPU)
+
+
+def _sft_reward_gpu_tokens_for_plan(
+    *,
+    resolved_mode: str,
+    visible_gpu_tokens: List[str],
+    train_gpu_tokens: List[str],
+    default_reward_gpu_tokens: List[str],
+) -> List[str]:
+    if resolved_mode != "split" or not resolve_sft_reward_exclude_train_gpu():
+        return list(default_reward_gpu_tokens)
+    reward_gpu_tokens = [token for token in visible_gpu_tokens if token not in set(train_gpu_tokens)]
+    if not reward_gpu_tokens:
+        raise RuntimeError(
+            "NNGPT_SFT_REWARD_EXCLUDE_TRAIN_GPU=1 requires at least one non-training GPU "
+            f"in split mode; visible_gpu_tokens={visible_gpu_tokens} train_gpu_tokens={train_gpu_tokens}"
+        )
+    return reward_gpu_tokens
+
+
+def _configure_sft_gpu_role_env(visible_cuda_devices: int) -> Dict[str, Any]:
     visible_gpu_tokens = _resolved_visible_cuda_device_tokens(visible_cuda_devices)
     role_plan = TrainingRuntime.resolve_role_plan(
         visible_gpu_tokens=visible_gpu_tokens,
@@ -562,7 +585,12 @@ def _configure_sft_gpu_role_env(visible_cuda_devices: int) -> Dict[str, List[str
         default_mode=SFT_MODE_DEFAULT,
     )
     train_gpu_tokens = list(role_plan.train_gpu_tokens)
-    reward_gpu_tokens = list(role_plan.aux_gpu_tokens)
+    reward_gpu_tokens = _sft_reward_gpu_tokens_for_plan(
+        resolved_mode=str(role_plan.resolved_mode),
+        visible_gpu_tokens=list(role_plan.visible_gpu_tokens),
+        train_gpu_tokens=train_gpu_tokens,
+        default_reward_gpu_tokens=list(role_plan.aux_gpu_tokens),
+    )
     if train_gpu_tokens:
         os.environ[_TRAIN_GPU_TOKENS_ENV] = ",".join(train_gpu_tokens)
     else:
@@ -579,6 +607,7 @@ def _configure_sft_gpu_role_env(visible_cuda_devices: int) -> Dict[str, List[str
         "visible_gpu_tokens": list(role_plan.visible_gpu_tokens),
         "train_gpu_tokens": list(train_gpu_tokens),
         "reward_gpu_tokens": list(reward_gpu_tokens),
+        "reward_exclude_train_gpu": resolve_sft_reward_exclude_train_gpu(),
     }
 
 
@@ -894,7 +923,13 @@ def _validate_configured_gpu_role_tokens(runtime: Dict[str, Any]) -> Dict[str, A
     train_tokens = _configured_device_tokens(_TRAIN_GPU_TOKENS_ENV)
     reward_tokens = _configured_device_tokens(_REWARD_GPU_TOKENS_ENV)
     expected_train_tokens = visible_tokens[:1]
-    expected_reward_tokens = list(visible_tokens) if resolved_mode == "split" else list(expected_train_tokens)
+    default_reward_tokens = list(visible_tokens) if resolved_mode == "split" else list(expected_train_tokens)
+    expected_reward_tokens = _sft_reward_gpu_tokens_for_plan(
+        resolved_mode=resolved_mode,
+        visible_gpu_tokens=visible_tokens,
+        train_gpu_tokens=expected_train_tokens,
+        default_reward_gpu_tokens=default_reward_tokens,
+    )
     if train_tokens != expected_train_tokens:
         raise RuntimeError(
             "Invalid configured training GPU tokens for SFT mode: "
@@ -911,6 +946,7 @@ def _validate_configured_gpu_role_tokens(runtime: Dict[str, Any]) -> Dict[str, A
         "visible_tokens": visible_tokens,
         "train_tokens": train_tokens,
         "reward_tokens": reward_tokens,
+        "reward_exclude_train_gpu": resolve_sft_reward_exclude_train_gpu(),
     }
 
 
@@ -1599,7 +1635,8 @@ def run_sft_training():
         f"requested_mode={mode_validation['requested_mode']} "
         f"resolved_mode={mode_validation['resolved_mode']} "
         f"train_tokens={mode_validation['train_tokens']} "
-        f"reward_tokens={mode_validation['reward_tokens']}"
+        f"reward_tokens={mode_validation['reward_tokens']} "
+        f"reward_exclude_train_gpu={mode_validation['reward_exclude_train_gpu']}"
     )
     _print_runtime_cache_roots()
     tokenizer_source = getattr(TuneRL, "tokenizer_source", TuneRL.base_model)
@@ -1810,12 +1847,13 @@ def main() -> None:
     import torch
 
     resume_spec = _resolve_sft_resume_spec()
-    gpu_role_plan: Dict[str, List[str] | str] = {
+    gpu_role_plan: Dict[str, Any] = {
         "requested_mode": "auto",
         "resolved_mode": "single",
         "visible_gpu_tokens": [],
         "train_gpu_tokens": [],
         "reward_gpu_tokens": [],
+        "reward_exclude_train_gpu": False,
     }
     if torch.cuda.is_available():
         gpu_role_plan = _configure_sft_gpu_role_env(int(torch.cuda.device_count()))
@@ -1825,7 +1863,8 @@ def main() -> None:
             f"resolved_mode={gpu_role_plan['resolved_mode']} "
             f"visible_gpu_tokens={gpu_role_plan['visible_gpu_tokens']} "
             f"train_gpu_tokens={gpu_role_plan['train_gpu_tokens']} "
-            f"reward_gpu_tokens={gpu_role_plan['reward_gpu_tokens']}"
+            f"reward_gpu_tokens={gpu_role_plan['reward_gpu_tokens']} "
+            f"reward_exclude_train_gpu={gpu_role_plan['reward_exclude_train_gpu']}"
         )
     _maybe_relaunch_sft_with_visible_gpu_workers()
     _validate_sft_visible_worker_count(RewardUtil.get_distributed_runtime_info())
@@ -1839,6 +1878,7 @@ def main() -> None:
     print(f"[SFT RL] Resume mode: {resume_spec['mode']}")
     print(f"[SFT RL] Load init adapter: {resolve_sft_load_initial_adapter()}")
     print(f"[SFT RL] Initial adapter mode: {resolve_sft_initial_adapter_mode()}")
+    print(f"[SFT RL] Reward excludes train GPU: {resolve_sft_reward_exclude_train_gpu()}")
     if resolve_sft_load_initial_adapter():
         print(f"[SFT RL] Init adapter path: {resolve_sft_init_adapter()}")
         print(f"[SFT RL] Initial adapter dtype request: {resolve_sft_initial_adapter_dtype_label()}")
