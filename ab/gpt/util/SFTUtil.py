@@ -2,21 +2,6 @@ import ast
 import re
 import textwrap
 
-STRUCT1_SOURCE_NAME_RE = re.compile(r"^rl-bb-struct1-[0-9a-f]{32}$")
-
-
-def filter_sft_source_rows(df, nn_prefixes):
-    """Keep canonical SFT source rows when a broad prefix also matches generated outputs."""
-    if df is None or "nn" not in getattr(df, "columns", ()):
-        return df
-    if isinstance(nn_prefixes, str):
-        nn_prefixes = (nn_prefixes,)
-    prefixes = tuple(str(prefix).strip() for prefix in (nn_prefixes or ()) if str(prefix).strip())
-    if "rl-bb-struct1" not in prefixes:
-        return df
-    return df[df["nn"].astype(str).map(lambda name: bool(STRUCT1_SOURCE_NAME_RE.fullmatch(name)))].copy()
-
-
 available_backbones = ['convnext_tiny', 'densenet121', 'densenet161', 'densenet169', 'densenet201', 'efficientnet_b0', 'efficientnet_b1', 'efficientnet_b2', 'efficientnet_b3', 'efficientnet_b4', 'efficientnet_v2_s', 'googlenet', 'inception_v3', 'mnasnet0_5', 'mnasnet0_75', 'mnasnet1_0', 'mnasnet1_3', 'mobilenet_v2', 'mobilenet_v3_large', 'mobilenet_v3_small', 'regnet_x_400mf', 'regnet_x_800mf', 'regnet_x_1_6gf', 'regnet_x_3_2gf', 'regnet_y_400mf', 'regnet_y_800mf', 'regnet_y_1_6gf', 'regnet_y_3_2gf', 'resnet18', 'resnet34', 'resnet50', 'resnext50_32x4d', 'shufflenet_v2_x0_5', 'shufflenet_v2_x1_0', 'shufflenet_v2_x1_5', 'shufflenet_v2_x2_0', 'squeezenet1_0', 'squeezenet1_1', 'swin_t', 'swin_v2_t']
 
 available_patterns = [
