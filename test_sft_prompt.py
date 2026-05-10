@@ -17,6 +17,8 @@ class SFTPromptTest(unittest.TestCase):
         self.assertIn("never use `in_shape[0]` as the channel count", prompt)
         self.assertIn("never set it to `in_shape`", prompt)
         self.assertIn("do not change `self._input_spec` after that call", prompt)
+        self.assertIn("Do not feed a 2D pooled tensor into `Conv2d`", prompt)
+        self.assertIn("Do not instantiate new `nn.Module` objects inside `forward`", prompt)
         self.assertIn("supported_hyperparameters()` returns parameter names", prompt)
         self.assertNotIn("def train_setup", prompt)
         self.assertNotIn("def learn", prompt)

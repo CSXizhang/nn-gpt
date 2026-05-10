@@ -334,6 +334,8 @@ You are implementing one trainable dual-backbone image-classification model. See
 - Call `self.infer_dimensions_dynamically(out_shape[0])` exactly once after defining every module used by `forward`, and do not change `self._input_spec` after that call.
 - `supported_hyperparameters()` returns parameter names, not values. Do not check whether a numeric `dropout` value is a member of that set.
 - Use the fixed helper as `_feature_to_input_image(tensor, adapter_name)` when a feature map must be converted back to the input image shape.
+- Do not feed a 2D pooled tensor into `Conv2d`, `FractalUnit`, `FractalBlock`, `TorchVision`, or `nn.Sequential` containing convolutions. If a tensor was flattened by `adaptive_pool_flatten`, convert it back with `_feature_to_input_image(...)` before any CNN/backbone module.
+- Do not instantiate new `nn.Module` objects inside `forward`; define all trainable modules in `__init__` and move them to `device`.
 - Read `dropout` from `prm` and route it into trainable dropout/drop block settings so `supported_hyperparameters()` matches the implementation.
 - Return only the three XML sections below, each containing the complete function or method definition.
 
