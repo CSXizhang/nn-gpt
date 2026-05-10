@@ -1134,7 +1134,10 @@ def _reapply_trainability_clamp(res: Dict[str, Any], reward_value: float, graph_
         stage_name == TuneRL.STAGE1_STRUCTURE_EXPLORE
         and bool(res.get("static_only") or res.get("stage_uses_static_only"))
     ):
-        return TuneRL._apply_executability_clamp(res, reward_value, graph_info)
+        reward_value = TuneRL._apply_executability_clamp(res, reward_value, graph_info)
+        if bool(res.get("forward_shape_ok")):
+            return max(reward_value, 0.05)
+        return reward_value
 
     if not parse_ok:
         reward_value = min(reward_value, -0.25)
