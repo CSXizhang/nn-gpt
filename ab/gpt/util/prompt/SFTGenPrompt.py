@@ -44,6 +44,10 @@ class SFTGenPrompt(Prompt):
             # metric='acc',
             nn_prefixes=self.nn_prefixes,
         )
+        raw_count = len(df)
+        df = SFTUtil.filter_sft_source_rows(df, self.nn_prefixes)
+        if len(df) != raw_count:
+            print(f"filtered SFT source samples from {raw_count} to {len(df)}.")
         print(f"extracted {len(df)} samples.")
         
         if n_training_prompts:

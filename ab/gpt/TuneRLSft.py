@@ -1327,9 +1327,13 @@ def load_rl_dataset_sft(tokenizer) -> TuneRL.Dataset:
     nn_prefixes = resolve_sft_rl_nn_prefixes()
     prompt_mode = resolve_sft_rl_prompt_mode()
     data = TuneRL.api.data(task="img-classification", nn_prefixes=nn_prefixes)
+    raw_data_count = len(data)
+    data = SFTUtil.filter_sft_source_rows(data, nn_prefixes)
     if data.empty:
         raise RuntimeError(f"No data found for SFT RL prefixes {nn_prefixes}; sync the dataset prefix before training.")
 
+    if len(data) != raw_data_count:
+        print(f"Filtered SFT RL source rows from {raw_data_count} to {len(data)} for prefixes={nn_prefixes}")
     print(f"Loaded {len(data)} examples for SFT RL prefixes={nn_prefixes} prompt_mode={prompt_mode}")
     TuneRL.bootstrap_trainset_reference_library(data)
 
