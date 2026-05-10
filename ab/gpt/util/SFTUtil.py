@@ -332,7 +332,7 @@ You are implementing one trainable dual-backbone image-classification model. See
 - `in_shape` is a 4D batch shape `(B, C, H, W)` during RL/eval. Derive channels as `_, c_in, h_in, w_in = in_shape`; never use `in_shape[0]` as the channel count.
 - Set `self._input_spec = (c_in, h_in, w_in)` in `Net.__init__`; never set it to `in_shape`, `in_shape[:]`, or any 4-tuple.
 - Call `self.infer_dimensions_dynamically(out_shape[0])` exactly once after defining every module used by `forward`, and do not change `self._input_spec` after that call.
-- `supported_hyperparameters()` returns parameter names, not values. Do not check whether a numeric `dropout` value is a member of that set.
+- Use `dropout_prob = float(prm.get("dropout", 0.1))`. Do not reject, whitelist, or raise `ValueError` for numeric dropout values; `supported_hyperparameters()` returns parameter names, not values.
 - Use the fixed helper as `_feature_to_input_image(tensor, adapter_name)` when a feature map must be converted back to the input image shape.
 - Do not feed a 2D pooled tensor into `Conv2d`, `FractalUnit`, `FractalBlock`, `TorchVision`, or `nn.Sequential` containing convolutions. If a tensor was flattened by `adaptive_pool_flatten`, convert it back with `_feature_to_input_image(...)` before any CNN/backbone module.
 - Do not instantiate new `nn.Module` objects inside `forward`; define all trainable modules in `__init__` and move them to `device`.

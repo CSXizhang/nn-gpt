@@ -19,6 +19,8 @@ class SFTPromptTest(unittest.TestCase):
         self.assertIn("do not change `self._input_spec` after that call", prompt)
         self.assertIn("Do not feed a 2D pooled tensor into `Conv2d`", prompt)
         self.assertIn("Do not instantiate new `nn.Module` objects inside `forward`", prompt)
+        self.assertIn('Use `dropout_prob = float(prm.get("dropout", 0.1))`', prompt)
+        self.assertIn("Do not reject, whitelist, or raise `ValueError`", prompt)
         self.assertIn("supported_hyperparameters()` returns parameter names", prompt)
         self.assertNotIn("def train_setup", prompt)
         self.assertNotIn("def learn", prompt)
