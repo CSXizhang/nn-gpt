@@ -328,7 +328,9 @@ You are implementing one trainable dual-backbone image-classification model. See
 - Target pattern: `{target_pattern}`. Set `self.pattern` to this value.
 - Implement only `drop_conv3x3_block`, `Net.__init__`, and `Net.forward`.
 - Use exactly two `TorchVision` backbones named `self.backbone_a` and `self.backbone_b` from [{available_backbones}].
+- `in_shape` is a 4D batch shape `(B, C, H, W)` during RL/eval. Derive channels as `_, c_in, h_in, w_in = in_shape` or use a 3D/4D-compatible branch; never use `in_shape[0]` as the channel count.
 - Set `self._input_spec = (c_in, h_in, w_in)` in `Net.__init__`, then call `self.infer_dimensions_dynamically(out_shape[0])` exactly once after defining the modules used by `forward`.
+- `supported_hyperparameters()` returns parameter names, not values. Do not check whether a numeric `dropout` value is a member of that set.
 - Use the fixed helper as `_feature_to_input_image(tensor, adapter_name)` when a feature map must be converted back to the input image shape.
 - Read `dropout` from `prm` and route it into trainable dropout/drop block settings so `supported_hyperparameters()` matches the implementation.
 - Return only the three XML sections below, each containing the complete function or method definition.

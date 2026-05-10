@@ -12,6 +12,9 @@ class SFTPromptTest(unittest.TestCase):
 
         self.assertIn("class TorchVision", prompt)
         self.assertIn("def _feature_to_input_image", prompt)
+        self.assertIn("in_shape` is a 4D batch shape `(B, C, H, W)`", prompt)
+        self.assertIn("never use `in_shape[0]` as the channel count", prompt)
+        self.assertIn("supported_hyperparameters()` returns parameter names", prompt)
         self.assertNotIn("def train_setup", prompt)
         self.assertNotIn("def learn", prompt)
 

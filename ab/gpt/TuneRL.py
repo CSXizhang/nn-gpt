@@ -2433,7 +2433,7 @@ def _compute_build_partial_reward(res: Dict[str, Any]) -> float:
 
     if error_stage == "cpu_prevalidate":
         if "must call self.infer_dimensions_dynamically" in error_str:
-            build_partial = 0.00
+            return -0.12
         elif "infer_dimensions_dynamically() takes 2 positional arguments but 3 were given" in error_str:
             build_partial = -0.04
         elif "has no attribute '_input_spec'" in error_lower:

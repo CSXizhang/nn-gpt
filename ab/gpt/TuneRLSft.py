@@ -1129,6 +1129,12 @@ def _is_trainable_architecture(res: Dict[str, Any], graph_info) -> bool:
 def _reapply_trainability_clamp(res: Dict[str, Any], reward_value: float, graph_info) -> float:
     discovery_meta = res.get("open_discovery", {})
     parse_ok = bool(getattr(graph_info, "parse_ok", False) or discovery_meta.get("parse_ok", False))
+    stage_name = str(res.get("current_stage_name") or TuneRL.current_stage_name)
+    if (
+        stage_name == TuneRL.STAGE1_STRUCTURE_EXPLORE
+        and bool(res.get("static_only") or res.get("stage_uses_static_only"))
+    ):
+        return TuneRL._apply_executability_clamp(res, reward_value, graph_info)
 
     if not parse_ok:
         reward_value = min(reward_value, -0.25)
