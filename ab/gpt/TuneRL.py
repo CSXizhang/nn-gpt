@@ -192,6 +192,9 @@ STAGE_REFERENCE_MIN_GROUPS = {
 STAGE1_GATE_WINDOW_GENERATIONS = 1600
 STAGE2_GATE_WINDOW_GENERATIONS = 4000
 RECOVERY_GATE_WINDOW_GENERATIONS = 2000
+STAGE1_EXECUTABLE_STABLE_WINDOW_GENERATIONS = 320
+STAGE1_EXECUTABLE_STABLE_MIN_GROUPS = 6
+STAGE1_EXECUTABLE_STABLE_MIN_RATE = 0.95
 STAGE1_PROMOTION_MIN_GROUPS = 20
 STAGE1_GATE_EXECUTABLE_MIN = 96
 STAGE1_GATE_DISCOVERY_MIN = 8
@@ -1629,6 +1632,28 @@ def _stage1_gate_ready() -> bool:
         and len(discovery_rows) >= STAGE1_GATE_DISCOVERY_MIN
         and unique_discovery_families >= STAGE1_GATE_UNIQUE_DISCOVERY_FAMILIES_MIN
     )
+
+
+def _stage1_executable_stable_ready() -> Optional[Dict[str, Any]]:
+    recent_generations = _recent_stage_generation_window(
+        STAGE1_STRUCTURE_EXPLORE,
+        STAGE1_EXECUTABLE_STABLE_WINDOW_GENERATIONS,
+    )
+    current_entry_group_count = len(_recent_stage_group_window(STAGE1_STRUCTURE_EXPLORE, MAX_STAGE_GROUP_HISTORY))
+    if current_entry_group_count < STAGE1_EXECUTABLE_STABLE_MIN_GROUPS:
+        return None
+    if len(recent_generations) < STAGE1_EXECUTABLE_STABLE_WINDOW_GENERATIONS:
+        return None
+    recent_executable_count = sum(1 for item in recent_generations if bool(item.get("executable_candidate")))
+    recent_executable_rate = recent_executable_count / float(len(recent_generations))
+    if recent_executable_rate < STAGE1_EXECUTABLE_STABLE_MIN_RATE:
+        return None
+    return {
+        "stage_group_count": current_entry_group_count,
+        "recent_generation_count": len(recent_generations),
+        "recent_executable_count": recent_executable_count,
+        "recent_executable_rate": recent_executable_rate,
+    }
 
 
 def _stage1_force_promotion_ready() -> Optional[Dict[str, int]]:

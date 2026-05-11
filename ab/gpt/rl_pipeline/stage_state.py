@@ -446,6 +446,10 @@ def evaluate_stage_transitions(rl, group_progress_payload):
     if rl._stage1_only_enabled() and stage_name == rl.STAGE1_STRUCTURE_EXPLORE:
         return
     if stage_name == rl.STAGE1_STRUCTURE_EXPLORE:
+        executable_stable_snapshot = rl._stage1_executable_stable_ready()
+        if executable_stable_snapshot is not None:
+            rl._transition_to_stage(rl.STAGE2_FORMAL_EXPLORE, event='entered', reason=f"stage1_executable_stable_promotion: stage_groups={executable_stable_snapshot['stage_group_count']}, recent_generations={executable_stable_snapshot['recent_generation_count']}, recent_executable_count={executable_stable_snapshot['recent_executable_count']}, recent_executable_rate={executable_stable_snapshot['recent_executable_rate']:.4f}", group_progress_payload=group_progress_payload)
+            return
         force_promotion_snapshot = rl._stage1_force_promotion_ready()
         if force_promotion_snapshot is not None:
             rl._transition_to_stage(rl.STAGE2_FORMAL_EXPLORE, event='entered', reason=f"stage1_forced_promotion_after_plateau: stage_groups={force_promotion_snapshot['stage_group_count']}, recent_generations={force_promotion_snapshot['recent_generation_count']}, recent_executable_count={force_promotion_snapshot['recent_executable_count']}, recent_discovery_count={force_promotion_snapshot['recent_discovery_count']}, recent_unique_discovery_families={force_promotion_snapshot['recent_unique_discovery_families']}", group_progress_payload=group_progress_payload)
