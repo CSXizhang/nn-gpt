@@ -20,7 +20,7 @@ import torch
 import ab.gpt.rl_pipeline.reward_payload as RewardPayload
 import torch.nn as nn
 import torch.nn.functional as F
-from torch.utils.data import DataLoader, Subset
+from torch.utils.data import DataLoader, Subset, TensorDataset
 
 
 _NN_DATASET_IMPORT_READY = False
@@ -3921,12 +3921,67 @@ def evaluate_static_build_and_forward(
         forward_shape_ok = bool(forward_result.get("forward_shape_ok"))
         if cfg.measure_latency:
             latency_ms = forward_result.get("latency_ms")
+        train_result = {
+            "backward_ok": False,
+            "trained_step_ok": False,
+            "loss_start": None,
+            "loss_end": None,
+            "loss_drop": None,
+            "loss_drop_ok": False,
+            "steps_completed": 0,
+            "best_epoch_loss": None,
+            "avg_epoch_loss": None,
+            "epochs_completed": 0,
+            "epoch_loss_series": [],
+            "training_context_metric_name": "best_epoch_loss",
+            "training_context_metric_value": None,
+        }
+        if forward_shape_ok:
+            try:
+                smoke_batch = max(1, _safe_int_env("NNGPT_RL_STAGE1_TRAIN_SMOKE_BATCH", 2))
+                smoke_steps = max(1, _safe_int_env("NNGPT_RL_STAGE1_TRAIN_SMOKE_STEPS", 2))
+                smoke_batch = min(smoke_batch, 4)
+                c, h, w = int(cfg.input_shape[1]), int(cfg.input_shape[2]), int(cfg.input_shape[3])
+                xs = torch.randn(smoke_batch * smoke_steps, c, h, w)
+                ys = torch.arange(smoke_batch * smoke_steps, dtype=torch.long) % int(cfg.n_classes)
+                train_loader = DataLoader(
+                    TensorDataset(xs, ys),
+                    batch_size=smoke_batch,
+                    shuffle=False,
+                    num_workers=0,
+                )
+                train_setup = getattr(mdl, "train_setup", None)
+                if callable(train_setup):
+                    train_setup(
+                        {
+                            "lr": 1e-3,
+                            "momentum": 0.9,
+                            "batch": smoke_batch,
+                            "epoch": 1,
+                            "dropout": 0.1,
+                            "freeze_backbones": True,
+                        }
+                    )
+                train_result = _train_steps(
+                    mdl,
+                    train_loader,
+                    epochs=1,
+                    max_steps=smoke_steps,
+                    device=device,
+                    n_classes=int(cfg.n_classes),
+                    freeze_backbones=True,
+                )
+            except Exception as exc:
+                train_result = {
+                    **train_result,
+                    "error": f"{type(exc).__name__}: {exc}",
+                }
         estimated_total_seconds = max(0.0, time.time() - started_at)
         components = compute_cv_reward_simple(
             built_ok=built_ok,
             forward_shape_ok=forward_shape_ok,
-            backward_ok=False,
-            loss_drop_ok=False,
+            backward_ok=bool(train_result.get("backward_ok")),
+            loss_drop_ok=bool(train_result.get("loss_drop_ok")),
             val_metric=None,
             val_metric_baseline=None,
             latency_ms=latency_ms,
@@ -3947,6 +4002,23 @@ def evaluate_static_build_and_forward(
             "built_ok": built_ok,
             "forward_ok": forward_ok,
             "forward_shape_ok": forward_shape_ok,
+            "backward_ok": bool(train_result.get("backward_ok")),
+            "trained_step_ok": bool(train_result.get("trained_step_ok")),
+            "loss_start": train_result.get("loss_start"),
+            "loss_end": train_result.get("loss_end"),
+            "loss_drop": train_result.get("loss_drop"),
+            "loss_drop_ok": bool(train_result.get("loss_drop_ok")),
+            "steps_completed": int(train_result.get("steps_completed", 0) or 0),
+            "best_epoch_loss": train_result.get("best_epoch_loss"),
+            "avg_epoch_loss": train_result.get("avg_epoch_loss"),
+            "epochs_completed": int(train_result.get("epochs_completed", 0) or 0),
+            "epoch_loss_series": list(train_result.get("epoch_loss_series") or []),
+            "training_context_metric_name": train_result.get(
+                "training_context_metric_name",
+                "best_epoch_loss",
+            ),
+            "training_context_metric_value": train_result.get("training_context_metric_value"),
+            "error": train_result.get("error"),
             "latency_ms": latency_ms,
             "params_m": params_m,
             "estimated_total_seconds": estimated_total_seconds,

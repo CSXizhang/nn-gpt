@@ -195,11 +195,14 @@ RECOVERY_GATE_WINDOW_GENERATIONS = 2000
 STAGE1_EXECUTABLE_STABLE_WINDOW_GENERATIONS = 320
 STAGE1_EXECUTABLE_STABLE_MIN_GROUPS = 6
 STAGE1_EXECUTABLE_STABLE_MIN_RATE = 0.95
+STAGE1_TRAINABLE_STABLE_MIN_RATE = 0.30
 STAGE1_PROMOTION_MIN_GROUPS = 20
 STAGE1_GATE_EXECUTABLE_MIN = 96
+STAGE1_GATE_TRAINABLE_MIN = 480
 STAGE1_GATE_DISCOVERY_MIN = 8
 STAGE1_GATE_UNIQUE_DISCOVERY_FAMILIES_MIN = 6
 STAGE1_FORCE_PROMOTION_EXECUTABLE_MIN = 800
+STAGE1_FORCE_PROMOTION_TRAINABLE_MIN = 480
 STAGE1_FORCE_PROMOTION_DISCOVERY_MIN = 8
 STAGE1_FORCE_PROMOTION_UNIQUE_DISCOVERY_FAMILIES_MIN = 6
 STAGE2_GATE_MIN_REWARD_TARGET = 0.90
@@ -1625,16 +1628,22 @@ def _stage1_gate_ready() -> bool:
     if current_entry_group_count < STAGE1_PROMOTION_MIN_GROUPS:
         return False
     executable_count = sum(1 for item in recent_generations if bool(item.get("executable_candidate")))
+    trainable_count = sum(
+        1
+        for item in recent_generations
+        if bool(item.get("trained_step_ok") or item.get("backward_ok"))
+    )
     discovery_rows = [item for item in recent_generations if bool(item.get("discovery_candidate"))]
     unique_discovery_families = len(_family_hash_set(discovery_rows, key="family_hash"))
     return bool(
         executable_count >= STAGE1_GATE_EXECUTABLE_MIN
+        and trainable_count >= STAGE1_GATE_TRAINABLE_MIN
         and len(discovery_rows) >= STAGE1_GATE_DISCOVERY_MIN
         and unique_discovery_families >= STAGE1_GATE_UNIQUE_DISCOVERY_FAMILIES_MIN
     )
 
 
-def _stage1_executable_stable_ready() -> Optional[Dict[str, Any]]:
+def _stage1_trainable_stable_ready() -> Optional[Dict[str, Any]]:
     recent_generations = _recent_stage_generation_window(
         STAGE1_STRUCTURE_EXPLORE,
         STAGE1_EXECUTABLE_STABLE_WINDOW_GENERATIONS,
@@ -1646,13 +1655,23 @@ def _stage1_executable_stable_ready() -> Optional[Dict[str, Any]]:
         return None
     recent_executable_count = sum(1 for item in recent_generations if bool(item.get("executable_candidate")))
     recent_executable_rate = recent_executable_count / float(len(recent_generations))
+    recent_trainable_count = sum(
+        1
+        for item in recent_generations
+        if bool(item.get("trained_step_ok") or item.get("backward_ok"))
+    )
+    recent_trainable_rate = recent_trainable_count / float(len(recent_generations))
     if recent_executable_rate < STAGE1_EXECUTABLE_STABLE_MIN_RATE:
+        return None
+    if recent_trainable_rate < STAGE1_TRAINABLE_STABLE_MIN_RATE:
         return None
     return {
         "stage_group_count": current_entry_group_count,
         "recent_generation_count": len(recent_generations),
         "recent_executable_count": recent_executable_count,
         "recent_executable_rate": recent_executable_rate,
+        "recent_trainable_count": recent_trainable_count,
+        "recent_trainable_rate": recent_trainable_rate,
     }
 
 
@@ -1664,10 +1683,17 @@ def _stage1_force_promotion_ready() -> Optional[Dict[str, int]]:
     if current_entry_group_count < STAGE1_PROMOTION_MIN_GROUPS:
         return None
     recent_executable_count = sum(1 for item in recent_generations if bool(item.get("executable_candidate")))
+    recent_trainable_count = sum(
+        1
+        for item in recent_generations
+        if bool(item.get("trained_step_ok") or item.get("backward_ok"))
+    )
     discovery_rows = [item for item in recent_generations if bool(item.get("discovery_candidate"))]
     recent_discovery_count = len(discovery_rows)
     recent_unique_discovery_families = len(_family_hash_set(discovery_rows, key="family_hash"))
     if recent_executable_count < STAGE1_FORCE_PROMOTION_EXECUTABLE_MIN:
+        return None
+    if recent_trainable_count < STAGE1_FORCE_PROMOTION_TRAINABLE_MIN:
         return None
     if recent_discovery_count < STAGE1_FORCE_PROMOTION_DISCOVERY_MIN:
         return None
@@ -1677,6 +1703,7 @@ def _stage1_force_promotion_ready() -> Optional[Dict[str, int]]:
         "stage_group_count": current_entry_group_count,
         "recent_generation_count": len(recent_generations),
         "recent_executable_count": recent_executable_count,
+        "recent_trainable_count": recent_trainable_count,
         "recent_discovery_count": recent_discovery_count,
         "recent_unique_discovery_families": recent_unique_discovery_families,
     }
@@ -1723,6 +1750,11 @@ def _stage_gate_snapshot() -> Dict[str, Any]:
         "stage_index": RL_STAGE_TO_INDEX.get(stage_name, 0),
         "recent_generation_count": len(recent_generations),
         "recent_executable_count": sum(1 for item in recent_generations if bool(item.get("executable_candidate"))),
+        "recent_trainable_count": sum(
+            1
+            for item in recent_generations
+            if bool(item.get("trained_step_ok") or item.get("backward_ok"))
+        ),
         "recent_discovery_count": len(discovery_rows),
         "recent_unique_discovery_families": len(_family_hash_set(discovery_rows, key="family_hash")),
         "recent_formal_success_count": len(formal_rows),

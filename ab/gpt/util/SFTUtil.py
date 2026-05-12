@@ -244,6 +244,7 @@ class Net(nn.Module):
         
     def train_setup(self, prm):
         self.to(self.device)
+        self.use_amp = bool(getattr(self, 'use_amp', False))
         self.freeze_backbones = bool(prm.get('freeze_backbones', getattr(self, 'freeze_backbones', True)))
         for backbone in (self.backbone_a, self.backbone_b):
             for param in backbone.parameters():
