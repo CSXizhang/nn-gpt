@@ -2435,7 +2435,7 @@ def reconstruct_code(
     if pattern_name_override:
         init_code = ensure_pattern_name(init_code, pattern_name_override)
 
-    code = SFTUtil.open_discovery_skeleton_code
+    code = SFTUtil.skeleton_code
     sig_block = "def drop_conv3x3_block(in_channels, out_channels, stride=1, padding=1, bias=False, dropout_prob=0.0):"
     code = code.replace(sig_block, textwrap.dedent(block_code))
 
