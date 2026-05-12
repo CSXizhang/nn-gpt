@@ -2582,31 +2582,31 @@ def _is_minimal_backbone_classifier_template(init_code: str) -> bool:
 def _stage1_validity_scale(res: Dict[str, Any]) -> float:
     if bool(res.get("loss_drop_ok")):
         return 1.0
-    if bool(res.get("backward_ok")):
-        return 0.85
+    if bool(res.get("backward_ok") or res.get("trained_step_ok") or _has_completed_formal_epoch(res)):
+        return 0.45
     if bool(res.get("forward_shape_ok")):
-        return 0.55
+        return 0.15
     return 0.0
 
 
 def _stage1_validity_reward(res: Dict[str, Any], graph_info) -> float:
     if not graph_info or not graph_info.parse_ok:
-        return -0.25
+        return -0.85
     if not res.get("built_ok"):
         build_partial = float(res.get("r_build_partial", 0.0) or 0.0)
-        return min(-0.25, -0.50 + build_partial)
+        return min(-0.35, -0.55 + build_partial)
     if not res.get("forward_ok"):
-        return -0.18
+        return -0.40
     if not res.get("forward_shape_ok"):
-        return -0.08
-    if not res.get("backward_ok"):
-        return -0.02
+        return -0.30
+    if not _stage1_trainability_ok(res, graph_info):
+        return -0.04
     if not res.get("loss_drop_ok"):
         loss_drop = _optional_float(res.get("loss_drop"))
         if loss_drop is None:
-            return 0.02
-        return _clip(0.01 + 0.25 * float(loss_drop), -0.01, 0.05)
-    return STAGE1_EXECUTABLE_BONUS
+            return 0.04
+        return _clip(0.04 + 0.20 * float(loss_drop), 0.00, 0.08)
+    return max(STAGE1_EXECUTABLE_BONUS, 0.12)
 
 
 def _template_penalty(
@@ -2779,14 +2779,7 @@ def _discovery_failure_result(
 
 
 def _is_trainable_candidate(res: Dict[str, Any], graph_info) -> bool:
-    return bool(
-        graph_info
-        and graph_info.parse_ok
-        and res.get("built_ok")
-        and res.get("forward_shape_ok")
-        and res.get("backward_ok")
-        and res.get("loss_drop_ok")
-    )
+    return _stage1_trainability_ok(res, graph_info)
 
 
 def _has_completed_formal_epoch(res: Dict[str, Any]) -> bool:
@@ -2819,6 +2812,20 @@ def _stage2_target_qualified_rows(rows: List[Dict[str, Any]]) -> List[Dict[str, 
     return qualified_rows
 
 
+def _stage1_trainability_ok(res: Dict[str, Any], graph_info) -> bool:
+    return bool(
+        graph_info
+        and graph_info.parse_ok
+        and res.get("built_ok")
+        and res.get("forward_shape_ok")
+        and (
+            res.get("backward_ok")
+            or res.get("trained_step_ok")
+            or _has_completed_formal_epoch(res)
+        )
+    )
+
+
 def _apply_trainability_clamp(res: Dict[str, Any], reward_value: float, graph_info) -> float:
     parse_ok = bool(graph_info and graph_info.parse_ok)
     if not parse_ok:
@@ -2839,6 +2846,24 @@ def _apply_trainability_clamp(res: Dict[str, Any], reward_value: float, graph_in
         if loss_drop is None:
             return min(reward_value, -0.02)
         return min(reward_value, _clip(-0.02 + 0.20 * float(loss_drop), -0.08, 0.04))
+    return reward_value
+
+
+def _apply_stage1_trainability_clamp(res: Dict[str, Any], reward_value: float, graph_info) -> float:
+    parse_ok = bool(graph_info and graph_info.parse_ok)
+    if not parse_ok:
+        return min(reward_value, -0.85)
+    if not res.get("built_ok"):
+        build_partial = float(res.get("r_build_partial", 0.0) or 0.0)
+        return min(reward_value, -0.70 + build_partial)
+    if not res.get("forward_ok"):
+        return min(reward_value, -0.40)
+    if not res.get("forward_shape_ok"):
+        return min(reward_value, -0.30)
+    if not _stage1_trainability_ok(res, graph_info):
+        return min(reward_value, -0.04)
+    if not res.get("loss_drop_ok"):
+        return min(reward_value, 0.10)
     return reward_value
 
 
@@ -2979,7 +3004,9 @@ def _recompute_discovery_reward(
     )
     r_tiebreak = float(res.get("r_goal_match", 0.0) or 0.0)
     total_reward = _clip(r_primary + r_tiebreak, -2.0, 2.0)
-    if stage_name in {STAGE1_STRUCTURE_EXPLORE, STAGE2_FORMAL_EXPLORE}:
+    if stage_name == STAGE1_STRUCTURE_EXPLORE:
+        total_reward = _apply_stage1_trainability_clamp(res, total_reward, graph_info)
+    elif stage_name == STAGE2_FORMAL_EXPLORE:
         total_reward = _apply_executability_clamp(res, total_reward, graph_info)
     else:
         total_reward = _apply_trainability_clamp(res, total_reward, graph_info)
@@ -3355,7 +3382,7 @@ def base_discovery_reward_fn(
             shallow_one_shot=shallow_one_shot,
             minimal_init_template=minimal_init_template,
         )
-        if executable_candidate:
+        if formal_success_candidate:
             novelty_scale = max(0.35, float(stage1_validity_scale))
             goal_alignment_scale = float(goal_tag_hit_rate or 0.0)
             r_structure_group *= (
@@ -3491,7 +3518,7 @@ def base_discovery_reward_fn(
         )
         r_tiebreak = r_goal_match
         total_reward = _clip(r_primary + r_tiebreak, -2.0, 2.0)
-        total_reward = _apply_executability_clamp(res, total_reward, graph_info)
+        total_reward = _apply_stage1_trainability_clamp(res, total_reward, graph_info)
     else:
         if (train_acc is not None) and (group_baseline_train_acc is not None) and (not group_warmup):
             group_train_acc_gain = float(train_acc - group_baseline_train_acc)
