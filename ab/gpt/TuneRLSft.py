@@ -1780,7 +1780,17 @@ def run_sft_training():
     if resolve_sft_compact_after_model_load():
         TrainerRuntime.compact_cuda_cache(log_prefix="[SFT RL]", stage="after_prepare_kbit")
 
-    if stage_adapter_dir is not None:
+    if trainer_checkpoint is not None:
+        model = TrainerRuntime.load_trainable_initial_adapter(
+            model,
+            enabled=True,
+            adapter_path=str(trainer_checkpoint),
+            label="trainer checkpoint",
+            empty_adapter_message="SFT trainer checkpoint is empty.",
+            missing_adapter_message=f"Missing SFT trainer checkpoint adapter: {trainer_checkpoint}",
+            load_message=f"Loading trainable SFT trainer checkpoint adapter from {trainer_checkpoint}...",
+        )
+    elif stage_adapter_dir is not None:
         peft_config = TrainerRuntime.build_lora_config(
             r=SFT_LORA_R,
             alpha=SFT_LORA_ALPHA,
