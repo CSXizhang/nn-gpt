@@ -6,10 +6,18 @@ import inspect
 import sys
 import tempfile
 import time
+import traceback
 from pathlib import Path
 from typing import Any, Dict, List
 from torch.utils.data import Dataset as TorchDataset
 from ab.gpt.util.Const import conf_dir
+
+try:
+    import faulthandler
+
+    faulthandler.enable(all_threads=True)
+except Exception:
+    pass
 
 
 # ── SFT runtime configuration ─────────────────────────────────────────────
@@ -1952,4 +1960,16 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except BaseException:
+        traceback.print_exc()
+        try:
+            import ab.gpt.TuneRL as _TuneRL
+
+            logger = getattr(_TuneRL, "code_logger", None)
+            if logger is not None:
+                logger.log_to_file("[SFT RL] Fatal exception:\n" + traceback.format_exc())
+        except Exception:
+            pass
+        raise
