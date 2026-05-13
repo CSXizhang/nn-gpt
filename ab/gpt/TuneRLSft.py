@@ -1444,36 +1444,27 @@ def sft_run_epoch_dir(*args) -> Path:
 
 
 def _resolve_sft_generation_kwargs(tokenizer) -> Dict[str, Any]:
-    generation_kwargs = dict(_env_optional_json("NNGPT_SFT_GENERATION_KWARGS_JSON") or {})
+    kwargs = dict(_env_optional_json("NNGPT_SFT_GENERATION_KWARGS_JSON") or {})
     eos_token_id = getattr(tokenizer, "eos_token_id", None)
-    pad_token_id = eos_token_id if eos_token_id is not None else getattr(tokenizer, "pad_token_id", None)
     if eos_token_id is not None:
-        generation_kwargs.setdefault("eos_token_id", eos_token_id)
-    if pad_token_id is not None:
-        generation_kwargs.setdefault("pad_token_id", pad_token_id)
-    generation_kwargs.setdefault("use_cache", True)
+        kwargs.setdefault("eos_token_id", eos_token_id)
+        kwargs.setdefault("pad_token_id", eos_token_id)
+    kwargs.setdefault("use_cache", True)
     if _env_flag("NNGPT_SFT_STOP_AFTER_FORWARD_XML", True):
-        generation_kwargs.setdefault("stop_strings", ["</forward>"])
-    return generation_kwargs
+        kwargs.setdefault("stop_strings", ["</forward>"])
+    return kwargs
 
 
-def _patch_sft_stop_string_generation(model, tokenizer) -> bool:
-    generate = getattr(model, "generate", None)
-    if not callable(generate) or getattr(generate, "_nngpt_stop_string_tokenizer", False):
-        return False
+def _attach_sft_generate_tokenizer(model, tokenizer) -> None:
+    original_generate = model.generate
 
-    def _generate_with_tokenizer(*args, **kwargs):
+    def generate(*args, **kwargs):
         generation_config = kwargs.get("generation_config")
-        stop_strings = kwargs.get("stop_strings")
-        if stop_strings is None and generation_config is not None:
-            stop_strings = getattr(generation_config, "stop_strings", None)
-        if stop_strings and "tokenizer" not in kwargs:
+        if generation_config is not None and getattr(generation_config, "stop_strings", None):
             kwargs["tokenizer"] = tokenizer
-        return generate(*args, **kwargs)
+        return original_generate(*args, **kwargs)
 
-    _generate_with_tokenizer._nngpt_stop_string_tokenizer = True
-    setattr(model, "generate", _generate_with_tokenizer)
-    return True
+    model.generate = generate
 
 
 def _build_sft_grpo_config(
@@ -1855,13 +1846,8 @@ def run_sft_training():
     if "processing_class" in inspect.signature(TuneRL.GRPOTrainer.__init__).parameters:
         trainer_kwargs["processing_class"] = tokenizer
     trainer = TuneRL.GRPOTrainer(**trainer_kwargs)
-    patched_generate = _patch_sft_stop_string_generation(model, tokenizer)
-    if getattr(trainer, "model", None) is not model:
-        patched_generate = _patch_sft_stop_string_generation(trainer.model, tokenizer) or patched_generate
-    model_wrapped = getattr(trainer, "model_wrapped", None)
-    if model_wrapped is not None and model_wrapped is not model and model_wrapped is not getattr(trainer, "model", None):
-        patched_generate = _patch_sft_stop_string_generation(model_wrapped, tokenizer) or patched_generate
-    print(f"[SFT RL] Stop-string generation tokenizer patch: enabled={patched_generate}")
+    _attach_sft_generate_tokenizer(model, tokenizer)
+    print("[SFT RL] Stop-string generation tokenizer attached")
     trainer_gc_patch_stats = TrainerRuntime.enforce_non_reentrant_gradient_checkpointing(trainer.model)
     print(
         "[SFT RL] Trainer gradient checkpointing enforcement: "
