@@ -1443,12 +1443,46 @@ def sft_run_epoch_dir(*args) -> Path:
     return epoch_dir
 
 
+def _resolve_sft_generation_kwargs(tokenizer) -> Dict[str, Any]:
+    generation_kwargs = dict(_env_optional_json("NNGPT_SFT_GENERATION_KWARGS_JSON") or {})
+    eos_token_id = getattr(tokenizer, "eos_token_id", None)
+    pad_token_id = eos_token_id if eos_token_id is not None else getattr(tokenizer, "pad_token_id", None)
+    if eos_token_id is not None:
+        generation_kwargs.setdefault("eos_token_id", eos_token_id)
+    if pad_token_id is not None:
+        generation_kwargs.setdefault("pad_token_id", pad_token_id)
+    generation_kwargs.setdefault("use_cache", True)
+    if _env_flag("NNGPT_SFT_STOP_AFTER_FORWARD_XML", True):
+        generation_kwargs.setdefault("stop_strings", ["</forward>"])
+    return generation_kwargs
+
+
+def _patch_sft_stop_string_generation(model, tokenizer) -> bool:
+    generate = getattr(model, "generate", None)
+    if not callable(generate) or getattr(generate, "_nngpt_stop_string_tokenizer", False):
+        return False
+
+    def _generate_with_tokenizer(*args, **kwargs):
+        generation_config = kwargs.get("generation_config")
+        stop_strings = kwargs.get("stop_strings")
+        if stop_strings is None and generation_config is not None:
+            stop_strings = getattr(generation_config, "stop_strings", None)
+        if stop_strings and "tokenizer" not in kwargs:
+            kwargs["tokenizer"] = tokenizer
+        return generate(*args, **kwargs)
+
+    _generate_with_tokenizer._nngpt_stop_string_tokenizer = True
+    setattr(model, "generate", _generate_with_tokenizer)
+    return True
+
+
 def _build_sft_grpo_config(
     *,
     precision: Dict[str, Any],
     use_deepspeed: bool,
     deepspeed_config_path: str | None,
     runtime_settings: Dict[str, int],
+    generation_kwargs: Dict[str, Any],
 ) -> Any:
     signature_parameters = _sft_grpo_signature_parameters()
     config_kwargs: Dict[str, Any] = {
@@ -1543,7 +1577,7 @@ def _build_sft_grpo_config(
         config_kwargs,
         signature_parameters,
         "generation_kwargs",
-        _env_optional_json("NNGPT_SFT_GENERATION_KWARGS_JSON"),
+        generation_kwargs,
     )
     explicit_kl_coef = TuneRL.env_float("NNGPT_RL_KL_COEF", SFT_KL_COEF)
     if "beta" in signature_parameters:
@@ -1619,6 +1653,11 @@ def run_sft_training():
     if resume_stage_override:
         TuneRL.apply_resume_stage_override(resume_stage_override, log_prefix="[SFT RL]")
     precision = TuneRL.best_mixed_precision()
+    tokenizer_source = getattr(TuneRL, "tokenizer_source", TuneRL.base_model)
+    if tokenizer_source != TuneRL.base_model:
+        print(f"Using RL tokenizer: {tokenizer_source}")
+    tokenizer = TrainerRuntime.load_tokenizer(tokenizer_source)
+    generation_kwargs = _resolve_sft_generation_kwargs(tokenizer)
     initial_adapter_dtype_label = resolve_sft_initial_adapter_dtype_label()
     if load_initial_adapter and initial_adapter_mode != "trainable" and initial_adapter_dtype_label != "fp32":
         raise ValueError("NNGPT_SFT_INITIAL_ADAPTER_DTYPE only applies to trainable initial adapters.")
@@ -1628,6 +1667,7 @@ def run_sft_training():
         use_deepspeed=use_deepspeed,
         deepspeed_config_path=deepspeed_config_path,
         runtime_settings=runtime_settings,
+        generation_kwargs=generation_kwargs,
     )
     hf_deepspeed_config = _maybe_init_hf_deepspeed_config(deepspeed_config_path) if use_deepspeed else None
     if not trainer_checkpoint_supported:
@@ -1679,6 +1719,7 @@ def run_sft_training():
         f"use_vllm={_env_flag('NNGPT_SFT_USE_VLLM', False)} "
         f"vllm_mode={_env_str('NNGPT_SFT_VLLM_MODE', 'colocate') if _env_flag('NNGPT_SFT_USE_VLLM', False) else None}"
     )
+    print(f"[SFT RL] Generation kwargs: {generation_kwargs}")
     if runtime_settings["global_num_generations_adapted"]:
         print(
             "[SFT RL] Generation plan adapted "
@@ -1711,10 +1752,6 @@ def run_sft_training():
         f"reward_exclude_train_gpu={mode_validation['reward_exclude_train_gpu']}"
     )
     _print_runtime_cache_roots()
-    tokenizer_source = getattr(TuneRL, "tokenizer_source", TuneRL.base_model)
-    if tokenizer_source != TuneRL.base_model:
-        print(f"Using RL tokenizer: {tokenizer_source}")
-    tokenizer = TrainerRuntime.load_tokenizer(tokenizer_source)
 
     rl_dataset = TuneRL.load_rl_dataset(tokenizer)
     if len(rl_dataset) > runtime_settings["dataset_limit"]:
@@ -1818,6 +1855,13 @@ def run_sft_training():
     if "processing_class" in inspect.signature(TuneRL.GRPOTrainer.__init__).parameters:
         trainer_kwargs["processing_class"] = tokenizer
     trainer = TuneRL.GRPOTrainer(**trainer_kwargs)
+    patched_generate = _patch_sft_stop_string_generation(model, tokenizer)
+    if getattr(trainer, "model", None) is not model:
+        patched_generate = _patch_sft_stop_string_generation(trainer.model, tokenizer) or patched_generate
+    model_wrapped = getattr(trainer, "model_wrapped", None)
+    if model_wrapped is not None and model_wrapped is not model and model_wrapped is not getattr(trainer, "model", None):
+        patched_generate = _patch_sft_stop_string_generation(model_wrapped, tokenizer) or patched_generate
+    print(f"[SFT RL] Stop-string generation tokenizer patch: enabled={patched_generate}")
     trainer_gc_patch_stats = TrainerRuntime.enforce_non_reentrant_gradient_checkpointing(trainer.model)
     print(
         "[SFT RL] Trainer gradient checkpointing enforcement: "
