@@ -194,6 +194,16 @@ def raw_reward_fn(
     if not meta.get("exact_forward_signature"):
         raw_delta -= 0.60
 
+    terminal_penalty = 0.0
+    if meta.get("trailing_after_forward"):
+        terminal_penalty -= 0.20
+        if int(meta.get("trailing_after_forward_chars", 0) or 0) > 300:
+            terminal_penalty -= 0.10
+    jupyter_artifact_count = int(meta.get("jupyter_artifact_count", 0) or 0)
+    if jupyter_artifact_count:
+        terminal_penalty -= 0.25 * min(jupyter_artifact_count, 2)
+    raw_delta += terminal_penalty
+
     if meta.get("dual_backbone_ok"):
         raw_delta += 0.45
     else:
@@ -246,6 +256,7 @@ def raw_reward_fn(
     res["raw_extraction"] = {
         **meta,
         "raw_delta": raw_delta,
+        "terminal_penalty": terminal_penalty,
     }
     res.setdefault("backbone_model_names", list(meta.get("backbone_model_names", [])))
     return res

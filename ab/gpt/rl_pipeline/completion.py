@@ -162,6 +162,11 @@ def _build_extraction_meta(
 ) -> Dict[str, object]:
     xml_tag_count = sum(bool(code) for code in (block_code, init_code, forward_code))
     xml_counts = {tag: _count_xml_tags(candidate, tag) for tag in ("block", "init", "forward")}
+    forward_close_match = re.search(r"</forward>", candidate, re.IGNORECASE)
+    trailing_after_forward = ""
+    if forward_close_match:
+        trailing_after_forward = candidate[forward_close_match.end():].strip()
+    jupyter_artifact_count = len(re.findall(r"<jupyter_[^>]*>", candidate, re.IGNORECASE))
     class_count = len(re.findall(r"^\s*class\s+\w+", candidate, re.MULTILINE))
     import_count = len(re.findall(r"^\s*(?:from|import)\s+\w+", candidate, re.MULTILINE))
     bad_signature_count = len(re.findall(r"\)\s*-\s*:", candidate))
@@ -200,6 +205,9 @@ def _build_extraction_meta(
         "class_count": class_count,
         "import_count": import_count,
         "bad_signature_count": bad_signature_count,
+        "trailing_after_forward": bool(trailing_after_forward),
+        "trailing_after_forward_chars": len(trailing_after_forward),
+        "jupyter_artifact_count": jupyter_artifact_count,
         "structural_attr_detected": structural_attr_detected,
         "quality_score": quality_score,
         "exact_block_signature": exact_signatures["block"],
