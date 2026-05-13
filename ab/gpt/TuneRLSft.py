@@ -8,7 +8,7 @@ import tempfile
 import time
 import traceback
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 from torch.utils.data import Dataset as TorchDataset
 from ab.gpt.util.Const import conf_dir
 
@@ -103,6 +103,28 @@ SFT_EVAL_TRANSFORM = TuneRL.FORMAL_REWARD_TRANSFORM
 _TRAIN_GPU_TOKENS_ENV = "NNGPT_TRAIN_GPU_TOKENS"
 _AUX_GPU_TOKENS_ENV = "NNGPT_AUX_GPU_TOKENS"
 _REWARD_GPU_TOKENS_ENV = "NNGPT_REWARD_GPU_TOKENS"
+
+
+def _stage1_fixed_failure_reward(res: Dict[str, Any], meta: Dict[str, Any], graph_info) -> Optional[float]:
+    if str(res.get("current_stage_name") or "") != TuneRL.STAGE1_STRUCTURE_EXPLORE:
+        return None
+    if TuneRL._is_trainable_candidate(res, graph_info):
+        return None
+
+    if (
+        not meta.get("xml_tag_exact")
+        or int(meta.get("xml_tag_count", 0) or 0) < 3
+        or int(meta.get("class_count", 0) or 0) > 0
+        or int(meta.get("import_count", 0) or 0) > 0
+        or int(meta.get("bad_signature_count", 0) or 0) > 0
+        or not meta.get("dual_backbone_ok")
+        or not res.get("built_ok")
+    ):
+        return -3.0
+    if not res.get("forward_ok") or not res.get("forward_shape_ok"):
+        return -1.0
+    return -0.25
+
 
 def raw_reward_fn(
     completion: str,
@@ -208,6 +230,18 @@ def raw_reward_fn(
         res["reward"] = min(float(res["reward"]), -3.5)
     elif group_warmup and TuneRL._is_trainable_candidate(res, graph_info):
         res["reward"] = float(res.get("warmup_dense_reward") or 0.0)
+
+    fixed_failure_reward = _stage1_fixed_failure_reward(res, meta, graph_info)
+    if fixed_failure_reward is not None:
+        res["reward"] = fixed_failure_reward
+        res["stage1_fixed_failure_reward"] = True
+    elif str(res.get("current_stage_name") or "") == TuneRL.STAGE1_STRUCTURE_EXPLORE:
+        if TuneRL._is_trainable_candidate(res, graph_info):
+            trainability_bonus = 0.10
+            if bool(res.get("loss_drop_ok")):
+                trainability_bonus += 0.10
+            res["reward"] = float(res["reward"]) + trainability_bonus
+            res["stage1_trainability_bonus"] = trainability_bonus
 
     res["raw_extraction"] = {
         **meta,
