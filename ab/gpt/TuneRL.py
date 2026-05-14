@@ -259,6 +259,9 @@ STAGE23_DESCRIPTOR_BATCH_REPEAT_STEP_PENALTY = -0.05
 STAGE23_DESCRIPTOR_BATCH_REPEAT_MAX_PENALTY = -0.20
 STAGE23_DESCRIPTOR_ARCHIVE_REPEAT_STEP_PENALTY = -0.025
 STAGE23_DESCRIPTOR_ARCHIVE_REPEAT_MAX_PENALTY = -0.14
+STAGE23_GLOBAL_DESCRIPTOR_ARCHIVE_NOVEL_BONUS = 0.08
+STAGE23_GLOBAL_DESCRIPTOR_ARCHIVE_REPEAT_MAX_PENALTY = -0.10
+STAGE23_GLOBAL_DESCRIPTOR_ARCHIVE_REPEAT_WINDOW = 32
 STAGE23_DOMINANT_DESCRIPTOR_SOFT_SHARE = 0.45
 STAGE23_DOMINANT_DESCRIPTOR_STRONG_SHARE = 0.60
 STAGE23_DOMINANT_DESCRIPTOR_REPEAT_PENALTY = -0.12
@@ -269,6 +272,9 @@ STAGE23_CNN_BATCH_REPEAT_STEP_PENALTY = -0.08
 STAGE23_CNN_BATCH_REPEAT_MAX_PENALTY = -0.30
 STAGE23_CNN_ARCHIVE_REPEAT_STEP_PENALTY = -0.03
 STAGE23_CNN_ARCHIVE_REPEAT_MAX_PENALTY = -0.18
+STAGE23_GLOBAL_CNN_ARCHIVE_NOVEL_BONUS = 0.12
+STAGE23_GLOBAL_CNN_ARCHIVE_REPEAT_MAX_PENALTY = -0.15
+STAGE23_GLOBAL_CNN_ARCHIVE_REPEAT_WINDOW = 32
 STAGE23_NON_DOMINANT_CNN_BONUS = 0.08
 STAGE23_DOMINANT_CNN_SOFT_SHARE = 0.45
 STAGE23_DOMINANT_CNN_STRONG_SHARE = 0.65
@@ -3309,6 +3315,8 @@ def base_discovery_reward_fn(
     r_no_progress_penalty = 0.0
     r_descriptor_diversity = 0.0
     r_cnn_diversity = 0.0
+    global_descriptor_archive_reward = 0.0
+    global_cnn_archive_reward = 0.0
     r_formal_success_signal = 0.0
     stage1_validity_scale = 0.0
     dominant_family_repeat = False
@@ -3644,6 +3652,20 @@ def base_discovery_reward_fn(
                     STAGE23_DESCRIPTOR_ARCHIVE_REPEAT_MAX_PENALTY,
                     STAGE23_DESCRIPTOR_ARCHIVE_REPEAT_STEP_PENALTY * float(archive_snapshot_descriptor_freq - 1),
                 )
+            if quality_diversity_eligible:
+                if archive_snapshot_descriptor_freq <= 0:
+                    global_descriptor_archive_reward = STAGE23_GLOBAL_DESCRIPTOR_ARCHIVE_NOVEL_BONUS
+                else:
+                    global_descriptor_archive_reward = max(
+                        STAGE23_GLOBAL_DESCRIPTOR_ARCHIVE_REPEAT_MAX_PENALTY,
+                        STAGE23_GLOBAL_DESCRIPTOR_ARCHIVE_REPEAT_MAX_PENALTY
+                        * min(
+                            1.0,
+                            float(archive_snapshot_descriptor_freq)
+                            / float(STAGE23_GLOBAL_DESCRIPTOR_ARCHIVE_REPEAT_WINDOW),
+                        ),
+                    )
+                r_descriptor_diversity += global_descriptor_archive_reward
 
             if (
                 (not group_warmup)
@@ -3682,6 +3704,20 @@ def base_discovery_reward_fn(
                     STAGE23_CNN_ARCHIVE_REPEAT_MAX_PENALTY,
                     STAGE23_CNN_ARCHIVE_REPEAT_STEP_PENALTY * float(archive_snapshot_backbone_cnn_freq - 1),
                 )
+            if quality_diversity_eligible:
+                if archive_snapshot_cnn_freq <= 0:
+                    global_cnn_archive_reward = STAGE23_GLOBAL_CNN_ARCHIVE_NOVEL_BONUS
+                else:
+                    global_cnn_archive_reward = max(
+                        STAGE23_GLOBAL_CNN_ARCHIVE_REPEAT_MAX_PENALTY,
+                        STAGE23_GLOBAL_CNN_ARCHIVE_REPEAT_MAX_PENALTY
+                        * min(
+                            1.0,
+                            float(archive_snapshot_cnn_freq)
+                            / float(STAGE23_GLOBAL_CNN_ARCHIVE_REPEAT_WINDOW),
+                        ),
+                    )
+                r_cnn_diversity += global_cnn_archive_reward
 
             if (
                 (not group_warmup)
@@ -3873,6 +3909,8 @@ def base_discovery_reward_fn(
     res['unique_descriptor_count'] = len(descriptor_archive_counts)
     res['dominant_descriptor_repeat'] = dominant_descriptor_repeat
     res['dominant_cnn_repeat'] = dominant_cnn_repeat
+    res['global_descriptor_archive_reward'] = global_descriptor_archive_reward
+    res['global_cnn_archive_reward'] = global_cnn_archive_reward
     res['descriptor_reward_cap_applied'] = descriptor_reward_cap_applied
     res['cnn_reward_cap_applied'] = cnn_reward_cap_applied
     res['history_exploration_pressure'] = float(training_context.get('exploration_pressure') or 0.0)
@@ -3962,6 +4000,8 @@ def base_discovery_reward_fn(
         'unique_descriptor_count': len(descriptor_archive_counts),
         'dominant_descriptor_repeat': dominant_descriptor_repeat,
         'dominant_cnn_repeat': dominant_cnn_repeat,
+        'global_descriptor_archive_reward': global_descriptor_archive_reward,
+        'global_cnn_archive_reward': global_cnn_archive_reward,
         'descriptor_reward_cap_applied': descriptor_reward_cap_applied,
         'cnn_reward_cap_applied': cnn_reward_cap_applied,
         'history_exploration_pressure': float(training_context.get('exploration_pressure') or 0.0),
