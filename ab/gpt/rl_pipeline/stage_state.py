@@ -117,6 +117,7 @@ def capture_reward_runtime_state(
         "descriptor_archive_counts": counter_payload(runtime["descriptor_archive_counts"]),
         "backbone_signature_archive_counts": counter_payload(runtime["backbone_signature_archive_counts"]),
         "cnn_signature_archive_counts": counter_payload(runtime["cnn_signature_archive_counts"]),
+        "block_signature_archive_counts": counter_payload(runtime["block_signature_archive_counts"]),
         "backbone_cnn_pair_archive_counts": counter_payload(runtime["backbone_cnn_pair_archive_counts"]),
         "family_metric_best": {
             str(key): float(value)
@@ -226,6 +227,7 @@ def restore_reward_runtime_state(
     restore_counter(runtime["descriptor_archive_counts"], state.get("descriptor_archive_counts"))
     restore_counter(runtime["backbone_signature_archive_counts"], state.get("backbone_signature_archive_counts"))
     restore_counter(runtime["cnn_signature_archive_counts"], state.get("cnn_signature_archive_counts"))
+    restore_counter(runtime["block_signature_archive_counts"], state.get("block_signature_archive_counts"))
     restore_counter(runtime["backbone_cnn_pair_archive_counts"], state.get("backbone_cnn_pair_archive_counts"))
     runtime["family_metric_best"].clear()
     runtime["family_metric_best"].update(
@@ -309,6 +311,7 @@ def reset_reward_runtime_state(
         "descriptor_archive_counts",
         "backbone_signature_archive_counts",
         "cnn_signature_archive_counts",
+        "block_signature_archive_counts",
         "backbone_cnn_pair_archive_counts",
         "family_metric_best",
         "motif_name_counts",

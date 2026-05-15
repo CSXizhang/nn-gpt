@@ -1,6 +1,7 @@
 import ast
 import csv
 from datetime import timedelta
+import hashlib
 import inspect
 import math
 import os
@@ -112,6 +113,7 @@ family_hash_archive_counts = Counter()
 descriptor_archive_counts = Counter()
 backbone_signature_archive_counts = Counter()
 cnn_signature_archive_counts = Counter()
+block_signature_archive_counts = Counter()
 backbone_cnn_pair_archive_counts = Counter()
 family_metric_best: Dict[str, float] = {}
 motif_name_counts = Counter()
@@ -275,6 +277,12 @@ STAGE23_CNN_ARCHIVE_REPEAT_MAX_PENALTY = -0.18
 STAGE23_GLOBAL_CNN_ARCHIVE_NOVEL_BONUS = 0.12
 STAGE23_GLOBAL_CNN_ARCHIVE_REPEAT_MAX_PENALTY = -0.15
 STAGE23_GLOBAL_CNN_ARCHIVE_REPEAT_WINDOW = 32
+STAGE23_BLOCK_BATCH_UNIQUE_BONUS = 0.04
+STAGE23_BLOCK_BATCH_REPEAT_STEP_PENALTY = -0.04
+STAGE23_BLOCK_BATCH_REPEAT_MAX_PENALTY = -0.12
+STAGE23_BLOCK_ARCHIVE_NOVEL_BONUS = 0.12
+STAGE23_BLOCK_ARCHIVE_REPEAT_MAX_PENALTY = -0.18
+STAGE23_BLOCK_ARCHIVE_REPEAT_WINDOW = 16
 STAGE23_NON_DOMINANT_CNN_BONUS = 0.08
 STAGE23_DOMINANT_CNN_SOFT_SHARE = 0.45
 STAGE23_DOMINANT_CNN_STRONG_SHARE = 0.65
@@ -431,6 +439,18 @@ def _backbone_cnn_pair_key(backbone_signature: str, cnn_signature: str) -> str:
     return f"{str(backbone_signature or 'unknown_backbone_pair')}::{str(cnn_signature or 'incomplete_cnn')}"
 
 
+def _block_signature_from_code(block_code: str) -> str:
+    source = textwrap.dedent(str(block_code or "")).strip()
+    if not source:
+        return "incomplete_block"
+    try:
+        tree = ast.parse(source)
+        payload = ast.dump(tree, annotate_fields=True, include_attributes=False)
+    except Exception:
+        payload = "\n".join(line.strip() for line in source.splitlines() if line.strip())
+    return hashlib.sha1(payload.encode("utf-8")).hexdigest()
+
+
 def _result_backbone_signature(res: Dict[str, Any]) -> str:
     signature = str(res.get("backbone_signature") or "").strip()
     if signature:
@@ -447,6 +467,14 @@ def _result_cnn_signature(res: Dict[str, Any], graph_info) -> str:
         if signature:
             return signature
     return "incomplete_cnn"
+
+
+def _result_block_signature(res: Dict[str, Any], completion: str = "") -> str:
+    signature = str(res.get("block_signature") or "").strip()
+    if signature:
+        return signature
+    block_code, _, _ = extract_completion_blocks(str(completion or ""))
+    return _block_signature_from_code(block_code)
 
 
 def capture_reward_runtime_state() -> Dict[str, Any]:
@@ -2460,6 +2488,14 @@ def _entry_cnn_signature(entry: Dict[str, Any]) -> str:
     return "incomplete_cnn"
 
 
+def _entry_block_signature(entry: Dict[str, Any]) -> str:
+    signature = str(entry.get("block_signature") or "").strip()
+    if signature:
+        return signature
+    block_code, _, _ = extract_completion_blocks(str(entry.get("completion") or ""))
+    return _block_signature_from_code(block_code)
+
+
 def reconstruct_code(
     completion: str,
     *,
@@ -2730,6 +2766,7 @@ def _discovery_failure_result(
         "r_structure_group": 0.0,
         "r_structure_archive": 0.0,
         "r_descriptor_diversity": 0.0,
+        "r_block_diversity": 0.0,
         "r_batch_elite": 0.0,
         "r_repeat_family": 0.0,
         "r_plain_fuse_penalty": 0.0,
@@ -2757,6 +2794,7 @@ def _discovery_failure_result(
             "r_structure_group": 0.0,
             "r_structure_archive": 0.0,
             "r_descriptor_diversity": 0.0,
+            "r_block_diversity": 0.0,
             "r_batch_elite": 0.0,
             "r_repeat_family": 0.0,
             "r_plain_fuse_penalty": 0.0,
@@ -3001,6 +3039,7 @@ def _recompute_discovery_reward(
         + float(res.get("r_structure_archive", 0.0) or 0.0)
         + float(res.get("r_descriptor_diversity", 0.0) or 0.0)
         + float(res.get("r_cnn_diversity", 0.0) or 0.0)
+        + float(res.get("r_block_diversity", 0.0) or 0.0)
         + float(res.get("r_batch_elite", 0.0) or 0.0)
         + float(res.get("r_repeat_family", 0.0) or 0.0)
         + float(res.get("r_plain_fuse_penalty", 0.0) or 0.0)
@@ -3102,11 +3141,13 @@ def base_discovery_reward_fn(
     batch_descriptor_keys: List[str] = None,
     batch_backbone_signatures: List[str] = None,
     batch_cnn_signatures: List[str] = None,
+    batch_block_signatures: List[str] = None,
     prompt_goal_tags: List[str] = None,
     archive_snapshot_family_counts: Optional[Dict[str, int]] = None,
     archive_snapshot_descriptor_counts: Optional[Dict[str, int]] = None,
     archive_snapshot_backbone_signature_counts: Optional[Dict[str, int]] = None,
     archive_snapshot_cnn_signature_counts: Optional[Dict[str, int]] = None,
+    archive_snapshot_block_signature_counts: Optional[Dict[str, int]] = None,
     archive_snapshot_backbone_cnn_pair_counts: Optional[Dict[str, int]] = None,
     group_baseline_train_acc: Optional[float] = None,
     group_baseline_reward_target_acc: Optional[float] = None,
@@ -3128,6 +3169,7 @@ def base_discovery_reward_fn(
         'epoch': 1,
     }
     block_code, init_code, forward_code = extract_completion_blocks(completion)
+    block_signature = _block_signature_from_code(block_code)
     backbone_model_names = _extract_backbone_model_names(init_code)
     if not block_code or not init_code or not forward_code:
         return _discovery_failure_result(
@@ -3218,6 +3260,11 @@ def base_discovery_reward_fn(
         if graph_info.parse_ok
         else 0
     )
+    batch_same_block_count = (
+        batch_block_signatures.count(block_signature)
+        if batch_block_signatures and block_signature and block_signature != "incomplete_block"
+        else 0
+    )
     archive_snapshot_family_freq = int((archive_snapshot_family_counts or {}).get(graph_info.family_hash, 0)) if graph_info.parse_ok else 0
     archive_snapshot_descriptor_freq = (
         int((archive_snapshot_descriptor_counts or {}).get(graph_info.descriptor_key, 0))
@@ -3232,6 +3279,11 @@ def base_discovery_reward_fn(
     archive_snapshot_cnn_freq = (
         int((archive_snapshot_cnn_signature_counts or {}).get(cnn_signature, 0))
         if graph_info.parse_ok
+        else 0
+    )
+    archive_snapshot_block_freq = (
+        int((archive_snapshot_block_signature_counts or {}).get(block_signature, 0))
+        if graph_info.parse_ok and block_signature and block_signature != "incomplete_block"
         else 0
     )
     archive_snapshot_backbone_cnn_freq = (
@@ -3315,8 +3367,10 @@ def base_discovery_reward_fn(
     r_no_progress_penalty = 0.0
     r_descriptor_diversity = 0.0
     r_cnn_diversity = 0.0
+    r_block_diversity = 0.0
     global_descriptor_archive_reward = 0.0
     global_cnn_archive_reward = 0.0
+    block_archive_reward = 0.0
     r_formal_success_signal = 0.0
     stage1_validity_scale = 0.0
     dominant_family_repeat = False
@@ -3742,6 +3796,34 @@ def base_discovery_reward_fn(
                 else:
                     r_cnn_diversity += STAGE23_DOMINANT_CNN_REPEAT_PENALTY
 
+        if (
+            executable_candidate
+            and graph_info.parse_ok
+            and quality_diversity_eligible
+            and block_signature
+            and block_signature != "incomplete_block"
+        ):
+            if batch_same_block_count == 1:
+                r_block_diversity += STAGE23_BLOCK_BATCH_UNIQUE_BONUS
+            elif batch_same_block_count > 1:
+                r_block_diversity += max(
+                    STAGE23_BLOCK_BATCH_REPEAT_MAX_PENALTY,
+                    STAGE23_BLOCK_BATCH_REPEAT_STEP_PENALTY * float(batch_same_block_count - 1),
+                )
+            if archive_snapshot_block_freq <= 0:
+                block_archive_reward = STAGE23_BLOCK_ARCHIVE_NOVEL_BONUS
+            else:
+                block_archive_reward = max(
+                    STAGE23_BLOCK_ARCHIVE_REPEAT_MAX_PENALTY,
+                    STAGE23_BLOCK_ARCHIVE_REPEAT_MAX_PENALTY
+                    * min(
+                        1.0,
+                        float(archive_snapshot_block_freq)
+                        / float(STAGE23_BLOCK_ARCHIVE_REPEAT_WINDOW),
+                    ),
+                )
+            r_block_diversity += block_archive_reward
+
         r_goal_match = stage_profile["goal_match_scale"] * GOAL_MATCH_REWARD_SCALE * goal_tag_hit_rate
         r_template_penalty = _template_penalty(
             stage_name=stage_name,
@@ -3781,6 +3863,7 @@ def base_discovery_reward_fn(
             + r_structure_archive
             + r_descriptor_diversity
             + r_cnn_diversity
+            + r_block_diversity
             + r_batch_elite
             + r_repeat_family
             + r_plain_fuse_penalty
@@ -3866,6 +3949,7 @@ def base_discovery_reward_fn(
     res['r_structure_archive'] = r_structure_archive
     res['r_descriptor_diversity'] = r_descriptor_diversity
     res['r_cnn_diversity'] = r_cnn_diversity
+    res['r_block_diversity'] = r_block_diversity
     res['r_formal_success_signal'] = r_formal_success_signal
     res['r_batch_elite'] = r_batch_elite
     res['r_repeat_family'] = r_repeat_family
@@ -3896,11 +3980,14 @@ def base_discovery_reward_fn(
     res['backbone_signature'] = backbone_signature
     res['cnn_signature'] = cnn_signature
     res['cnn_expr'] = cnn_expr
+    res['block_signature'] = block_signature
     res['archive_snapshot_backbone_freq'] = archive_snapshot_backbone_freq
     res['archive_snapshot_cnn_freq'] = archive_snapshot_cnn_freq
+    res['archive_snapshot_block_freq'] = archive_snapshot_block_freq
     res['archive_snapshot_backbone_cnn_freq'] = archive_snapshot_backbone_cnn_freq
     res['batch_same_backbone_count'] = batch_same_backbone_count
     res['batch_same_backbone_cnn_count'] = batch_same_backbone_cnn_count
+    res['batch_same_block_count'] = batch_same_block_count
     res['descriptor_key'] = graph_info.descriptor_key
     res['dominant_descriptor_key'] = dominant_descriptor_key
     res['dominant_descriptor_share'] = dominant_descriptor_share
@@ -3911,6 +3998,7 @@ def base_discovery_reward_fn(
     res['dominant_cnn_repeat'] = dominant_cnn_repeat
     res['global_descriptor_archive_reward'] = global_descriptor_archive_reward
     res['global_cnn_archive_reward'] = global_cnn_archive_reward
+    res['block_archive_reward'] = block_archive_reward
     res['descriptor_reward_cap_applied'] = descriptor_reward_cap_applied
     res['cnn_reward_cap_applied'] = cnn_reward_cap_applied
     res['history_exploration_pressure'] = float(training_context.get('exploration_pressure') or 0.0)
@@ -3935,6 +4023,7 @@ def base_discovery_reward_fn(
         'r_structure_archive': r_structure_archive,
         'r_descriptor_diversity': r_descriptor_diversity,
         'r_cnn_diversity': r_cnn_diversity,
+        'r_block_diversity': r_block_diversity,
         'r_batch_elite': r_batch_elite,
         'r_repeat_family': r_repeat_family,
         'r_plain_fuse_penalty': r_plain_fuse_penalty,
@@ -3979,10 +4068,12 @@ def base_discovery_reward_fn(
         'batch_same_descriptor_count': batch_same_descriptor_count,
         'batch_same_backbone_count': batch_same_backbone_count,
         'batch_same_backbone_cnn_count': batch_same_backbone_cnn_count,
+        'batch_same_block_count': batch_same_block_count,
         'archive_snapshot_family_freq': archive_snapshot_family_freq,
         'archive_snapshot_descriptor_freq': archive_snapshot_descriptor_freq,
         'archive_snapshot_backbone_freq': archive_snapshot_backbone_freq,
         'archive_snapshot_cnn_freq': archive_snapshot_cnn_freq,
+        'archive_snapshot_block_freq': archive_snapshot_block_freq,
         'archive_snapshot_backbone_cnn_freq': archive_snapshot_backbone_cnn_freq,
         'macro_structure_ok': passes_macro_structure_gate(graph_info),
         'is_multi_stage_architecture': is_multi_stage_architecture(graph_info),
@@ -3992,6 +4083,7 @@ def base_discovery_reward_fn(
         'backbone_signature': backbone_signature,
         'cnn_signature': cnn_signature,
         'cnn_expr': cnn_expr,
+        'block_signature': block_signature,
         'descriptor_key': graph_info.descriptor_key,
         'dominant_descriptor_key': dominant_descriptor_key,
         'dominant_descriptor_share': dominant_descriptor_share,
@@ -4002,6 +4094,7 @@ def base_discovery_reward_fn(
         'dominant_cnn_repeat': dominant_cnn_repeat,
         'global_descriptor_archive_reward': global_descriptor_archive_reward,
         'global_cnn_archive_reward': global_cnn_archive_reward,
+        'block_archive_reward': block_archive_reward,
         'descriptor_reward_cap_applied': descriptor_reward_cap_applied,
         'cnn_reward_cap_applied': cnn_reward_cap_applied,
         'history_exploration_pressure': float(training_context.get('exploration_pressure') or 0.0),
@@ -4043,11 +4136,13 @@ def reward_fn(
     batch_descriptor_keys: List[str] = None,
     batch_backbone_signatures: List[str] = None,
     batch_cnn_signatures: List[str] = None,
+    batch_block_signatures: List[str] = None,
     prompt_goal_tags: List[str] = None,
     archive_snapshot_family_counts: Optional[Dict[str, int]] = None,
     archive_snapshot_descriptor_counts: Optional[Dict[str, int]] = None,
     archive_snapshot_backbone_signature_counts: Optional[Dict[str, int]] = None,
     archive_snapshot_cnn_signature_counts: Optional[Dict[str, int]] = None,
+    archive_snapshot_block_signature_counts: Optional[Dict[str, int]] = None,
     archive_snapshot_backbone_cnn_pair_counts: Optional[Dict[str, int]] = None,
     group_baseline_train_acc: Optional[float] = None,
     group_baseline_reward_target_acc: Optional[float] = None,
@@ -4068,11 +4163,13 @@ def reward_fn(
         batch_descriptor_keys=batch_descriptor_keys,
         batch_backbone_signatures=batch_backbone_signatures,
         batch_cnn_signatures=batch_cnn_signatures,
+        batch_block_signatures=batch_block_signatures,
         prompt_goal_tags=prompt_goal_tags,
         archive_snapshot_family_counts=archive_snapshot_family_counts,
         archive_snapshot_descriptor_counts=archive_snapshot_descriptor_counts,
         archive_snapshot_backbone_signature_counts=archive_snapshot_backbone_signature_counts,
         archive_snapshot_cnn_signature_counts=archive_snapshot_cnn_signature_counts,
+        archive_snapshot_block_signature_counts=archive_snapshot_block_signature_counts,
         archive_snapshot_backbone_cnn_pair_counts=archive_snapshot_backbone_cnn_pair_counts,
         group_baseline_train_acc=group_baseline_train_acc,
         group_baseline_reward_target_acc=group_baseline_reward_target_acc,
@@ -4464,6 +4561,7 @@ def _score_reward_entries(
     archive_snapshot_descriptor_counts = dict(descriptor_archive_counts)
     archive_snapshot_backbone_signature_counts = dict(backbone_signature_archive_counts)
     archive_snapshot_cnn_signature_counts = dict(cnn_signature_archive_counts)
+    archive_snapshot_block_signature_counts = dict(block_signature_archive_counts)
     archive_snapshot_backbone_cnn_pair_counts = dict(backbone_cnn_pair_archive_counts)
     batch_graph_hashes = [
         entry["graph_info"].graph_hash if entry.get("graph_info") and entry["graph_info"].parse_ok else "incomplete"
@@ -4485,6 +4583,10 @@ def _score_reward_entries(
         _entry_cnn_signature(entry)
         for entry in entries
     ]
+    batch_block_signatures = [
+        _entry_block_signature(entry)
+        for entry in entries
+    ]
     scored_results: List[Dict[str, Any]] = []
 
     for position, entry in enumerate(entries):
@@ -4502,11 +4604,13 @@ def _score_reward_entries(
                 batch_descriptor_keys=batch_descriptor_keys,
                 batch_backbone_signatures=batch_backbone_signatures,
                 batch_cnn_signatures=batch_cnn_signatures,
+                batch_block_signatures=batch_block_signatures,
                 prompt_goal_tags=entry.get("prompt_goal_tags"),
                 archive_snapshot_family_counts=archive_snapshot_family_counts,
                 archive_snapshot_descriptor_counts=archive_snapshot_descriptor_counts,
                 archive_snapshot_backbone_signature_counts=archive_snapshot_backbone_signature_counts,
                 archive_snapshot_cnn_signature_counts=archive_snapshot_cnn_signature_counts,
+                archive_snapshot_block_signature_counts=archive_snapshot_block_signature_counts,
                 archive_snapshot_backbone_cnn_pair_counts=archive_snapshot_backbone_cnn_pair_counts,
                 group_baseline_train_acc=group_context["group_baseline_train_acc"],
                 group_baseline_reward_target_acc=group_context["group_baseline_reward_target_acc"],
@@ -4574,6 +4678,7 @@ def _finalize_scored_results(scored_results: List[Dict[str, Any]]) -> None:
         sig = res.get("signature", "unknown")
         backbone_signature = _result_backbone_signature(res)
         cnn_signature = _result_cnn_signature(res, graph_info)
+        block_signature = _result_block_signature(res, completion)
         backbone_cnn_pair_key = _backbone_cnn_pair_key(backbone_signature, cnn_signature)
 
         is_executable = _is_executable_candidate(res, graph_info)
@@ -4594,6 +4699,8 @@ def _finalize_scored_results(scored_results: List[Dict[str, Any]]) -> None:
                 backbone_signature_archive_counts[backbone_signature] += 1
             if cnn_signature:
                 cnn_signature_archive_counts[cnn_signature] += 1
+            if block_signature and block_signature != "incomplete_block":
+                block_signature_archive_counts[block_signature] += 1
             if backbone_signature and cnn_signature:
                 backbone_cnn_pair_archive_counts[backbone_cnn_pair_key] += 1
             motif_name_counts[res.get("pattern_name", graph_info.suggested_pattern_name)] += 1
@@ -4693,6 +4800,7 @@ def _finalize_scored_results(scored_results: List[Dict[str, Any]]) -> None:
                 "descriptor_key": str(res.get("descriptor_key") or getattr(graph_info, "descriptor_key", "") or ""),
                 "backbone_signature": backbone_signature,
                 "cnn_signature": cnn_signature,
+                "block_signature": block_signature,
                 "backbone_cnn_pair_key": backbone_cnn_pair_key,
                 "reward": score,
                 "reward_target_metric": str(res.get("reward_target_metric") or ""),
@@ -4740,6 +4848,7 @@ def _print_discovery_metrics() -> None:
     unique_descriptors = len(descriptor_archive_counts)
     unique_backbones = len(backbone_signature_archive_counts)
     unique_cnns = len(cnn_signature_archive_counts)
+    unique_blocks = len(block_signature_archive_counts)
     unique_backbone_cnn_pairs = len(backbone_cnn_pair_archive_counts)
 
     if total_valid > 0:
@@ -4758,7 +4867,7 @@ def _print_discovery_metrics() -> None:
     print(
         f"\n[Discovery Metrics] Unique Graphs: {unique_count}, "
         f"Families: {unique_families}, Skeletons: {unique_skeletons}, Descriptors: {unique_descriptors}, "
-        f"Backbone Buckets: {unique_backbones}, CNN Signatures: {unique_cnns}, Backbone+CNN Pairs: {unique_backbone_cnn_pairs}, "
+        f"Backbone Buckets: {unique_backbones}, CNN Signatures: {unique_cnns}, Block Signatures: {unique_blocks}, Backbone+CNN Pairs: {unique_backbone_cnn_pairs}, "
         f"Dominant Family Share: {dominant_share:.2%}, Entropy: {entropy:.2f}"
     )
     print(f"[Graph Archive] Top 5 Exact Graphs: {dict(graph_archive_counts.most_common(5))}")
@@ -4767,6 +4876,7 @@ def _print_discovery_metrics() -> None:
     print(f"[Descriptor Archive] Top 5: {dict(descriptor_archive_counts.most_common(5))}")
     print(f"[Backbone Archive] Top 5: {dict(backbone_signature_archive_counts.most_common(5))}")
     print(f"[CNN Archive] Top 5: {dict(cnn_signature_archive_counts.most_common(5))}")
+    print(f"[Block Archive] Top 5: {dict(block_signature_archive_counts.most_common(5))}")
     print(f"[Backbone+CNN Archive] Top 5: {dict(backbone_cnn_pair_archive_counts.most_common(5))}")
     print(f"[Motif Names] Top 5: {dict(motif_name_counts.most_common(5))}")
     goal_summary = {
