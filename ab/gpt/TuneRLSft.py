@@ -216,6 +216,16 @@ def raw_reward_fn(
         if not meta.get("dual_backbone_forward_ok"):
             raw_delta -= 1.75
 
+    shape_contract_delta = 0.0
+    if str(res.get("current_stage_name") or TuneRL.current_stage_name) != TuneRL.STAGE1_STRUCTURE_EXPLORE:
+        if res.get("built_ok") and res.get("forward_ok") and res.get("forward_shape_ok"):
+            shape_contract_delta = 0.12
+        elif res.get("built_ok") and res.get("forward_ok"):
+            shape_contract_delta = -0.12
+        elif res.get("built_ok"):
+            shape_contract_delta = -0.08
+    raw_delta += shape_contract_delta
+
     res["reward"] = TuneRL._apply_trainability_clamp(
         res,
         float(res.get("reward", -2.0)) + raw_delta,
@@ -260,6 +270,7 @@ def raw_reward_fn(
     res["raw_extraction"] = {
         **meta,
         "raw_delta": raw_delta,
+        "shape_contract_delta": shape_contract_delta,
         "terminal_penalty": terminal_penalty,
     }
     res.setdefault("backbone_model_names", list(meta.get("backbone_model_names", [])))
@@ -1201,8 +1212,10 @@ def _reapply_trainability_clamp(res: Dict[str, Any], reward_value: float, graph_
     if not res.get("built_ok"):
         build_partial = float(res.get("r_build_partial", 0.0))
         reward_value = min(reward_value, -0.8 + build_partial)
+    elif not res.get("forward_ok"):
+        reward_value = min(reward_value, -0.40)
     elif not res.get("forward_shape_ok"):
-        reward_value = min(reward_value, -0.50)
+        reward_value = min(reward_value, -0.30)
     elif not res.get("backward_ok"):
         reward_value = min(reward_value, -0.10)
     elif not res.get("loss_drop_ok"):
