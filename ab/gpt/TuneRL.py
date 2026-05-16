@@ -283,6 +283,7 @@ STAGE23_BLOCK_BATCH_REPEAT_MAX_PENALTY = -0.12
 STAGE23_BLOCK_ARCHIVE_NOVEL_BONUS = 0.18
 STAGE23_BLOCK_ARCHIVE_REPEAT_MAX_PENALTY = -0.25
 STAGE23_BLOCK_ARCHIVE_REPEAT_WINDOW = 16
+STAGE23_REPEATED_BLOCK_REWARD_CAP = 0.03
 STAGE23_NON_DOMINANT_CNN_BONUS = 0.08
 STAGE23_DOMINANT_CNN_SOFT_SHARE = 0.45
 STAGE23_DOMINANT_CNN_STRONG_SHARE = 0.65
@@ -3379,6 +3380,7 @@ def base_discovery_reward_fn(
     plain_parallel_repeat = False
     descriptor_reward_cap_applied = False
     cnn_reward_cap_applied = False
+    block_reward_cap_applied = False
     executable_candidate = _is_executable_candidate(res, graph_info)
     formal_success_candidate = _is_trainable_candidate(res, graph_info)
     has_formal_epoch = _has_completed_formal_epoch(res)
@@ -3891,6 +3893,17 @@ def base_discovery_reward_fn(
         if has_formal_epoch and dominant_cnn_repeat:
             total_reward = min(total_reward, stage_profile["descriptor_non_improving_cap"])
             cnn_reward_cap_applied = True
+        repeated_block_without_refresh = bool(
+            has_formal_epoch
+            and formal_success_candidate
+            and block_signature
+            and block_signature != "incomplete_block"
+            and (archive_snapshot_block_freq > 0 or batch_same_block_count > 1)
+            and not formal_progress_refresh
+        )
+        if repeated_block_without_refresh:
+            total_reward = min(total_reward, STAGE23_REPEATED_BLOCK_REWARD_CAP)
+            block_reward_cap_applied = True
         total_reward = _apply_executability_clamp(res, total_reward, graph_info)
 
     reward_target_value_for_payload = reward_target_value
@@ -4001,6 +4014,7 @@ def base_discovery_reward_fn(
     res['block_archive_reward'] = block_archive_reward
     res['descriptor_reward_cap_applied'] = descriptor_reward_cap_applied
     res['cnn_reward_cap_applied'] = cnn_reward_cap_applied
+    res['block_reward_cap_applied'] = block_reward_cap_applied
     res['history_exploration_pressure'] = float(training_context.get('exploration_pressure') or 0.0)
     res['minimal_init_template'] = minimal_init_template
     res['graph_expr'] = graph_info.graph_expr
@@ -4097,6 +4111,7 @@ def base_discovery_reward_fn(
         'block_archive_reward': block_archive_reward,
         'descriptor_reward_cap_applied': descriptor_reward_cap_applied,
         'cnn_reward_cap_applied': cnn_reward_cap_applied,
+        'block_reward_cap_applied': block_reward_cap_applied,
         'history_exploration_pressure': float(training_context.get('exploration_pressure') or 0.0),
         'minimal_init_template': minimal_init_template,
         'depth': graph_info.depth,
@@ -4197,6 +4212,8 @@ def _apply_batch_elite_bonuses(scored_results: List[Dict[str, Any]], group_conte
             continue
         if reward_target_value is None:
             continue
+        if _is_repeated_block_without_refresh(res):
+            continue
         eligible.append((float(reward_target_value), item))
 
     eligible.sort(key=lambda pair: pair[0], reverse=True)
@@ -4220,7 +4237,7 @@ def _apply_batch_elite_bonuses(scored_results: List[Dict[str, Any]], group_conte
         )
         res = item["result"]
         graph_info = item["graph_info"]
-        if float(res.get("r_no_progress_penalty", 0.0) or 0.0) < 0.0:
+        if (not _is_repeated_block_without_refresh(res)) and float(res.get("r_no_progress_penalty", 0.0) or 0.0) < 0.0:
             res["r_no_progress_penalty"] = 0.0
         res["r_batch_elite"] = bonus
         res["batch_elite_rank"] = rank + 1
@@ -4245,6 +4262,19 @@ def _apply_batch_elite_bonuses(scored_results: List[Dict[str, Any]], group_conte
             f"[Reward Batch Elite] reward_batch_index={group_context['reward_batch_index']} "
             + "; ".join(elite_summaries)
         )
+
+
+def _is_repeated_block_without_refresh(res: Dict[str, Any]) -> bool:
+    block_signature = str(res.get("block_signature") or "")
+    if not block_signature or block_signature == "incomplete_block":
+        return False
+    if bool(res.get("backbone_reward_target_improved")) or bool(res.get("group_reward_target_improved")):
+        return False
+    if float(res.get("r_goal_best", 0.0) or 0.0) > 0.0:
+        return False
+    archive_freq = int(res.get("archive_snapshot_block_freq", 0) or 0)
+    batch_count = int(res.get("batch_same_block_count", 0) or 0)
+    return archive_freq > 0 or batch_count > 1
 
 def _reward_failure_result(
     *,
