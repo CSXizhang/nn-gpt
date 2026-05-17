@@ -254,6 +254,7 @@ STAGE1_ZERO_GOAL_HIT_REWARD_CAP = 1.0
 STAGE1_LOW_GOAL_HIT_REWARD_CAP = 1.0
 STAGE1_PLAIN_PARALLEL_REWARD_CAP = 1.0
 STAGE1_OFF_TARGET_PLAIN_PARALLEL_REWARD_CAP = 1.0
+STAGE1_REPEATED_BLOCK_REWARD_CAP = 0.24
 STAGE23_DESCRIPTOR_BATCH_UNIQUE_BONUS = 0.03
 STAGE23_DESCRIPTOR_ARCHIVE_NOVEL_BONUS = 0.02
 STAGE23_NON_DOMINANT_DESCRIPTOR_BONUS = 0.06
@@ -3550,6 +3551,16 @@ def base_discovery_reward_fn(
                 reward_target_value = min(float(reward_target_value), 0.26)
                 if minimal_init_template:
                     reward_target_value = min(float(reward_target_value), 0.18)
+            stage1_repeated_block = bool(
+                executable_candidate
+                and block_signature
+                and block_signature != "incomplete_block"
+                and not discovery_candidate
+                and (archive_snapshot_block_freq > 0 or batch_same_block_count >= 3)
+            )
+            if stage1_repeated_block:
+                reward_target_value = min(float(reward_target_value), STAGE1_REPEATED_BLOCK_REWARD_CAP)
+                block_reward_cap_applied = True
         r_history_context = _history_context_reward(
             stage_name=stage_name,
             training_context=training_context,
@@ -3582,6 +3593,8 @@ def base_discovery_reward_fn(
         )
         r_tiebreak = r_goal_match
         total_reward = _clip(r_primary + r_tiebreak, -2.0, 2.0)
+        if block_reward_cap_applied:
+            total_reward = min(total_reward, STAGE1_REPEATED_BLOCK_REWARD_CAP)
         total_reward = _apply_stage1_trainability_clamp(res, total_reward, graph_info)
     else:
         if (train_acc is not None) and (group_baseline_train_acc is not None) and (not group_warmup):
@@ -3893,13 +3906,14 @@ def base_discovery_reward_fn(
         if has_formal_epoch and dominant_cnn_repeat:
             total_reward = min(total_reward, stage_profile["descriptor_non_improving_cap"])
             cnn_reward_cap_applied = True
+        block_repeat_quality_refresh = bool(r_goal_best > 0.0 or beat_best_backbone_target or beat_best_target)
         repeated_block_without_refresh = bool(
             has_formal_epoch
             and formal_success_candidate
             and block_signature
             and block_signature != "incomplete_block"
             and (archive_snapshot_block_freq > 0 or batch_same_block_count > 1)
-            and not formal_progress_refresh
+            and not block_repeat_quality_refresh
         )
         if repeated_block_without_refresh:
             total_reward = min(total_reward, STAGE23_REPEATED_BLOCK_REWARD_CAP)
@@ -4268,13 +4282,24 @@ def _is_repeated_block_without_refresh(res: Dict[str, Any]) -> bool:
     block_signature = str(res.get("block_signature") or "")
     if not block_signature or block_signature == "incomplete_block":
         return False
-    if bool(res.get("backbone_reward_target_improved")) or bool(res.get("group_reward_target_improved")):
-        return False
-    if float(res.get("r_goal_best", 0.0) or 0.0) > 0.0:
+    if _has_block_repeat_quality_refresh(res):
         return False
     archive_freq = int(res.get("archive_snapshot_block_freq", 0) or 0)
     batch_count = int(res.get("batch_same_block_count", 0) or 0)
     return archive_freq > 0 or batch_count > 1
+
+
+def _has_block_repeat_quality_refresh(res: Dict[str, Any]) -> bool:
+    if float(res.get("r_goal_best", 0.0) or 0.0) > 0.0:
+        return True
+    reward_target_value = _optional_float(res.get("reward_target_value"))
+    if reward_target_value is None:
+        return False
+    best_targets = (
+        _optional_float(res.get("backbone_best_target_reward_target_acc")),
+        _optional_float(res.get("best_target_reward_target_acc")),
+    )
+    return any(target is not None and reward_target_value >= target for target in best_targets)
 
 def _reward_failure_result(
     *,
