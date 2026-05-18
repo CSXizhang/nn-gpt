@@ -985,7 +985,7 @@ def tune(
 
     model_loader = LLM(
         base_model_name,
-        quantization_config_4bit,
+        quantization_config_4bit if unsloth_load_in_4bit else None,
         access_token=access_token,
         use_deepspeed=use_deepspeed,
         context_length=context_length,
