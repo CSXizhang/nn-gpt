@@ -14,6 +14,9 @@ def main():
     parser.add_argument('--skip_epoch', type=int, default=0, help='Number of initial generation/eval cycles to skip')
     parser.add_argument('--nn_train_epochs', type=int, default=1, help='Number of training epochs for generated NNs')
     parser.add_argument('--sft_max_length', type=int, default=6144, help='Maximum SFT sequence length')
+    parser.add_argument('--sft_batch_size', type=int, default=2, help='Per-device SFT batch size')
+    parser.add_argument('--sft_gradient_accumulation', type=int, default=4, help='SFT gradient accumulation steps')
+    parser.add_argument('--epoch_root', type=str, default=None, help='Output root for A* cycle directories')
     parser.add_argument(
         '--sft_nn_prefixes',
         type=lambda raw: tuple(item.strip() for item in raw.split(',') if item.strip()),
@@ -27,8 +30,8 @@ def main():
     # Training Arguments
     training_args = SFTConfig(
         output_dir=str(nngpt_dir / 'outputs'),
-        per_device_train_batch_size=2,
-        gradient_accumulation_steps=4,
+        per_device_train_batch_size=args.sft_batch_size,
+        gradient_accumulation_steps=args.sft_gradient_accumulation,
         learning_rate=1e-5,
         num_train_epochs=args.num_train_epochs,
         logging_steps=5,
@@ -70,6 +73,7 @@ def main():
         use_backbone=True,
         sft_nn_prefixes=args.sft_nn_prefixes,
         num_cycles=args.num_cycles,
+        epoch_root=args.epoch_root,
         temperature=0.8
     )
 

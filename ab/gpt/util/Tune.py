@@ -931,6 +931,7 @@ def tune(
     use_backbone=False,
     sft_nn_prefixes=None,
     num_cycles=None,
+    epoch_root=None,
 ):
     if not isinstance(conf_keys, (list, tuple)):
         conf_keys = (conf_keys,)
@@ -967,6 +968,14 @@ def tune(
     print(f'[DEBUG]Argument Information:\nSkip generation until Epoch: {skip_epoch}\nPath to saved LoRA Layers: {llm_path}')
 
     train_config_path = conf_train_dir / llm_tune_conf
+    epoch_root_path = Path(epoch_root).expanduser() if epoch_root else epoch_dir()
+    print(f"[EVOLUTION] Epoch root: {epoch_root_path}")
+
+    def run_epoch_dir(*parts):
+        out = epoch_root_path
+        for part in parts:
+            out = out / f"A{part}"
+        return out
 
     with open(conf_test_dir / nn_gen_conf) as prompt_file:
         prompt_dict = json.load(prompt_file)
@@ -1055,7 +1064,7 @@ def tune(
         "classification_mode": classification_mode,
     }
 
-    shutil.rmtree(epoch_dir(), ignore_errors=True)
+    shutil.rmtree(epoch_root_path, ignore_errors=True)
 
     if use_agents:
         from ab.gpt.agents.run_agent import run_agent_controller
@@ -1063,7 +1072,7 @@ def tune(
 
     for epoch in range(llm_tune_epochs):
         print(f'[INFO]Start Epoch {epoch}')
-        out_path = epoch_dir(epoch)
+        out_path = run_epoch_dir(epoch)
         if epoch < skip_epoch:
             print(f'Skipped generation at epoch {epoch}')
         else:
