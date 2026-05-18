@@ -31,6 +31,13 @@ def _coerce_float(value: Any) -> Optional[float]:
     return parsed
 
 
+def _coerce_horizon_metric(api_result: dict[str, Any], field_name: str, horizon: str = "1") -> Optional[float]:
+    payload = api_result.get(field_name)
+    if not isinstance(payload, dict):
+        return None
+    return _coerce_float(payload.get(horizon))
+
+
 def _require_float(value: Any, *, field_name: str, line_no: int) -> float:
     parsed = _coerce_float(value)
     if parsed is None:
@@ -345,14 +352,32 @@ def load_reward_log(log_dir: Path | str) -> RewardLogData:
         seed_accuracy_baseline = _coerce_float(
             api_result.get("seed_accuracy_baseline", api_result.get("accuracy_baseline"))
         )
+        horizon1_test_acc = _coerce_horizon_metric(api_result, "formal_horizon_test_acc")
+        horizon1_train_acc = _coerce_horizon_metric(api_result, "formal_horizon_train_acc")
+        horizon1_target_value = _coerce_horizon_metric(api_result, "formal_horizon_scores")
         reward_target_value = _coerce_float(
-            api_result.get(
-                "reward_target_value",
-                api_result.get("frozen_test_acc", api_result.get("test_acc", api_result.get("val_metric"))),
-            )
+            horizon1_target_value
+            if horizon1_target_value is not None
+            else api_result.get(
+                    "reward_target_value",
+                    api_result.get("frozen_test_acc", api_result.get("test_acc", api_result.get("val_metric"))),
+                )
         )
-        frozen_test_acc = _coerce_float(api_result.get("frozen_test_acc", api_result.get("test_acc", api_result.get("val_metric"))))
-        frozen_train_acc = _coerce_float(api_result.get("frozen_train_acc", api_result.get("train_acc")))
+        frozen_test_acc = (
+            horizon1_test_acc
+            if horizon1_test_acc is not None
+            else _coerce_float(api_result.get("frozen_test_acc", api_result.get("test_acc", api_result.get("val_metric"))))
+        )
+        train_acc = (
+            horizon1_train_acc
+            if horizon1_train_acc is not None
+            else _coerce_float(api_result.get("train_acc"))
+        )
+        frozen_train_acc = (
+            horizon1_train_acc
+            if horizon1_train_acc is not None
+            else _coerce_float(api_result.get("frozen_train_acc", api_result.get("train_acc")))
+        )
         error_message = str(api_result.get("error") or "")
         error_stage = str(api_result.get("error_stage") or "")
 
@@ -364,7 +389,7 @@ def load_reward_log(log_dir: Path | str) -> RewardLogData:
         data.backward_ok.append(_bool_or_nan(backward_ok))
         data.loss_drop_ok.append(_bool_or_nan(loss_drop_ok))
         data.timed_out.append(_bool_or_nan(timed_out))
-        data.train_acc.append(_float_or_nan(_coerce_float(api_result.get("train_acc"))))
+        data.train_acc.append(_float_or_nan(train_acc))
         data.frozen_train_acc.append(_float_or_nan(frozen_train_acc))
         data.frozen_test_acc.append(_float_or_nan(frozen_test_acc))
         data.unfrozen_train_acc.append(_float_or_nan(_coerce_float(api_result.get("unfrozen_train_acc"))))
