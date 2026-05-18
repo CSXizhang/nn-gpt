@@ -613,7 +613,15 @@ def generate_step(state: AgentState) -> dict:
     return {"next_action": "evaluate"}
 
 
-def _evaluate_epoch(epoch, out_path, nn_name_prefix, nn_train_epochs, trans_mode, classification_mode=False):
+def _evaluate_epoch(
+    epoch,
+    out_path,
+    nn_name_prefix,
+    nn_train_epochs,
+    trans_mode,
+    classification_mode=False,
+    custom_synth_dir=None,
+):
     """
     Single source of truth for one evaluation epoch.
     Runs NNEval (trains generated NNs for nn_train_epochs and records accuracy).
@@ -652,11 +660,14 @@ def _evaluate_epoch(epoch, out_path, nn_name_prefix, nn_train_epochs, trans_mode
                     "--only_epoch",
                     str(epoch),
                 ]
+                if custom_synth_dir:
+                    cmd.extend(["--custom_synth_dir", str(custom_synth_dir)])
                 if nn_name_prefix:
                     cmd.extend(["--nn_name_prefix", str(nn_name_prefix)])
                 print(
                     f"[TUNE] Running NNEval subprocess with "
-                    f"CUDA_VISIBLE_DEVICES={eval_cuda_visible_devices}"
+                    f"CUDA_VISIBLE_DEVICES={eval_cuda_visible_devices} "
+                    f"custom_synth_dir={custom_synth_dir or ''}"
                 )
                 subprocess.run(cmd, check=True, env=env)
             else:
@@ -664,6 +675,7 @@ def _evaluate_epoch(epoch, out_path, nn_name_prefix, nn_train_epochs, trans_mode
                     nn_name_prefix=nn_name_prefix,
                     nn_train_epochs=nn_train_epochs,
                     only_epoch=epoch,
+                    custom_synth_dir=custom_synth_dir,
                 )
             print('[DEBUG] Release_memory.')
             release_memory()
@@ -1081,7 +1093,15 @@ def tune(
             else:
                 nn_gen(epoch, out_path, chat_bot, conf_keys, nn_train_epochs, prompt_dict, test_nn, max_new_tokens, save_llm_output, nn_name_prefix, unsloth_max_input_length, prompt_batch, use_backbone=use_backbone, sft_nn_prefixes=sft_nn_prefixes)
 
-            _evaluate_epoch(epoch, out_path, nn_name_prefix, nn_train_epochs, trans_mode, classification_mode)
+            _evaluate_epoch(
+                epoch,
+                out_path,
+                nn_name_prefix,
+                nn_train_epochs,
+                trans_mode,
+                classification_mode,
+                custom_synth_dir=synth_dir(out_path),
+            )
 
         print(f'[DEBUG]Perform finetune at epoch {epoch}.')
         chat_bot = None
