@@ -82,9 +82,17 @@ class LLM:
 
         # --- Determine source dir for local model files (if any) ---
         src_dir = None
+        raw_cache_usable = exists(raw_fl_nm)
+        if raw_cache_usable and not load_in_4bit and os.path.exists(os.path.join(raw_fl_nm, "config.json")):
+            with open(os.path.join(raw_fl_nm, "config.json"), "r") as f:
+                raw_cfg = json.load(f)
+            quant_cfg = raw_cfg.get("quantization_config") or {}
+            if isinstance(quant_cfg, dict) and (quant_cfg.get("load_in_4bit") or quant_cfg.get("_load_in_4bit")):
+                raw_cache_usable = False
+                print(f"[LLM] Bypassing local 4-bit model cache for full/bf16 load: {raw_fl_nm}")
         if exists(local_path):
             src_dir = local_path
-        elif exists(raw_fl_nm):
+        elif raw_cache_usable:
             src_dir = raw_fl_nm
 
         # --- Build a safe config without relying on from_dict/get_config_dict ---
@@ -138,7 +146,7 @@ class LLM:
             **deepspeed_specific_prm
         )
         
-        if bnb_config is not None:
+        if bnb_config is not None and load_in_4bit:
             model_kwargs["quantization_config"] = bnb_config
         
         # --- ZeRO-3 guard: strip incompatible args ---
@@ -156,15 +164,17 @@ class LLM:
         # Debug: verify nothing slipped through
         print("[DEBUG from_pretrained kwargs]", {k: ("***" if k == "token" else v) for k, v in model_kwargs.items()})
         
-        base_model = local_path if exists(local_path) else raw_fl_nm if exists(raw_fl_nm) else model_path
+        base_model = local_path if exists(local_path) else raw_fl_nm if raw_cache_usable else model_path
         self.model = AutoModelForCausalLM.from_pretrained(
             base_model,
             **model_kwargs
         )
         if exists(local_path):
             print("Loading Model from local files:", "'" + local_path + "'")
-        elif exists(raw_fl_nm):
+        elif raw_cache_usable:
             print(f"Loading Raw Model from local files: '{raw_fl_nm}'")
+        elif exists(raw_fl_nm):
+            print(f"Loading Raw Model from remote because local cache is not compatible with requested precision: '{model_path}'")
         else:
             self.model.save_pretrained(raw_fl_nm, access_token=access_token)
             print("Model saved to: ", raw_fl_nm)
