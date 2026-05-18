@@ -551,6 +551,17 @@ def _group_progress_series(data: RewardLogData, key: str) -> tuple[list[int], li
     return cycles, values
 
 
+def _cycle_mean_series(group_ids: Iterable[int], values: Iterable[float]) -> tuple[list[int], list[float]]:
+    grouped: dict[int, list[float]] = {}
+    for group_id, value in zip(group_ids, values):
+        parsed = _coerce_float(value)
+        if parsed is None:
+            continue
+        grouped.setdefault(int(group_id), []).append(parsed)
+    cycles = sorted(grouped)
+    return cycles, [float(statistics.fmean(grouped[cycle])) for cycle in cycles]
+
+
 def _cycle_xticks(cycles: list[int], *, max_ticks: int = 20) -> list[int]:
     if not cycles:
         return []
@@ -794,8 +805,8 @@ def _plot_dashboard(
     else:
         cycle_summary = _cycle_metric_summary(data.reward_group_id, data.frozen_test_acc)
         cycles = [int(cycle) for cycle in cycle_summary["cycles"]]
-        train_cycles, closed_train = _group_progress_series(data, "closed_mean_train_acc")
-        test_cycles, closed_test = _group_progress_series(data, "closed_mean_test_acc")
+        train_cycles, closed_train = _cycle_mean_series(data.reward_group_id, data.frozen_train_acc)
+        test_cycles, closed_test = _cycle_mean_series(data.reward_group_id, data.frozen_test_acc)
         if cycles:
             axes[3].errorbar(
                 cycles,
@@ -841,9 +852,9 @@ def _plot_dashboard(
                 zorder=4,
             )
         if train_cycles:
-            axes[3].plot(train_cycles, closed_train, color="#2E7D32", linewidth=1.8, label="Closed Mean Train")
+            axes[3].plot(train_cycles, closed_train, color="#2E7D32", linewidth=1.8, label="Cycle Mean Train")
         if test_cycles:
-            axes[3].plot(test_cycles, closed_test, color="#1565C0", linewidth=1.8, label="Closed Mean Frozen Test")
+            axes[3].plot(test_cycles, closed_test, color="#1565C0", linewidth=1.8, label="Cycle Mean Frozen Test")
         cycle_axis = sorted(set(cycles) | set(train_cycles) | set(test_cycles))
         axes[3].set_title("Cycle Actual Metrics")
         axes[3].set_ylabel("Accuracy")
