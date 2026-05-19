@@ -336,6 +336,8 @@ You are implementing one trainable dual-backbone image-classification model. See
 - Use `dropout_prob = float(prm.get("dropout", 0.1))`. Do not reject, whitelist, or raise `ValueError` for numeric dropout values; `supported_hyperparameters()` returns parameter names, not values.
 - Use the fixed helper as `_feature_to_input_image(tensor, adapter_name)` when a feature map must be converted back to the input image shape.
 - Do not feed a 2D pooled tensor into `Conv2d`, `FractalUnit`, `FractalBlock`, `TorchVision`, or `nn.Sequential` containing convolutions. If a tensor was flattened by `adaptive_pool_flatten`, convert it back with `_feature_to_input_image(...)` before any CNN/backbone module.
+- In `forward`, concatenate only pooled 2D feature tensors. If `is_probing` is true, return that fused 2D feature tensor; otherwise return only `self.classifier(fused)`.
+- Never concatenate classifier logits with feature tensors, and never return a 4D feature map as the normal classification output.
 - Do not instantiate new `nn.Module` objects inside `forward`; define all trainable modules in `__init__` and move them to `device`.
 - Read `dropout` from `prm` and route it into trainable dropout/drop block settings so `supported_hyperparameters()` matches the implementation.
 - Return only the three XML sections below, each containing the complete function or method definition.
