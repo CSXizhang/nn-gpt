@@ -311,6 +311,12 @@ def _build_prompt_skeleton(code):
     train_setup_marker = "    def train_setup(self, prm):"
     if train_setup_marker in code:
         code = code[:code.index(train_setup_marker)]
+    code = re.sub(
+        r"\n    def _feature_to_input_image\(self, x: torch\.Tensor, adapter_name: str\) -> torch\.Tensor:\n.*?(?=\n    def forward\()",
+        "\n",
+        code,
+        flags=re.DOTALL,
+    )
     code = re.sub(r"\n# =+\n# .+?\n# =+\n", "\n", code, flags=re.DOTALL)
     code = re.sub(r"\n{3,}", "\n\n", code)
     return code.rstrip() + "\n"
@@ -334,8 +340,8 @@ You are implementing one trainable dual-backbone image-classification model. See
 - Set `self._input_spec = (c_in, h_in, w_in)` in `Net.__init__`; never set it to `in_shape`, `in_shape[:]`, or any 4-tuple.
 - Call `self.infer_dimensions_dynamically(out_shape[0])` exactly once after defining every module used by `forward`, and do not change `self._input_spec` after that call.
 - Do not advertise `dropout` in `supported_hyperparameters()` unless `train_setup` actually reads it from `prm`; this SFT target only requires `lr` and `momentum`.
-- Use the fixed helper as `_feature_to_input_image(tensor, adapter_name)` when a feature map must be converted back to the input image shape.
-- Do not feed a 2D pooled tensor into `Conv2d`, `FractalUnit`, `FractalBlock`, `TorchVision`, or `nn.Sequential` containing convolutions. If a tensor was flattened by `adaptive_pool_flatten`, convert it back with `_feature_to_input_image(...)` before any CNN/backbone module.
+- Use `adaptive_pool_flatten(...)` before concatenating branch outputs or feeding `self.classifier`.
+- Do not feed 4D feature maps directly into `nn.Linear` or `self.classifier`.
 - Do not instantiate new `nn.Module` objects inside `forward`; define all trainable modules in `__init__` and move them to `device`.
 - Keep `supported_hyperparameters()` consistent with actual `prm` usage; every advertised parameter must be read in the implementation.
 - Return only the three XML sections below, each containing the complete function or method definition.
