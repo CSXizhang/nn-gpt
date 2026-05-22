@@ -200,6 +200,7 @@ def command_gen_only(args: argparse.Namespace) -> None:
         "top_k": int(args.top_k),
         "max_new_tokens": int(args.max_new_tokens),
         "do_sample": True,
+        "stop_strings": ["</forward>"],
     }
     run_config = {
         "phase": "gen_only",
@@ -240,6 +241,8 @@ def command_gen_only(args: argparse.Namespace) -> None:
                     temperature=float(args.temperature),
                     top_p=float(args.top_p),
                     top_k=int(args.top_k),
+                    stop_strings=["</forward>"],
+                    tokenizer=tokenizer,
                     eos_token_id=getattr(tokenizer, "eos_token_id", None),
                     pad_token_id=getattr(tokenizer, "pad_token_id", getattr(tokenizer, "eos_token_id", None)),
                 )
