@@ -1,5 +1,6 @@
 import json
 import os
+import re
 import shutil
 import random
 import inspect
@@ -53,6 +54,13 @@ SFT_MODE_DEFAULT = "auto"
 SFT_REWARD_EXCLUDE_TRAIN_GPU = False
 SFT_COMPACT_AFTER_MODEL_LOAD = False
 SFT_COMPACT_FLOAT_PARAMS = False
+SFT_LENGTH_SOFT_TOKEN_LIMIT = 850
+SFT_LENGTH_HARD_TOKEN_LIMIT = 1000
+SFT_LENGTH_FAILURE_TOKEN_LIMIT = 1200
+SFT_LENGTH_SOFT_PENALTY = 0.05
+SFT_LENGTH_HARD_EXTRA_PENALTY = 0.20
+SFT_REPEAT_LINE_PENALTY = 0.03
+SFT_REPEAT_LINE_MAX_PENALTY = 0.15
 
 # CIFAR-10 reward evaluation via nn-dataset / NNEval-aligned formal acc.
 SFT_EVAL_IMAGE_SIZE = 128
@@ -124,6 +132,71 @@ def _stage1_fixed_failure_reward(res: Dict[str, Any], meta: Dict[str, Any], grap
     if not res.get("forward_ok") or not res.get("forward_shape_ok"):
         return -1.0
     return -0.25
+
+
+def _estimate_completion_tokens(completion: str) -> tuple[int, str]:
+    tokenizer = getattr(TuneRL, "active_rl_tokenizer", None)
+    if tokenizer is not None:
+        try:
+            tokenized = tokenizer(completion, add_special_tokens=False)
+            return int(len(tokenized.input_ids)), "tokenizer"
+        except Exception:
+            pass
+    return int(max(1, round(len(completion) / 2.4))), "char_estimate"
+
+
+def _count_repeated_code_lines(completion: str) -> tuple[int, int]:
+    counts: Dict[str, int] = {}
+    for raw_line in completion.splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("<") or len(line) < 12:
+            continue
+        line = re.sub(r"\s+", " ", line)
+        counts[line] = counts.get(line, 0) + 1
+    repeated_groups = sum(1 for value in counts.values() if value >= 3)
+    repeated_excess = sum(value - 2 for value in counts.values() if value >= 3)
+    return repeated_groups, repeated_excess
+
+
+def _completion_compactness_penalty(completion: str, meta: Dict[str, Any]) -> Dict[str, Any]:
+    token_count, token_count_source = _estimate_completion_tokens(completion)
+    soft_limit = max(1, _env_int("NNGPT_SFT_LENGTH_SOFT_TOKEN_LIMIT", SFT_LENGTH_SOFT_TOKEN_LIMIT))
+    hard_limit = max(soft_limit + 1, _env_int("NNGPT_SFT_LENGTH_HARD_TOKEN_LIMIT", SFT_LENGTH_HARD_TOKEN_LIMIT))
+    failure_limit = max(hard_limit + 1, _env_int("NNGPT_SFT_LENGTH_FAILURE_TOKEN_LIMIT", SFT_LENGTH_FAILURE_TOKEN_LIMIT))
+    soft_penalty = max(0.0, _env_float("NNGPT_SFT_LENGTH_SOFT_PENALTY", SFT_LENGTH_SOFT_PENALTY))
+    hard_extra_penalty = max(
+        0.0,
+        _env_float("NNGPT_SFT_LENGTH_HARD_EXTRA_PENALTY", SFT_LENGTH_HARD_EXTRA_PENALTY),
+    )
+    repeat_unit = max(0.0, _env_float("NNGPT_SFT_REPEAT_LINE_PENALTY", SFT_REPEAT_LINE_PENALTY))
+    repeat_cap = max(0.0, _env_float("NNGPT_SFT_REPEAT_LINE_MAX_PENALTY", SFT_REPEAT_LINE_MAX_PENALTY))
+
+    length_penalty = 0.0
+    if token_count > soft_limit:
+        if token_count <= hard_limit:
+            length_penalty = -soft_penalty * ((token_count - soft_limit) / float(hard_limit - soft_limit))
+        else:
+            hard_span = max(1, failure_limit - hard_limit)
+            length_penalty = -soft_penalty - hard_extra_penalty * min(
+                1.0,
+                (token_count - hard_limit) / float(hard_span),
+            )
+
+    repeated_groups, repeated_excess = _count_repeated_code_lines(completion)
+    repeated_line_penalty = -min(repeat_cap, repeat_unit * repeated_excess)
+    xml_incomplete_length_cap = bool(token_count > failure_limit and not meta.get("xml_tag_exact"))
+    return {
+        "completion_token_count": token_count,
+        "completion_token_count_source": token_count_source,
+        "completion_length_soft_limit": soft_limit,
+        "completion_length_hard_limit": hard_limit,
+        "completion_length_failure_limit": failure_limit,
+        "repeated_line_groups": repeated_groups,
+        "repeated_line_excess": repeated_excess,
+        "r_length_compactness": length_penalty,
+        "r_repeated_line_penalty": repeated_line_penalty,
+        "xml_incomplete_length_cap": xml_incomplete_length_cap,
+    }
 
 
 def raw_reward_fn(
@@ -266,6 +339,16 @@ def raw_reward_fn(
                 trainability_bonus += 0.10
             res["reward"] = float(res["reward"]) + trainability_bonus
             res["stage1_trainability_bonus"] = trainability_bonus
+
+    compactness = _completion_compactness_penalty(completion, meta)
+    res.update(compactness)
+    res["reward"] = (
+        float(res.get("reward", -2.0))
+        + float(compactness["r_length_compactness"])
+        + float(compactness["r_repeated_line_penalty"])
+    )
+    if compactness["xml_incomplete_length_cap"]:
+        res["reward"] = min(float(res["reward"]), -0.8)
 
     res["raw_extraction"] = {
         **meta,
