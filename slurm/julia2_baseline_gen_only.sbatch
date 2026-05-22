@@ -22,6 +22,7 @@ cd /home/s471802/nn-gpt
 
 export PYTHONUNBUFFERED=1
 export TOKENIZERS_PARALLELISM=false
+export PYTHONPATH="/home/s471802/nn-gpt:/home/s471802/nn-dataset:${PYTHONPATH:-}"
 export NNGPT_RL_FORMAL_REWARD_EPOCHS="${NNGPT_RL_FORMAL_REWARD_EPOCHS:-1,5,10}"
 export NNGPT_SFT_BASE_MODEL_ID="${NNGPT_SFT_BASE_MODEL_ID:-/home/s471802/nn-gpt/out/llm/deepseek-ai/deepseek-coder-6.7b-instruct}"
 export NNGPT_SFT_TOKENIZER_ID="${NNGPT_SFT_TOKENIZER_ID:-deepseek-ai/deepseek-coder-6.7b-instruct}"

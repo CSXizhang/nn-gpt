@@ -19,6 +19,7 @@ cd /home/s471802/nn-gpt
 : "${NNGPT_BASELINE_RUN_ROOT:?set NNGPT_BASELINE_RUN_ROOT}"
 
 export PYTHONUNBUFFERED=1
+export PYTHONPATH="/home/s471802/nn-gpt:/home/s471802/nn-dataset:${PYTHONPATH:-}"
 
 exec python scripts/baseline_experiment_runner.py brute-gen-only \
   --setting "${NNGPT_BASELINE_SETTING:-brute_constrained_random}" \
