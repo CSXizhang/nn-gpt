@@ -27,5 +27,5 @@ exec python scripts/baseline_experiment_runner.py brute-gen-only \
   --output-dir "${NNGPT_BASELINE_RUN_ROOT}/candidates/${NNGPT_BASELINE_SETTING:-brute_constrained_random}" \
   --budget "${NNGPT_BASELINE_BUDGET:-100}" \
   --seed "${NNGPT_BASELINE_SEED:-42}" \
-  --pattern-set "${NNGPT_BASELINE_BRUTE_PATTERN_SET:-all}" \
+  --pattern-set "${NNGPT_BASELINE_BRUTE_PATTERN_SET:-union}" \
   --seed-accuracy-baseline "${NNGPT_BASELINE_SEED_ACCURACY_BASELINE:-0.10}"

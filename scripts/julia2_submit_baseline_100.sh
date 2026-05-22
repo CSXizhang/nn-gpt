@@ -14,6 +14,7 @@ Options:
   --budget N              default: 100
   --partition PART        default: h100
   --eval-partition PART   default: h100
+  --eval-gpus N           default: 4
   --brute-partition PART  default: small_cpu
   --brute-gres GRES       optional, e.g. gpu:1 when CPU partitions are blocked
   --prompt-nn-prefixes P  default: rl-bb-test1
@@ -34,6 +35,7 @@ run_id="baseline_$(date +%Y%m%d_%H%M)"
 budget="100"
 partition="h100"
 eval_partition="h100"
+eval_gpus="4"
 brute_partition="small_cpu"
 brute_gres=""
 prompt_nn_prefixes="rl-bb-test1"
@@ -48,6 +50,7 @@ while [ "$#" -gt 0 ]; do
     --budget) budget="$2"; shift 2 ;;
     --partition) partition="$2"; shift 2 ;;
     --eval-partition) eval_partition="$2"; shift 2 ;;
+    --eval-gpus) eval_gpus="$2"; shift 2 ;;
     --brute-partition) brute_partition="$2"; shift 2 ;;
     --brute-gres) brute_gres="$2"; shift 2 ;;
     --nn-prefixes) prompt_nn_prefixes="$2"; onepattern_nn_prefixes="$2"; fourpattern_nn_prefixes="$2"; shift 2 ;;
@@ -107,10 +110,10 @@ ${run_root}/candidates/sft_only_fourpattern/candidates.jsonl
 ${run_root}/candidates/brute_constrained_random/candidates.jsonl
 EOF
 
-eval_job=$(sbatch --parsable -p "${eval_partition}" --gres=gpu:4 \
+eval_job=$(sbatch --parsable -p "${eval_partition}" --gres=gpu:"${eval_gpus}" \
   --dependency "afterok:${prompt_job}:${one_job}:${four_job}:${brute_job}" \
   --job-name baseline-eval-400 \
-  --export "${base_export},NNGPT_BASELINE_CANDIDATE_MANIFEST=${candidate_manifest},NNGPT_REWARD_WORKERS_PER_GPU=1" \
+  --export "${base_export},NNGPT_BASELINE_CANDIDATE_MANIFEST=${candidate_manifest},NNGPT_REWARD_WORKERS_PER_GPU=1,NNGPT_BASELINE_EVAL_CONCURRENCY=${eval_gpus}" \
   slurm/julia2_baseline_eval_only.sbatch)
 eval_job="${eval_job%%;*}"
 

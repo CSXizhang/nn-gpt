@@ -48,4 +48,5 @@ eval_dir="${NNGPT_BASELINE_EVAL_DIR:-${NNGPT_BASELINE_RUN_ROOT}/eval}"
 exec python scripts/baseline_experiment_runner.py eval-only \
   "${args[@]}" \
   --output-dir "${eval_dir}" \
-  --seed "${NNGPT_BASELINE_SEED:-42}"
+  --seed "${NNGPT_BASELINE_SEED:-42}" \
+  --eval-concurrency "${NNGPT_BASELINE_EVAL_CONCURRENCY:-0}"

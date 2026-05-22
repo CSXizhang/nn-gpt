@@ -206,7 +206,9 @@ def command_gen_only(args: argparse.Namespace) -> None:
         "phase": "gen_only",
         "setting": args.setting,
         "source_run": args.source_run,
+        "seed": int(args.seed),
         "budget": int(args.budget),
+        "source_format": "xml_completion",
         "prompt_config": {
             "nn_prefixes": args.nn_prefixes,
             "prompt_mode": args.prompt_mode,
@@ -259,6 +261,7 @@ def command_gen_only(args: argparse.Namespace) -> None:
             "source_run": args.source_run,
             "prompt_config": dict(run_config["prompt_config"]),
             "adapter_config": dict(run_config["adapter_config"]),
+            "source_format": "xml_completion",
             "seed_accuracy_baseline": item.get("accuracy"),
             "target_pattern": item.get("target_pattern"),
             "prompt": prompt,
@@ -283,7 +286,6 @@ def _completion_from_full_code(code: str) -> str:
     tree = ast.parse(code)
     block_code = ""
     init_code = ""
-    helper_codes: list[str] = []
     forward_code = ""
 
     for node in tree.body:
@@ -293,13 +295,9 @@ def _completion_from_full_code(code: str) -> str:
             for member in node.body:
                 if isinstance(member, ast.FunctionDef) and member.name == "__init__":
                     init_code = _source_segment(code, member)
-                elif isinstance(member, ast.FunctionDef) and member.name == "_feature_to_input_image":
-                    helper_codes.append(_source_segment(code, member))
                 elif isinstance(member, ast.FunctionDef) and member.name == "forward":
                     forward_code = _source_segment(code, member)
 
-    if helper_codes:
-        forward_code = "\n\n".join([*helper_codes, forward_code])
     return "\n".join(
         [
             "<block>",
@@ -315,10 +313,29 @@ def _completion_from_full_code(code: str) -> str:
     )
 
 
+def _full_code_sections(code: str) -> tuple[str, str, str]:
+    tree = ast.parse(code)
+    block_code = ""
+    init_code = ""
+    forward_code = ""
+    for node in tree.body:
+        if isinstance(node, ast.FunctionDef) and node.name == "drop_conv3x3_block":
+            block_code = _source_segment(code, node)
+        elif isinstance(node, ast.ClassDef) and node.name == "Net":
+            for member in node.body:
+                if isinstance(member, ast.FunctionDef) and member.name == "__init__":
+                    init_code = _source_segment(code, member)
+                elif isinstance(member, ast.FunctionDef) and member.name == "forward":
+                    forward_code = _source_segment(code, member)
+    return block_code, init_code, forward_code
+
+
 def _brute_patterns(pattern_set: str) -> tuple[dict[str, str], str]:
     from ab.gpt.brute.fract.backbone import NNAlterBN
 
     pattern_set = str(pattern_set or "all").lower()
+    if pattern_set == "union":
+        pattern_set = "all"
     if pattern_set == "basic":
         return dict(NNAlterBN.FORWARD_PATTERNS), ""
     if pattern_set == "diverse":
@@ -327,7 +344,18 @@ def _brute_patterns(pattern_set: str) -> tuple[dict[str, str], str]:
         patterns = dict(NNAlterBN.FORWARD_PATTERNS)
         patterns.update(NNAlterBN.DIVERSE_FORWARD_PATTERNS)
         return patterns, NNAlterBN.DIVERSE_FORWARD_HELPER
-    raise ValueError("--pattern-set must be one of: basic, diverse, all")
+    raise ValueError("--pattern-set must be one of: basic, diverse, all, union")
+
+
+def _balanced_pattern_items(pattern_items: list[tuple[str, str]], budget: int) -> list[tuple[str, str]]:
+    if budget <= 0 or not pattern_items:
+        return []
+    repeated: list[tuple[str, str]] = []
+    while len(repeated) < budget:
+        repeated.extend(pattern_items)
+    selected = repeated[:budget]
+    random.shuffle(selected)
+    return selected
 
 
 def command_brute_gen_only(args: argparse.Namespace) -> None:
@@ -359,10 +387,13 @@ def command_brute_gen_only(args: argparse.Namespace) -> None:
         "phase": "brute_gen_only",
         "setting": args.setting,
         "source_run": args.source_run,
+        "seed": int(args.seed),
         "budget": int(args.budget),
+        "source_format": "full_code",
         "brute_config": {
             "pattern_set": args.pattern_set,
             "patterns": [name for name, _ in pattern_items],
+            "pattern_schedule": "balanced_round_robin_shuffled",
             "available_backbones": available_backbones,
             "backbone_source": "SFTUtil.available_backbones",
         },
@@ -371,8 +402,8 @@ def command_brute_gen_only(args: argparse.Namespace) -> None:
     }
     _write_json(output_dir / "run_config.json", run_config)
 
-    for index in range(int(args.budget)):
-        pattern_name, forward_code = random.choice(pattern_items)
+    pattern_schedule = _balanced_pattern_items(pattern_items, int(args.budget))
+    for index, (pattern_name, forward_code) in enumerate(pattern_schedule):
         block_code = NNAlterBN.generate_conv_block()
         bb_a, bb_b = random.sample(available_backbones, 2)
         n_units = random.randint(1, 2)
@@ -407,6 +438,7 @@ def command_brute_gen_only(args: argparse.Namespace) -> None:
                 "backbones": [bb_a, bb_b],
             },
             "adapter_config": {},
+            "source_format": "full_code",
             "seed_accuracy_baseline": float(args.seed_accuracy_baseline),
             "candidate_code": candidate_code,
             "raw_completion": raw_completion,
@@ -414,6 +446,68 @@ def command_brute_gen_only(args: argparse.Namespace) -> None:
         }
         _append_jsonl(candidates_path, record)
         print(f"[brute_gen_only] {record['candidate_id']} pattern={pattern_name} error={generation_error is not None}")
+
+    print(f"Wrote candidates: {candidates_path}")
+
+
+def command_collect_synth(args: argparse.Namespace) -> None:
+    random.seed(int(args.seed))
+    output_dir = Path(args.output_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
+    candidates_path = output_dir / "candidates.jsonl"
+    if candidates_path.exists() and not args.append:
+        candidates_path.unlink()
+
+    synth_dir = Path(args.synth_dir)
+    dirs = [path for path in synth_dir.glob("B*") if path.is_dir() and path.name[1:].isdigit()]
+    dirs.sort(key=lambda path: int(path.name[1:]))
+    if args.limit is not None:
+        dirs = dirs[: int(args.limit)]
+    if not dirs:
+        raise RuntimeError(f"No B* synth dirs found under {synth_dir}")
+
+    run_config = {
+        "phase": "collect_synth",
+        "setting": args.setting,
+        "source_run": args.source_run,
+        "seed": int(args.seed),
+        "source_format": args.source_format,
+        "synth_dir": str(synth_dir),
+        "candidate_count": len(dirs),
+        "git": _repo_commit(),
+        "created_at": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
+    }
+    _write_json(output_dir / "run_config.json", run_config)
+
+    for index, path in enumerate(dirs):
+        raw_completion_path = path / "full_output.txt"
+        candidate_code_path = path / "new_nn.py"
+        raw_completion = raw_completion_path.read_text(encoding="utf-8") if raw_completion_path.exists() else ""
+        candidate_code = candidate_code_path.read_text(encoding="utf-8") if candidate_code_path.exists() else ""
+        generation_error = None
+        if args.source_format == "xml_completion" and not raw_completion:
+            generation_error = "missing full_output.txt"
+        if args.source_format == "full_code" and not candidate_code:
+            generation_error = "missing new_nn.py"
+
+        record = {
+            "candidate_id": _candidate_id(args.setting, index),
+            "setting": args.setting,
+            "source_run": args.source_run,
+            "prompt_config": {
+                "collector": "collect_synth",
+                "synth_dir": str(synth_dir),
+                "source_b_dir": path.name,
+            },
+            "adapter_config": {},
+            "source_format": args.source_format,
+            "seed_accuracy_baseline": float(args.seed_accuracy_baseline),
+            "candidate_code": candidate_code,
+            "raw_completion": raw_completion,
+            "generation_error": generation_error,
+        }
+        _append_jsonl(candidates_path, record)
+        print(f"[collect_synth] {record['candidate_id']} source={path.name} error={generation_error is not None}")
 
     print(f"Wrote candidates: {candidates_path}")
 
@@ -432,8 +526,182 @@ def _failure_result(candidate: dict[str, Any], error: str) -> dict[str, Any]:
     }
 
 
+def _candidate_source_format(candidate: dict[str, Any]) -> str:
+    return str(candidate.get("source_format") or "xml_completion").strip().lower()
+
+
+def _graph_info_from_sections(init_code: str, forward_code: str):
+    import ab.gpt.TuneRL as TuneRL
+
+    if not init_code or not forward_code:
+        return None
+    if "self.pattern" in forward_code:
+        return None
+    try:
+        return TuneRL.extract_graph_info(
+            init_code,
+            forward_code,
+            legacy_patterns=TuneRL.SFTUtil.legacy_patterns,
+        )
+    except Exception:
+        return None
+
+
+def _full_code_eval_spec(
+    candidate: dict[str, Any],
+    *,
+    index: int,
+    batch_last_item: bool,
+) -> tuple[dict[str, Any], dict[str, Any]] | None:
+    import torch
+    import ab.gpt.TuneRL as TuneRL
+    import ab.gpt.TuneRLSft as TuneRLSft
+
+    code = str(candidate.get("candidate_code") or "")
+    if candidate.get("generation_error") or not code:
+        return None
+    try:
+        block_code, init_code, forward_code = _full_code_sections(code)
+    except Exception:
+        block_code, init_code, forward_code = "", "", ""
+    graph_info = _graph_info_from_sections(init_code, forward_code)
+    backbone_model_names = TuneRL._extract_backbone_model_names(init_code)
+    seed_accuracy_baseline = float(candidate.get("seed_accuracy_baseline") or 0.10)
+    prm = {
+        "lr": 0.01,
+        "batch": 64,
+        "dropout": 0.3,
+        "momentum": 0.9,
+        "transform": TuneRL.FORMAL_REWARD_TRANSFORM,
+        "epoch": 1,
+    }
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    spec = {
+        "code": code,
+        "in_shape": (1, 3, 224, 224),
+        "out_shape": (10,),
+        "prm": prm,
+        "device": device,
+        "seed_accuracy_baseline": seed_accuracy_baseline,
+        "reward_batch_index": 0,
+        "completion_index": index,
+        "batch_last_item": batch_last_item,
+        "cfg": TuneRLSft.build_sft_reward_eval_cfg(
+            stage_name=str(TuneRL.current_stage_name),
+            in_shape=(1, 3, 224, 224),
+            out_shape=(10,),
+            prm=prm,
+            cfg=None,
+            device=device,
+        ),
+    }
+    meta = {
+        "graph_info": graph_info,
+        "block_code": block_code,
+        "init_code": init_code,
+        "forward_code": forward_code,
+        "backbone_model_names": backbone_model_names,
+        "seed_accuracy_baseline": seed_accuracy_baseline,
+    }
+    return spec, meta
+
+
+def _augment_full_code_result(
+    candidate: dict[str, Any],
+    result: dict[str, Any],
+    meta: dict[str, Any],
+) -> dict[str, Any]:
+    import ab.gpt.TuneRL as TuneRL
+
+    res = dict(result or {})
+    graph_info = meta.get("graph_info")
+    block_code = str(meta.get("block_code") or "")
+    backbone_model_names = list(meta.get("backbone_model_names") or [])
+    backbone_signature = TuneRL.build_backbone_signature(backbone_model_names)
+    block_signature = TuneRL._block_signature_from_code(block_code)
+    cnn_signature = (
+        str(getattr(graph_info, "cnn_signature", "") or "")
+        if graph_info is not None
+        else "incomplete_cnn"
+    )
+    cnn_expr = (
+        str(getattr(graph_info, "cnn_expr", "") or "")
+        if graph_info is not None
+        else "IncompleteCNN"
+    )
+    graph_hash = str(getattr(graph_info, "graph_hash", "") or "")
+    pattern_name = (
+        str(getattr(graph_info, "pattern_name", "") or getattr(graph_info, "suggested_pattern_name", "") or "")
+        if graph_info is not None
+        else str((candidate.get("prompt_config") or {}).get("pattern_name") or "")
+    )
+    executable_candidate = bool(
+        graph_info
+        and bool(getattr(graph_info, "parse_ok", False))
+        and res.get("built_ok")
+        and res.get("forward_shape_ok")
+    )
+    formal_success_candidate = bool(
+        executable_candidate
+        and res.get("backward_ok")
+        and res.get("loss_drop_ok")
+        and int(res.get("epochs_completed", 0) or 0) >= 1
+    )
+    res.setdefault("seed_accuracy_baseline", meta.get("seed_accuracy_baseline"))
+    res["source_format"] = "full_code"
+    res["executable_candidate"] = executable_candidate
+    res["formal_success_candidate"] = formal_success_candidate
+    res["discovery_candidate"] = bool(
+        executable_candidate
+        and graph_info is not None
+        and bool(getattr(graph_info, "parse_ok", False))
+    )
+    res["backbone_model_names"] = backbone_model_names
+    res["backbone_signature"] = backbone_signature
+    res["cnn_signature"] = cnn_signature
+    res["cnn_expr"] = cnn_expr
+    res["block_signature"] = block_signature
+    res["graph_hash"] = graph_hash
+    res["signature"] = f"{pattern_name}_{graph_hash[:6]}" if graph_hash else pattern_name
+    res["family_id"] = str(getattr(graph_info, "family_id", "") or "") if graph_info is not None else ""
+    res["family_expr"] = str(getattr(graph_info, "family_expr", "") or "") if graph_info is not None else ""
+    res["family_hash"] = str(getattr(graph_info, "family_hash", "") or "") if graph_info is not None else ""
+    res["descriptor_key"] = str(getattr(graph_info, "descriptor_key", "") or "") if graph_info is not None else ""
+    res["pattern_name"] = pattern_name
+    res.setdefault("current_stage_name", TuneRL.current_stage_name)
+    res.setdefault("current_stage_index", TuneRL.RL_STAGE_TO_INDEX.get(TuneRL.current_stage_name, 0))
+    res.setdefault("stage_uses_formal_eval", True)
+    res.setdefault("stage_uses_static_only", False)
+    return res
+
+
+def _evaluate_full_code_candidate(
+    candidate: dict[str, Any],
+    *,
+    index: int,
+    total: int,
+) -> tuple[float, dict[str, Any], str]:
+    import ab.gpt.util.Reward as RewardUtil
+
+    prompt = str(candidate.get("prompt") or "")
+    if candidate.get("generation_error"):
+        result = _failure_result(candidate, str(candidate["generation_error"]))
+        return -2.0, result, prompt
+    spec_meta = _full_code_eval_spec(candidate, index=index, batch_last_item=index == total - 1)
+    if spec_meta is None:
+        result = _failure_result(candidate, "missing candidate_code")
+        return -2.0, result, prompt
+    spec, meta = spec_meta
+    result = RewardUtil.evaluate_code_and_reward_batch([spec])[0]
+    api_result = _augment_full_code_result(candidate, result, meta)
+    return float(api_result.get("reward", -2.0) or -2.0), api_result, prompt
+
+
 def _evaluate_candidate(candidate: dict[str, Any], *, index: int, total: int) -> tuple[float, dict[str, Any], str]:
     import ab.gpt.TuneRLSft as TuneRLSft
+
+    if _candidate_source_format(candidate) == "full_code":
+        return _evaluate_full_code_candidate(candidate, index=index, total=total)
 
     completion = str(candidate.get("raw_completion") or "")
     prompt = str(candidate.get("prompt") or "")
@@ -458,6 +726,21 @@ def _evaluate_candidate(candidate: dict[str, Any], *, index: int, total: int) ->
 
 def _build_batch_reward_entry(candidate: dict[str, Any], *, index: int) -> dict[str, Any] | None:
     import ab.gpt.TuneRL as TuneRL
+
+    if _candidate_source_format(candidate) == "full_code":
+        spec_meta = _full_code_eval_spec(candidate, index=index, batch_last_item=False)
+        if spec_meta is None:
+            return None
+        spec, meta = spec_meta
+        return {
+            "rank": 0,
+            "local_index": index,
+            "global_index": index,
+            "source_format": "full_code",
+            "direct_eval_spec": spec,
+            "direct_eval_meta": meta,
+            "precomputed_eval_result": None,
+        }
 
     completion = str(candidate.get("raw_completion") or "")
     if candidate.get("generation_error") or not completion:
@@ -501,16 +784,23 @@ def _evaluate_candidate_batch(
 ) -> list[tuple[float, dict[str, Any], str]]:
     import ab.gpt.TuneRL as TuneRL
     import ab.gpt.TuneRLSft as TuneRLSft
+    import ab.gpt.util.Reward as RewardUtil
 
     entries_by_offset: dict[int, dict[str, Any]] = {}
     precompute_entries: list[dict[str, Any]] = []
+    direct_entries: list[tuple[int, dict[str, Any]]] = []
+    direct_specs: list[dict[str, Any]] = []
     for offset, candidate in enumerate(candidates):
         index = start_index + offset
         entry = _build_batch_reward_entry(candidate, index=index)
         if entry is None:
             continue
         entries_by_offset[offset] = entry
-        precompute_entries.append(entry)
+        if entry.get("source_format") == "full_code":
+            direct_entries.append((offset, entry))
+            direct_specs.append(dict(entry["direct_eval_spec"]))
+        else:
+            precompute_entries.append(entry)
 
     if precompute_entries:
         TuneRL._precompute_eval_results(
@@ -520,6 +810,11 @@ def _evaluate_candidate_batch(
                 "current_stage_name": TuneRL.current_stage_name,
             },
         )
+    if direct_specs:
+        direct_specs[-1]["batch_last_item"] = True
+        direct_results = RewardUtil.evaluate_code_and_reward_batch(direct_specs)
+        for (offset, entry), eval_result in zip(direct_entries, direct_results):
+            entry["precomputed_eval_result"] = eval_result
 
     results: list[tuple[float, dict[str, Any], str]] = []
     for offset, candidate in enumerate(candidates):
@@ -530,12 +825,25 @@ def _evaluate_candidate_batch(
             api_result = _failure_result(candidate, str(candidate["generation_error"]))
             results.append((-2.0, api_result, prompt))
             continue
+
+        entry = entries_by_offset.get(offset)
+        if _candidate_source_format(candidate) == "full_code":
+            if entry is None or entry.get("precomputed_eval_result") is None:
+                api_result = _failure_result(candidate, "missing full-code eval result")
+            else:
+                api_result = _augment_full_code_result(
+                    candidate,
+                    entry["precomputed_eval_result"],
+                    entry.get("direct_eval_meta") or {},
+                )
+            results.append((float(api_result.get("reward", -2.0) or -2.0), api_result, prompt))
+            continue
+
         if not completion:
             api_result = _failure_result(candidate, "missing raw_completion")
             results.append((-2.0, api_result, prompt))
             continue
 
-        entry = entries_by_offset.get(offset)
         api_result = TuneRLSft.sft_reward_fn(
             completion,
             seed_accuracy_baseline=float(candidate.get("seed_accuracy_baseline") or 0.10),
@@ -560,6 +868,11 @@ def command_eval_only(args: argparse.Namespace) -> None:
     _configure_sft_env(args)
     _configure_eval_runtime()
 
+    try:
+        import torch
+        gpu_count = int(torch.cuda.device_count()) if torch.cuda.is_available() else 0
+    except Exception:
+        gpu_count = 0
     import ab.gpt.util.Reward as RewardUtil
 
     output_dir = Path(args.output_dir)
@@ -575,11 +888,15 @@ def command_eval_only(args: argparse.Namespace) -> None:
         candidates = candidates[: int(args.limit)]
     if not candidates:
         raise RuntimeError("No candidates provided for eval-only")
+    source_format_counts = Counter(_candidate_source_format(candidate) for candidate in candidates)
 
     run_config = {
         "phase": "eval_only",
         "candidate_files": list(args.candidate_file),
+        "seed": int(args.seed),
         "candidate_count": len(candidates),
+        "source_formats": dict(source_format_counts),
+        "gpu_count": gpu_count,
         "eval_config": {
             "dataset": "cifar-10",
             "transform": "norm_128_flip",
@@ -766,6 +1083,7 @@ def command_summarize(args: argparse.Namespace) -> None:
         successes: list[dict[str, Any]] = []
         acc_values: list[float] = []
         failures = Counter()
+        format_valid_count = 0
         counters = {
             "backbone": Counter(),
             "cnn": Counter(),
@@ -774,6 +1092,14 @@ def command_summarize(args: argparse.Namespace) -> None:
         }
 
         for record in records:
+            candidate = record.get("candidate")
+            if isinstance(candidate, dict):
+                source_format = _candidate_source_format(candidate)
+                if not candidate.get("generation_error"):
+                    if source_format == "full_code" and candidate.get("candidate_code"):
+                        format_valid_count += 1
+                    elif source_format != "full_code" and candidate.get("raw_completion"):
+                        format_valid_count += 1
             result = record.get("api_result") if isinstance(record.get("api_result"), dict) else {}
             formal_success = bool(result.get("formal_success_candidate"))
             if formal_success:
@@ -798,6 +1124,8 @@ def command_summarize(args: argparse.Namespace) -> None:
         sample_count = len(records)
         summary[setting] = {
             "samples": sample_count,
+            "format_valid_count": format_valid_count,
+            "format_valid_rate": (format_valid_count / sample_count) if sample_count else None,
             "formal_success_count": len(successes),
             "formal_success_rate": (len(successes) / sample_count) if sample_count else None,
             "mean_acc": _mean(acc_values),
@@ -833,6 +1161,7 @@ def _write_markdown_table(path: Path, summary: dict[str, Any], diversity: dict[s
     headers = [
         "Setting",
         "Samples",
+        "Format valid",
         "Correct rate",
         "Mean acc",
         "Max acc",
@@ -854,6 +1183,7 @@ def _write_markdown_table(path: Path, summary: dict[str, Any], diversity: dict[s
         row = [
             setting,
             _fmt(metrics.get("samples")),
+            _fmt(metrics.get("format_valid_rate")),
             _fmt(metrics.get("formal_success_rate")),
             _fmt(metrics.get("mean_acc")),
             _fmt(metrics.get("max_acc")),
@@ -901,9 +1231,21 @@ def build_parser() -> argparse.ArgumentParser:
     brute.add_argument("--budget", type=int, default=100)
     brute.add_argument("--seed", type=int, default=42)
     brute.add_argument("--append", action="store_true")
-    brute.add_argument("--pattern-set", default="all", choices=("basic", "diverse", "all"))
+    brute.add_argument("--pattern-set", default="union", choices=("basic", "diverse", "all", "union"))
     brute.add_argument("--seed-accuracy-baseline", type=float, default=0.10)
     brute.set_defaults(func=command_brute_gen_only)
+
+    collect = sub.add_parser("collect-synth")
+    collect.add_argument("--setting", required=True)
+    collect.add_argument("--source-run", default="")
+    collect.add_argument("--synth-dir", required=True)
+    collect.add_argument("--output-dir", required=True)
+    collect.add_argument("--limit", type=int)
+    collect.add_argument("--seed", type=int, default=42)
+    collect.add_argument("--append", action="store_true")
+    collect.add_argument("--source-format", default="full_code", choices=("full_code", "xml_completion"))
+    collect.add_argument("--seed-accuracy-baseline", type=float, default=0.10)
+    collect.set_defaults(func=command_collect_synth)
 
     eval_parser = sub.add_parser("eval-only")
     eval_parser.add_argument("--candidate-file", action="append", required=True)
