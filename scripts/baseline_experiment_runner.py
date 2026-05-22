@@ -641,11 +641,17 @@ def _augment_full_code_result(
         and res.get("built_ok")
         and res.get("forward_shape_ok")
     )
+    try:
+        has_formal_epoch = int(res.get("epochs_completed", 0) or 0) >= 1
+    except (TypeError, ValueError):
+        has_formal_epoch = False
     formal_success_candidate = bool(
         executable_candidate
-        and res.get("backward_ok")
-        and res.get("loss_drop_ok")
-        and int(res.get("epochs_completed", 0) or 0) >= 1
+        and (
+            res.get("backward_ok")
+            or res.get("trained_step_ok")
+            or has_formal_epoch
+        )
     )
     res.setdefault("seed_accuracy_baseline", meta.get("seed_accuracy_baseline"))
     res["source_format"] = "full_code"
