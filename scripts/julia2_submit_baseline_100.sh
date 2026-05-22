@@ -68,7 +68,7 @@ cd /home/s471802/nn-gpt
 run_root="/home/s471802/nn-gpt/parallel_runs/${run_id}/baseline"
 mkdir -p "${run_root}"
 
-base_export="ALL,NNGPT_BASELINE_RUN_ROOT=${run_root},NNGPT_BASELINE_BUDGET=${budget},NNGPT_SFT_BASE_MODEL_ID=/home/s471802/nn-gpt/out/llm/deepseek-ai/deepseek-coder-6.7b-instruct,NNGPT_SFT_TOKENIZER_ID=deepseek-ai/deepseek-coder-6.7b-instruct,NNGPT_RL_FORMAL_REWARD_EPOCHS=1,5,10"
+base_export="ALL,NNGPT_BASELINE_RUN_ROOT=${run_root},NNGPT_BASELINE_BUDGET=${budget},NNGPT_SFT_BASE_MODEL_ID=/home/s471802/nn-gpt/out/llm/deepseek-ai/deepseek-coder-6.7b-instruct,NNGPT_SFT_TOKENIZER_ID=deepseek-ai/deepseek-coder-6.7b-instruct"
 
 prompt_job=$(sbatch --parsable -p "${partition}" --gres=gpu:1 \
   --job-name baseline-gen-prompt \
