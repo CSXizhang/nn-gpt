@@ -439,10 +439,10 @@ def _evaluate_candidate(candidate: dict[str, Any], *, index: int, total: int) ->
     prompt = str(candidate.get("prompt") or "")
     if candidate.get("generation_error"):
         result = _failure_result(candidate, str(candidate["generation_error"]))
-        return -2.0, result, completion
+        return -2.0, result, prompt
     if not completion:
         result = _failure_result(candidate, "missing raw_completion")
-        return -2.0, result, completion
+        return -2.0, result, prompt
 
     result = TuneRLSft.sft_reward_fn(
         completion,
@@ -454,6 +454,106 @@ def _evaluate_candidate(candidate: dict[str, Any], *, index: int, total: int) ->
         batch_last_item=index == total - 1,
     )
     return float(result.get("reward", -2.0) or -2.0), result, prompt
+
+
+def _build_batch_reward_entry(candidate: dict[str, Any], *, index: int) -> dict[str, Any] | None:
+    import ab.gpt.TuneRL as TuneRL
+
+    completion = str(candidate.get("raw_completion") or "")
+    if candidate.get("generation_error") or not completion:
+        return None
+
+    block_code, init_code, forward_code = TuneRL.extract_completion_blocks(completion)
+    backbone_model_names = TuneRL._extract_backbone_model_names(init_code)
+    graph_info = None
+    if block_code and init_code and forward_code and "self.pattern" not in forward_code:
+        graph_info = TuneRL.extract_graph_info(
+            init_code,
+            forward_code,
+            legacy_patterns=TuneRL.SFTUtil.legacy_patterns,
+        )
+
+    return {
+        "rank": 0,
+        "local_index": index,
+        "global_index": index,
+        "completion": completion,
+        "graph_info": graph_info,
+        "backbone_model_names": backbone_model_names,
+        "backbone_signature": TuneRL.build_backbone_signature(backbone_model_names),
+        "cnn_signature": (
+            str(getattr(graph_info, "cnn_signature", "") or "")
+            if graph_info is not None
+            else "incomplete_cnn"
+        ),
+        "prompt_goal_tags": [],
+        "goal_key": TuneRL.primary_goal_key([]),
+        "seed_accuracy_baseline": float(candidate.get("seed_accuracy_baseline") or 0.10),
+        "precomputed_eval_result": None,
+    }
+
+
+def _evaluate_candidate_batch(
+    candidates: list[dict[str, Any]],
+    *,
+    start_index: int,
+    total: int,
+) -> list[tuple[float, dict[str, Any], str]]:
+    import ab.gpt.TuneRL as TuneRL
+    import ab.gpt.TuneRLSft as TuneRLSft
+
+    entries_by_offset: dict[int, dict[str, Any]] = {}
+    precompute_entries: list[dict[str, Any]] = []
+    for offset, candidate in enumerate(candidates):
+        index = start_index + offset
+        entry = _build_batch_reward_entry(candidate, index=index)
+        if entry is None:
+            continue
+        entries_by_offset[offset] = entry
+        precompute_entries.append(entry)
+
+    if precompute_entries:
+        TuneRL._precompute_eval_results(
+            precompute_entries,
+            group_context={
+                "reward_batch_index": 0,
+                "current_stage_name": TuneRL.current_stage_name,
+            },
+        )
+
+    results: list[tuple[float, dict[str, Any], str]] = []
+    for offset, candidate in enumerate(candidates):
+        index = start_index + offset
+        completion = str(candidate.get("raw_completion") or "")
+        prompt = str(candidate.get("prompt") or "")
+        if candidate.get("generation_error"):
+            api_result = _failure_result(candidate, str(candidate["generation_error"]))
+            results.append((-2.0, api_result, prompt))
+            continue
+        if not completion:
+            api_result = _failure_result(candidate, "missing raw_completion")
+            results.append((-2.0, api_result, prompt))
+            continue
+
+        entry = entries_by_offset.get(offset)
+        api_result = TuneRLSft.sft_reward_fn(
+            completion,
+            seed_accuracy_baseline=float(candidate.get("seed_accuracy_baseline") or 0.10),
+            precomputed_eval_result=(
+                entry.get("precomputed_eval_result")
+                if entry is not None and entry.get("precomputed_eval_result") is not None
+                else None
+            ),
+            graph_info=entry.get("graph_info") if entry is not None else None,
+            reward_batch_index=0,
+            reward_group_id=0,
+            group_warmup=False,
+            completion_index=index,
+            batch_last_item=index == total - 1,
+        )
+        results.append((float(api_result.get("reward", -2.0) or -2.0), api_result, prompt))
+
+    return results
 
 
 def command_eval_only(args: argparse.Namespace) -> None:
@@ -487,6 +587,7 @@ def command_eval_only(args: argparse.Namespace) -> None:
             "batch": 64,
             "formal_reward_epochs": os.environ.get("NNGPT_RL_FORMAL_REWARD_EPOCHS", "1,5,10"),
             "workers_per_gpu": os.environ.get("NNGPT_REWARD_WORKERS_PER_GPU", ""),
+            "eval_concurrency": int(args.eval_concurrency),
         },
         "git": _repo_commit(),
         "created_at": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
@@ -495,25 +596,45 @@ def command_eval_only(args: argparse.Namespace) -> None:
     warmup = RewardUtil.prewarm_eval_workers(timeout_seconds=60.0, require_gpu=True)
     print(json.dumps({"reward_worker_warmup": warmup}, ensure_ascii=False, default=_json_default))
 
-    for index, candidate in enumerate(candidates):
-        reward, api_result, prompt = _evaluate_candidate(candidate, index=index, total=len(candidates))
-        record = {
-            "prompt": prompt,
-            "completion": candidate.get("raw_completion", ""),
-            "reward": reward,
-            "api_result": api_result,
-            "candidate": candidate,
-            "candidate_id": candidate.get("candidate_id"),
-            "setting": candidate.get("setting"),
-        }
-        _append_jsonl(samples_path, record)
-        print(
-            "[eval_only] "
-            f"{index + 1}/{len(candidates)} "
-            f"{candidate.get('candidate_id')} "
-            f"formal_success={bool(api_result.get('formal_success_candidate'))} "
-            f"acc={api_result.get('frozen_test_acc')}"
-        )
+    warmup_pool_size = int(warmup.get("pool_size") or 1) if isinstance(warmup, dict) else 1
+    eval_concurrency = int(args.eval_concurrency)
+    if eval_concurrency <= 0:
+        eval_concurrency = max(1, warmup_pool_size)
+    eval_concurrency = max(1, eval_concurrency)
+    print(f"[eval_only] eval_concurrency={eval_concurrency} warmup_pool_size={warmup_pool_size}")
+
+    for start_index in range(0, len(candidates), eval_concurrency):
+        chunk = candidates[start_index : start_index + eval_concurrency]
+        if eval_concurrency <= 1:
+            chunk_results = [
+                _evaluate_candidate(chunk[0], index=start_index, total=len(candidates))
+            ]
+        else:
+            chunk_results = _evaluate_candidate_batch(
+                chunk,
+                start_index=start_index,
+                total=len(candidates),
+            )
+        for offset, (reward, api_result, prompt) in enumerate(chunk_results):
+            index = start_index + offset
+            candidate = candidates[index]
+            record = {
+                "prompt": prompt,
+                "completion": candidate.get("raw_completion", ""),
+                "reward": reward,
+                "api_result": api_result,
+                "candidate": candidate,
+                "candidate_id": candidate.get("candidate_id"),
+                "setting": candidate.get("setting"),
+            }
+            _append_jsonl(samples_path, record)
+            print(
+                "[eval_only] "
+                f"{index + 1}/{len(candidates)} "
+                f"{candidate.get('candidate_id')} "
+                f"formal_success={bool(api_result.get('formal_success_candidate'))} "
+                f"acc={api_result.get('frozen_test_acc')}"
+            )
 
     RewardUtil.shutdown_eval_worker()
     command_summarize(
@@ -795,6 +916,12 @@ def build_parser() -> argparse.ArgumentParser:
     eval_parser.add_argument("--nn-prefixes", default="")
     eval_parser.add_argument("--prompt-mode", default="")
     eval_parser.add_argument("--feedback-char-budget", type=int)
+    eval_parser.add_argument(
+        "--eval-concurrency",
+        type=int,
+        default=int(os.getenv("NNGPT_BASELINE_EVAL_CONCURRENCY", "0") or 0),
+        help="Number of candidates to dispatch per eval batch; <=0 uses worker pool size.",
+    )
     eval_parser.set_defaults(func=command_eval_only)
 
     summarize = sub.add_parser("summarize")
