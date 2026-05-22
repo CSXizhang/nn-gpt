@@ -99,12 +99,18 @@ brute_job=$(sbatch --parsable "${brute_sbatch_args[@]}" \
   slurm/julia2_baseline_brute_gen_only.sbatch)
 brute_job="${brute_job%%;*}"
 
-candidate_files="${run_root}/candidates/prompt_only/candidates.jsonl,${run_root}/candidates/sft_only_onepattern/candidates.jsonl,${run_root}/candidates/sft_only_fourpattern/candidates.jsonl,${run_root}/candidates/brute_constrained_random/candidates.jsonl"
+candidate_manifest="${run_root}/candidate_files.txt"
+cat > "${candidate_manifest}" <<EOF
+${run_root}/candidates/prompt_only/candidates.jsonl
+${run_root}/candidates/sft_only_onepattern/candidates.jsonl
+${run_root}/candidates/sft_only_fourpattern/candidates.jsonl
+${run_root}/candidates/brute_constrained_random/candidates.jsonl
+EOF
 
 eval_job=$(sbatch --parsable -p "${eval_partition}" --gres=gpu:4 \
   --dependency "afterok:${prompt_job}:${one_job}:${four_job}:${brute_job}" \
   --job-name baseline-eval-400 \
-  --export "${base_export},NNGPT_BASELINE_CANDIDATE_FILES=${candidate_files},NNGPT_REWARD_WORKERS_PER_GPU=1" \
+  --export "${base_export},NNGPT_BASELINE_CANDIDATE_MANIFEST=${candidate_manifest},NNGPT_REWARD_WORKERS_PER_GPU=1" \
   slurm/julia2_baseline_eval_only.sbatch)
 eval_job="${eval_job%%;*}"
 

@@ -18,8 +18,9 @@ cd /home/s471802/nn-gpt
 
 : "${NNGPT_BASELINE_RUN_ROOT:?set NNGPT_BASELINE_RUN_ROOT}"
 export PYTHONPATH="/home/s471802/nn-gpt:/home/s471802/nn-dataset:${PYTHONPATH:-}"
+eval_dir="${NNGPT_BASELINE_EVAL_DIR:-${NNGPT_BASELINE_RUN_ROOT}/eval}"
 
 exec python scripts/baseline_experiment_runner.py summarize \
-  --input "eval=${NNGPT_BASELINE_RUN_ROOT}/eval/generation_samples.jsonl" \
-  --output-dir "${NNGPT_BASELINE_RUN_ROOT}/eval" \
+  --input "eval=${eval_dir}/generation_samples.jsonl" \
+  --output-dir "${eval_dir}" \
   --seed "${NNGPT_BASELINE_SEED:-42}"
