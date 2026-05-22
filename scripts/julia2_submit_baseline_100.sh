@@ -15,6 +15,7 @@ Options:
   --partition PART        default: h100
   --eval-partition PART   default: h100
   --brute-partition PART  default: small_cpu
+  --brute-gres GRES       optional, e.g. gpu:1 when CPU partitions are blocked
   --prompt-nn-prefixes P  default: rl-bb-test1
   --onepattern-nn-prefixes P
                            default: rl-bb-test1
@@ -34,6 +35,7 @@ budget="100"
 partition="h100"
 eval_partition="h100"
 brute_partition="small_cpu"
+brute_gres=""
 prompt_nn_prefixes="rl-bb-test1"
 onepattern_nn_prefixes="rl-bb-test1"
 fourpattern_nn_prefixes="rl-bb-struct1"
@@ -47,6 +49,7 @@ while [ "$#" -gt 0 ]; do
     --partition) partition="$2"; shift 2 ;;
     --eval-partition) eval_partition="$2"; shift 2 ;;
     --brute-partition) brute_partition="$2"; shift 2 ;;
+    --brute-gres) brute_gres="$2"; shift 2 ;;
     --nn-prefixes) prompt_nn_prefixes="$2"; onepattern_nn_prefixes="$2"; fourpattern_nn_prefixes="$2"; shift 2 ;;
     --prompt-nn-prefixes) prompt_nn_prefixes="$2"; shift 2 ;;
     --onepattern-nn-prefixes) onepattern_nn_prefixes="$2"; shift 2 ;;
@@ -85,7 +88,12 @@ four_job=$(sbatch --parsable -p "${partition}" --gres=gpu:1 \
   slurm/julia2_baseline_gen_only.sbatch)
 four_job="${four_job%%;*}"
 
-brute_job=$(sbatch --parsable -p "${brute_partition}" \
+brute_sbatch_args=(-p "${brute_partition}")
+if [ -n "${brute_gres}" ]; then
+  brute_sbatch_args+=(--gres="${brute_gres}")
+fi
+
+brute_job=$(sbatch --parsable "${brute_sbatch_args[@]}" \
   --job-name baseline-brute-gen \
   --export "${base_export},NNGPT_BASELINE_SETTING=brute_constrained_random,NNGPT_BASELINE_SOURCE_RUN=brute_heldout_random" \
   slurm/julia2_baseline_brute_gen_only.sbatch)
