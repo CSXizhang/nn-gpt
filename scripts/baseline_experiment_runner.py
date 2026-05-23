@@ -977,6 +977,45 @@ def _parse_summary_input(value: str) -> tuple[str | None, Path]:
     return None, Path(value)
 
 
+def _formal_success_from_result(result: dict[str, Any]) -> bool:
+    if "formal_success_candidate" in result:
+        return bool(result.get("formal_success_candidate"))
+    try:
+        epochs_completed = int(result.get("epochs_completed", 0) or 0)
+    except (TypeError, ValueError):
+        epochs_completed = 0
+    return bool(
+        result.get("built_ok")
+        and result.get("forward_shape_ok")
+        and (
+            result.get("backward_ok")
+            or result.get("trained_step_ok")
+            or epochs_completed >= 1
+        )
+    )
+
+
+def _horizon_acc_from_result(
+    result: dict[str, Any],
+    horizon: int | str,
+    *,
+    fallback: bool = True,
+) -> float | None:
+    horizons = result.get("formal_horizon_test_acc")
+    if isinstance(horizons, dict):
+        for key in (str(horizon), horizon):
+            value = horizons.get(key)
+            if isinstance(value, (int, float)) and math.isfinite(float(value)):
+                return float(value)
+    if not fallback:
+        return None
+    for key in ("frozen_test_acc", "test_acc", "val_metric"):
+        value = result.get(key)
+        if isinstance(value, (int, float)) and math.isfinite(float(value)):
+            return float(value)
+    return None
+
+
 def _acc_from_result(result: dict[str, Any]) -> float | None:
     for key in ("frozen_test_acc", "formal_reward_target_value", "reward_target_value", "test_acc", "val_metric"):
         value = result.get(key)
@@ -1206,6 +1245,322 @@ def _write_markdown_table(path: Path, summary: dict[str, Any], diversity: dict[s
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
+TOP20_REEVAL_GROUPS = [
+    "prompt_only",
+    "sft_only_onepattern",
+    "sft_only_fourpattern",
+    "brute_constrained_random",
+    "rl_onepattern_last100",
+    "rl_fourpattern_last100",
+]
+
+
+def _candidate_from_selected_baseline(
+    record: dict[str, Any],
+    *,
+    group: str,
+    rank: int,
+    acc1: float,
+    source_jsonl: Path,
+    source_line_index: int,
+) -> dict[str, Any]:
+    candidate = dict(record.get("candidate") or {})
+    original_candidate_id = str(candidate.get("candidate_id") or record.get("candidate_id") or "")
+    candidate["original_setting"] = str(candidate.get("setting") or record.get("setting") or group)
+    candidate["original_candidate_id"] = original_candidate_id
+    candidate["candidate_id"] = f"{group}-top20-{rank:04d}"
+    candidate["setting"] = group
+    candidate["selection_group"] = group
+    candidate["selection_rank"] = rank
+    candidate["selection_acc1"] = acc1
+    candidate["source_jsonl"] = str(source_jsonl)
+    candidate["source_line_index"] = source_line_index
+    candidate["source_window"] = "all"
+    return candidate
+
+
+def _candidate_from_selected_rl(
+    record: dict[str, Any],
+    *,
+    group: str,
+    source_run: str,
+    rank: int,
+    acc1: float,
+    source_jsonl: Path,
+    source_line_index: int,
+) -> dict[str, Any]:
+    result = record.get("api_result") if isinstance(record.get("api_result"), dict) else {}
+    completion = str(record.get("completion") or "")
+    return {
+        "candidate_id": f"{group}-top20-{rank:04d}",
+        "setting": group,
+        "source_run": source_run,
+        "prompt_config": {
+            "source": "rl_trajectory_top20_reeval",
+            "selection_horizon": 1,
+            "source_window": "last100",
+        },
+        "adapter_config": {
+            "source": source_run,
+        },
+        "candidate_code": "",
+        "raw_completion": completion,
+        "generation_error": None,
+        "source_format": "xml_completion",
+        "seed_accuracy_baseline": result.get("seed_accuracy_baseline", 0.10),
+        "prompt": record.get("prompt", ""),
+        "original_setting": source_run,
+        "original_candidate_id": str(record.get("candidate_id") or ""),
+        "selection_group": group,
+        "selection_rank": rank,
+        "selection_acc1": acc1,
+        "source_jsonl": str(source_jsonl),
+        "source_line_index": source_line_index,
+        "source_window": "last100",
+    }
+
+
+def _select_top_successes(
+    indexed_records: list[tuple[int, dict[str, Any]]],
+    *,
+    group: str,
+    limit: int,
+    horizon: int = 1,
+) -> list[tuple[int, dict[str, Any], float]]:
+    selected: list[tuple[int, dict[str, Any], float]] = []
+    for line_index, record in indexed_records:
+        result = record.get("api_result") if isinstance(record.get("api_result"), dict) else {}
+        if not _formal_success_from_result(result):
+            continue
+        acc = _horizon_acc_from_result(result, horizon, fallback=True)
+        if acc is None:
+            continue
+        selected.append((line_index, record, acc))
+    selected.sort(key=lambda item: (-item[2], item[0]))
+    return selected[:limit]
+
+
+def command_build_top20_reeval_queue(args: argparse.Namespace) -> None:
+    baseline_path = Path(args.baseline_jsonl)
+    rl_one_path = Path(args.rl_onepattern_jsonl)
+    rl_four_path = Path(args.rl_fourpattern_jsonl)
+    output_dir = Path(args.output_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
+    queue_path = output_dir / "candidates_top20_10epoch.jsonl"
+    if queue_path.exists():
+        queue_path.unlink()
+
+    baseline_rows = list(enumerate(_read_jsonl(baseline_path), start=1))
+    baseline_by_setting: dict[str, list[tuple[int, dict[str, Any]]]] = defaultdict(list)
+    for line_index, record in baseline_rows:
+        baseline_by_setting[_record_setting(record, None)].append((line_index, record))
+
+    group_candidates: dict[str, list[dict[str, Any]]] = {group: [] for group in TOP20_REEVAL_GROUPS}
+    group_sources: dict[str, dict[str, Any]] = {}
+
+    baseline_limits = {
+        "prompt_only": 20,
+        "sft_only_onepattern": 20,
+        "sft_only_fourpattern": 20,
+        "brute_constrained_random": 20,
+    }
+    for group, limit in baseline_limits.items():
+        picked = _select_top_successes(
+            baseline_by_setting.get(group, []),
+            group=group,
+            limit=limit,
+            horizon=1,
+        )
+        for rank, (line_index, record, acc1) in enumerate(picked, start=1):
+            group_candidates[group].append(
+                _candidate_from_selected_baseline(
+                    record,
+                    group=group,
+                    rank=rank,
+                    acc1=acc1,
+                    source_jsonl=baseline_path,
+                    source_line_index=line_index,
+                )
+            )
+        group_sources[group] = {
+            "source_jsonl": str(baseline_path),
+            "source_window": "all",
+            "available_successes": len(_select_top_successes(
+                baseline_by_setting.get(group, []),
+                group=group,
+                limit=10_000,
+                horizon=1,
+            )),
+            "selected": len(group_candidates[group]),
+        }
+
+    rl_specs = [
+        ("rl_onepattern_last100", "onepattern_rl_a7_g10b", rl_one_path),
+        ("rl_fourpattern_last100", "fourpattern_rl_a3_g10b", rl_four_path),
+    ]
+    for group, source_run, path in rl_specs:
+        rows = list(enumerate(_read_jsonl(path), start=1))
+        window_rows = rows[-100:]
+        picked = _select_top_successes(window_rows, group=group, limit=20, horizon=1)
+        for rank, (line_index, record, acc1) in enumerate(picked, start=1):
+            group_candidates[group].append(
+                _candidate_from_selected_rl(
+                    record,
+                    group=group,
+                    source_run=source_run,
+                    rank=rank,
+                    acc1=acc1,
+                    source_jsonl=path,
+                    source_line_index=line_index,
+                )
+            )
+        group_sources[group] = {
+            "source_jsonl": str(path),
+            "source_window": "last100",
+            "available_successes": len(_select_top_successes(window_rows, group=group, limit=10_000, horizon=1)),
+            "selected": len(group_candidates[group]),
+        }
+
+    interleaved: list[dict[str, Any]] = []
+    max_group_count = max((len(items) for items in group_candidates.values()), default=0)
+    for offset in range(max_group_count):
+        for group in TOP20_REEVAL_GROUPS:
+            items = group_candidates[group]
+            if offset < len(items):
+                interleaved.append(items[offset])
+
+    for candidate in interleaved:
+        _append_jsonl(queue_path, candidate)
+
+    manifest = {
+        "phase": "top20_10epoch_selection",
+        "created_at": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
+        "selection_horizon": 1,
+        "selection_rule": "formal_success candidates sorted by 1-epoch test accuracy desc, tie-broken by source JSONL line index",
+        "queue_path": str(queue_path),
+        "total_selected": len(interleaved),
+        "groups": group_sources,
+        "group_order": TOP20_REEVAL_GROUPS,
+        "git": _repo_commit(),
+    }
+    _write_json(output_dir / "selection_manifest.json", manifest)
+    print(json.dumps(manifest, ensure_ascii=False, indent=2, default=_json_default))
+
+
+def _selection_group(record: dict[str, Any], fallback_label: str | None = None) -> str:
+    candidate = record.get("candidate")
+    if isinstance(candidate, dict):
+        group = candidate.get("selection_group") or candidate.get("setting")
+        if group:
+            return str(group)
+    return _record_setting(record, fallback_label)
+
+
+def _write_top20_reeval_table(path: Path, summary: dict[str, Any]) -> None:
+    headers = [
+        "Setting",
+        "Reeval N",
+        "Selected 1-epoch mean",
+        "10-epoch mean",
+        "10-epoch max",
+        "10-epoch median",
+        "10-epoch top-5 mean",
+    ]
+    lines = [
+        "| " + " | ".join(headers) + " |",
+        "| " + " | ".join(["---"] + ["---:"] * (len(headers) - 1)) + " |",
+    ]
+    for group in TOP20_REEVAL_GROUPS:
+        metrics = summary.get(group)
+        if not metrics:
+            continue
+        row = [
+            group,
+            _fmt(metrics.get("samples")),
+            _fmt(metrics.get("selection_acc1_mean")),
+            _fmt(metrics.get("acc10_mean")),
+            _fmt(metrics.get("acc10_max")),
+            _fmt(metrics.get("acc10_median")),
+            _fmt(metrics.get("acc10_top5_mean")),
+        ]
+        lines.append("| " + " | ".join(row) + " |")
+    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
+def command_summarize_top20_reeval(args: argparse.Namespace) -> None:
+    input_path = Path(args.input)
+    output_dir = Path(args.output_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
+    grouped: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    for record in _read_jsonl(input_path):
+        grouped[_selection_group(record)].append(record)
+
+    summary: dict[str, Any] = {}
+    failure_summary: dict[str, Any] = {}
+    selection_manifest = {
+        "phase": "top20_10epoch_reeval_summary",
+        "created_at": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
+        "input": str(input_path),
+        "horizon": 10,
+        "groups": {},
+        "git": _repo_commit(),
+    }
+
+    for group in TOP20_REEVAL_GROUPS:
+        records = grouped.get(group, [])
+        selection_acc1: list[float] = []
+        acc10: list[float] = []
+        failures = Counter()
+        reeval_success_count = 0
+        for record in records:
+            candidate = record.get("candidate") if isinstance(record.get("candidate"), dict) else {}
+            value = candidate.get("selection_acc1") if isinstance(candidate, dict) else None
+            if isinstance(value, (int, float)) and math.isfinite(float(value)):
+                selection_acc1.append(float(value))
+            result = record.get("api_result") if isinstance(record.get("api_result"), dict) else {}
+            if _formal_success_from_result(result):
+                reeval_success_count += 1
+                value10 = _horizon_acc_from_result(result, 10, fallback=True)
+                if value10 is not None:
+                    acc10.append(value10)
+            else:
+                failures[_failure_mode(record)] += 1
+
+        summary[group] = {
+            "samples": len(records),
+            "reeval_success_count": reeval_success_count,
+            "reeval_success_rate": (reeval_success_count / len(records)) if records else None,
+            "selection_acc1_count": len(selection_acc1),
+            "selection_acc1_mean": _mean(selection_acc1),
+            "acc10_count": len(acc10),
+            "acc10_mean": _mean(acc10),
+            "acc10_max": max(acc10) if acc10 else None,
+            "acc10_median": _quantile(acc10, 0.5),
+            "acc10_top5_mean": _top_mean(acc10, 5),
+        }
+        failure_summary[group] = dict(failures.most_common())
+        selection_manifest["groups"][group] = {
+            "records": len(records),
+            "source_lines": [
+                {
+                    "candidate_id": (record.get("candidate") or {}).get("candidate_id"),
+                    "original_candidate_id": (record.get("candidate") or {}).get("original_candidate_id"),
+                    "source_jsonl": (record.get("candidate") or {}).get("source_jsonl"),
+                    "source_line_index": (record.get("candidate") or {}).get("source_line_index"),
+                    "selection_rank": (record.get("candidate") or {}).get("selection_rank"),
+                    "selection_acc1": (record.get("candidate") or {}).get("selection_acc1"),
+                }
+                for record in records
+            ],
+        }
+
+    _write_json(output_dir / "top20_10epoch_summary.json", summary)
+    _write_json(output_dir / "failure_modes.json", failure_summary)
+    _write_json(output_dir / "selection_manifest.json", selection_manifest)
+    _write_top20_reeval_table(output_dir / "top20_10epoch_table.md", summary)
+    print(f"Wrote top20 10-epoch summary under {output_dir}")
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     sub = parser.add_subparsers(dest="command", required=True)
@@ -1278,6 +1633,19 @@ def build_parser() -> argparse.ArgumentParser:
     summarize.add_argument("--subsample", type=int)
     summarize.add_argument("--seed", type=int, default=42)
     summarize.set_defaults(func=command_summarize)
+
+    top20 = sub.add_parser("build-top20-reeval-queue")
+    top20.add_argument("--baseline-jsonl", required=True)
+    top20.add_argument("--rl-onepattern-jsonl", required=True)
+    top20.add_argument("--rl-fourpattern-jsonl", required=True)
+    top20.add_argument("--output-dir", required=True)
+    top20.set_defaults(func=command_build_top20_reeval_queue)
+
+    top20_summary = sub.add_parser("summarize-top20-reeval")
+    top20_summary.add_argument("--input", required=True)
+    top20_summary.add_argument("--output-dir", required=True)
+    top20_summary.set_defaults(func=command_summarize_top20_reeval)
+
     return parser
 
 
