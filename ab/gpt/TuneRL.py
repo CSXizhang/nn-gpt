@@ -285,6 +285,7 @@ STAGE23_BLOCK_ARCHIVE_NOVEL_BONUS = 0.18
 STAGE23_BLOCK_ARCHIVE_REPEAT_MAX_PENALTY = -0.25
 STAGE23_BLOCK_ARCHIVE_REPEAT_WINDOW = 16
 STAGE23_REPEATED_BLOCK_REWARD_CAP = 0.20
+STAGE23_REPEATED_SIGNATURE_REWARD_CAP = 0.03
 STAGE23_NON_DOMINANT_CNN_BONUS = 0.08
 STAGE23_DOMINANT_CNN_SOFT_SHARE = 0.45
 STAGE23_DOMINANT_CNN_STRONG_SHARE = 0.65
@@ -3054,8 +3055,16 @@ def _recompute_discovery_reward(
     if stage_name == STAGE1_STRUCTURE_EXPLORE:
         total_reward = _apply_stage1_trainability_clamp(res, total_reward, graph_info)
     elif stage_name == STAGE2_FORMAL_EXPLORE:
+        if _is_repeated_signature_without_refresh(res):
+            total_reward = min(total_reward, STAGE23_REPEATED_SIGNATURE_REWARD_CAP)
+        if _is_repeated_block_without_refresh(res):
+            total_reward = min(total_reward, STAGE23_REPEATED_BLOCK_REWARD_CAP)
         total_reward = _apply_executability_clamp(res, total_reward, graph_info)
     else:
+        if _is_repeated_signature_without_refresh(res):
+            total_reward = min(total_reward, STAGE23_REPEATED_SIGNATURE_REWARD_CAP)
+        if _is_repeated_block_without_refresh(res):
+            total_reward = min(total_reward, STAGE23_REPEATED_BLOCK_REWARD_CAP)
         total_reward = _apply_trainability_clamp(res, total_reward, graph_info)
     return total_reward, r_primary, r_tiebreak
 
@@ -3382,6 +3391,7 @@ def base_discovery_reward_fn(
     descriptor_reward_cap_applied = False
     cnn_reward_cap_applied = False
     block_reward_cap_applied = False
+    signature_reward_cap_applied = False
     executable_candidate = _is_executable_candidate(res, graph_info)
     formal_success_candidate = _is_trainable_candidate(res, graph_info)
     has_formal_epoch = _has_completed_formal_epoch(res)
@@ -3915,6 +3925,23 @@ def base_discovery_reward_fn(
             and (archive_snapshot_block_freq > 0 or batch_same_block_count > 1)
             and not block_repeat_quality_refresh
         )
+        repeated_signature_without_refresh = bool(
+            has_formal_epoch
+            and formal_success_candidate
+            and graph_info.parse_ok
+            and graph_info.descriptor_key
+            and dominant_descriptor_key
+            and graph_info.descriptor_key == dominant_descriptor_key
+            and float(dominant_descriptor_share or 0.0) >= STAGE23_DOMINANT_DESCRIPTOR_SOFT_SHARE
+            and cnn_signature
+            and dominant_backbone_cnn_signature
+            and cnn_signature == dominant_backbone_cnn_signature
+            and float(dominant_backbone_cnn_share or 0.0) >= STAGE23_DOMINANT_CNN_SOFT_SHARE
+            and not block_repeat_quality_refresh
+        )
+        if repeated_signature_without_refresh:
+            total_reward = min(total_reward, STAGE23_REPEATED_SIGNATURE_REWARD_CAP)
+            signature_reward_cap_applied = True
         if repeated_block_without_refresh:
             total_reward = min(total_reward, STAGE23_REPEATED_BLOCK_REWARD_CAP)
             block_reward_cap_applied = True
@@ -4029,6 +4056,7 @@ def base_discovery_reward_fn(
     res['descriptor_reward_cap_applied'] = descriptor_reward_cap_applied
     res['cnn_reward_cap_applied'] = cnn_reward_cap_applied
     res['block_reward_cap_applied'] = block_reward_cap_applied
+    res['signature_reward_cap_applied'] = signature_reward_cap_applied
     res['history_exploration_pressure'] = float(training_context.get('exploration_pressure') or 0.0)
     res['minimal_init_template'] = minimal_init_template
     res['graph_expr'] = graph_info.graph_expr
@@ -4126,6 +4154,7 @@ def base_discovery_reward_fn(
         'descriptor_reward_cap_applied': descriptor_reward_cap_applied,
         'cnn_reward_cap_applied': cnn_reward_cap_applied,
         'block_reward_cap_applied': block_reward_cap_applied,
+        'signature_reward_cap_applied': signature_reward_cap_applied,
         'history_exploration_pressure': float(training_context.get('exploration_pressure') or 0.0),
         'minimal_init_template': minimal_init_template,
         'depth': graph_info.depth,
@@ -4226,6 +4255,8 @@ def _apply_batch_elite_bonuses(scored_results: List[Dict[str, Any]], group_conte
             continue
         if reward_target_value is None:
             continue
+        if _is_repeated_signature_without_refresh(res):
+            continue
         if _is_repeated_block_without_refresh(res):
             continue
         eligible.append((float(reward_target_value), item))
@@ -4251,7 +4282,11 @@ def _apply_batch_elite_bonuses(scored_results: List[Dict[str, Any]], group_conte
         )
         res = item["result"]
         graph_info = item["graph_info"]
-        if (not _is_repeated_block_without_refresh(res)) and float(res.get("r_no_progress_penalty", 0.0) or 0.0) < 0.0:
+        if (
+            (not _is_repeated_signature_without_refresh(res))
+            and (not _is_repeated_block_without_refresh(res))
+            and float(res.get("r_no_progress_penalty", 0.0) or 0.0) < 0.0
+        ):
             res["r_no_progress_penalty"] = 0.0
         res["r_batch_elite"] = bonus
         res["batch_elite_rank"] = rank + 1
@@ -4276,6 +4311,29 @@ def _apply_batch_elite_bonuses(scored_results: List[Dict[str, Any]], group_conte
             f"[Reward Batch Elite] reward_batch_index={group_context['reward_batch_index']} "
             + "; ".join(elite_summaries)
         )
+
+
+def _is_repeated_signature_without_refresh(res: Dict[str, Any]) -> bool:
+    if not _has_completed_formal_epoch(res):
+        return False
+    if not bool(res.get("formal_success_candidate")):
+        return False
+    if _has_block_repeat_quality_refresh(res):
+        return False
+    descriptor_key = str(res.get("descriptor_key") or "")
+    dominant_descriptor_key = str(res.get("dominant_descriptor_key") or "")
+    cnn_signature = str(res.get("cnn_signature") or "")
+    dominant_cnn_signature = str(res.get("dominant_backbone_cnn_signature") or "")
+    if not descriptor_key or not dominant_descriptor_key or descriptor_key != dominant_descriptor_key:
+        return False
+    if not cnn_signature or not dominant_cnn_signature or cnn_signature != dominant_cnn_signature:
+        return False
+    descriptor_share = float(res.get("dominant_descriptor_share", 0.0) or 0.0)
+    cnn_share = float(res.get("dominant_backbone_cnn_share", 0.0) or 0.0)
+    return (
+        descriptor_share >= STAGE23_DOMINANT_DESCRIPTOR_SOFT_SHARE
+        and cnn_share >= STAGE23_DOMINANT_CNN_SOFT_SHARE
+    )
 
 
 def _is_repeated_block_without_refresh(res: Dict[str, Any]) -> bool:
