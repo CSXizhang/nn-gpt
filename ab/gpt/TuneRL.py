@@ -225,6 +225,10 @@ TRAINING_CONTEXT_MIN_POINTS = 8
 STATIC_STAGE_REWARD_TARGET_METRIC = "stage1_static_score"
 FORMAL_STAGE_REWARD_TARGET_METRIC = FORMAL_MULTI_HORIZON_REWARD_TARGET_METRIC
 FORMAL_SUCCESS_SIGNAL_BONUS = 0.02
+FORMAL_ACCURACY_FLOOR_TOLERANCE = 0.015
+FORMAL_ACCURACY_FLOOR_BONUS = 0.05
+FORMAL_ACCURACY_STRONG_DELTA = 0.010
+FORMAL_ACCURACY_STRONG_BONUS = 0.08
 STAGE1_EXECUTABLE_BONUS = 0.10
 STAGE1_DISCOVERY_FAMILY_BONUS = 0.42
 STAGE1_DISCOVERY_GRAPH_BONUS = 0.20
@@ -281,13 +285,13 @@ STAGE23_GLOBAL_CNN_ARCHIVE_NOVEL_BONUS = 0.12
 STAGE23_GLOBAL_CNN_ARCHIVE_REPEAT_MAX_PENALTY = -0.06
 STAGE23_GLOBAL_CNN_ARCHIVE_REPEAT_WINDOW = 32
 STAGE23_BLOCK_BATCH_UNIQUE_BONUS = 0.06
-STAGE23_BLOCK_BATCH_REPEAT_STEP_PENALTY = -0.04
-STAGE23_BLOCK_BATCH_REPEAT_MAX_PENALTY = -0.12
+STAGE23_BLOCK_BATCH_REPEAT_STEP_PENALTY = -0.02
+STAGE23_BLOCK_BATCH_REPEAT_MAX_PENALTY = -0.06
 STAGE23_BLOCK_ARCHIVE_NOVEL_BONUS = 0.18
-STAGE23_BLOCK_ARCHIVE_REPEAT_MAX_PENALTY = -0.25
+STAGE23_BLOCK_ARCHIVE_REPEAT_MAX_PENALTY = -0.10
 STAGE23_BLOCK_ARCHIVE_REPEAT_WINDOW = 16
-STAGE23_REPEATED_BLOCK_REWARD_CAP = 0.03
-STAGE23_REPEATED_SIGNATURE_REWARD_CAP = 0.03
+STAGE23_REPEATED_BLOCK_REWARD_CAP = 0.08
+STAGE23_REPEATED_SIGNATURE_REWARD_CAP = 0.06
 STAGE23_NON_DOMINANT_CNN_BONUS = 0.08
 STAGE23_DOMINANT_CNN_SOFT_SHARE = 0.45
 STAGE23_DOMINANT_CNN_STRONG_SHARE = 0.65
@@ -307,7 +311,7 @@ STAGE2_REPEAT_FAMILY_SCALE = 1.10
 STAGE2_PLAIN_FUSE_SCALE = 1.10
 STAGE2_NO_PROGRESS_SCALE = 0.50
 STAGE2_NON_IMPROVING_CAP = 0.10
-STAGE2_DESCRIPTOR_NON_IMPROVING_CAP = 0.03
+STAGE2_DESCRIPTOR_NON_IMPROVING_CAP = 0.08
 STAGE3_DENSE_SCALE = 0.70
 STAGE3_PREV_GROUP_SCALE = 1.10
 STAGE3_BEST_GROUP_SCALE = 1.10
@@ -321,7 +325,7 @@ STAGE3_REPEAT_FAMILY_SCALE = 1.00
 STAGE3_PLAIN_FUSE_SCALE = 1.00
 STAGE3_NO_PROGRESS_SCALE = 1.15
 STAGE3_NON_IMPROVING_CAP = NON_IMPROVING_REWARD_CAP
-STAGE3_DESCRIPTOR_NON_IMPROVING_CAP = 0.00
+STAGE3_DESCRIPTOR_NON_IMPROVING_CAP = 0.04
 RL_STAGE_KL_COEF = 0.005
 reward_batch_index = 0
 current_group_id = 0
@@ -836,6 +840,12 @@ def _result_reward_target_value(res: Dict[str, Any]) -> Optional[float]:
     if reward_target_value is not None:
         return reward_target_value
     return _optional_float(res.get("frozen_test_acc", res.get("val_metric")))
+
+
+def _formal_accuracy_reward_floor(res: Dict[str, Any]) -> float:
+    if not bool(res.get("formal_success_candidate")) or not _has_completed_formal_epoch(res):
+        return 0.0
+    return max(0.0, float(res.get("r_accuracy_quality", 0.0) or 0.0))
 
 
 def _increment_optional_metric(sum_name: str, count_name: str, value: Optional[float]) -> None:
@@ -2891,6 +2901,9 @@ def _apply_trainability_clamp(res: Dict[str, Any], reward_value: float, graph_in
         partial_progress = _clip(0.25 * float(loss_drop or 0.0), -0.04, 0.04)
         return min(reward_value, -0.12 + partial_progress)
     if not res.get("loss_drop_ok"):
+        accuracy_floor = _formal_accuracy_reward_floor(res)
+        if accuracy_floor > 0.0:
+            return accuracy_floor
         loss_drop = _optional_float(res.get("loss_drop"))
         if loss_drop is None:
             return min(reward_value, -0.02)
@@ -3040,6 +3053,7 @@ def _recompute_discovery_reward(
         + float(res.get("r_best_backbone_group", 0.0) or 0.0)
         + float(res.get("r_goal_best", 0.0) or 0.0)
         + float(res.get("r_generalization", 0.0) or 0.0)
+        + float(res.get("r_accuracy_quality", 0.0) or 0.0)
         + float(res.get("r_structure_group", 0.0) or 0.0)
         + float(res.get("r_structure_archive", 0.0) or 0.0)
         + float(res.get("r_descriptor_diversity", 0.0) or 0.0)
@@ -3371,6 +3385,7 @@ def base_discovery_reward_fn(
     r_goal_match = 0.0
     r_trainset_novelty = 0.0
     r_generalization = 0.0
+    r_accuracy_quality = 0.0
     r_structure_group = 0.0
     r_structure_archive = 0.0
     r_batch_elite = 0.0
@@ -3634,6 +3649,27 @@ def base_discovery_reward_fn(
             )
             if formal_success_candidate:
                 r_formal_success_signal = FORMAL_SUCCESS_SIGNAL_BONUS
+                accuracy_floor_anchor_values = [
+                    _optional_float(seed_accuracy_baseline),
+                    _optional_float(effective_group_baseline_reward_target_acc),
+                    _optional_float(backbone_group_baseline_reward_target_acc),
+                ]
+                accuracy_floor_anchor_values = [
+                    float(value) for value in accuracy_floor_anchor_values if value is not None
+                ]
+                accuracy_floor_anchor = (
+                    max(accuracy_floor_anchor_values)
+                    if accuracy_floor_anchor_values
+                    else None
+                )
+                if accuracy_floor_anchor is None or (
+                    reward_target_float >= accuracy_floor_anchor - FORMAL_ACCURACY_FLOOR_TOLERANCE
+                ):
+                    r_accuracy_quality = FORMAL_ACCURACY_FLOOR_BONUS
+                if accuracy_floor_anchor is None or (
+                    reward_target_float >= accuracy_floor_anchor + FORMAL_ACCURACY_STRONG_DELTA
+                ):
+                    r_accuracy_quality = FORMAL_ACCURACY_STRONG_BONUS
             if (not group_warmup) and (group_baseline_train_acc is not None):
                 prev_target_train_acc = float(group_baseline_train_acc) + GROUP_IMPROVEMENT_DELTA
             if (not group_warmup) and (best_closed_group_mean_train_acc is not None):
@@ -3904,6 +3940,7 @@ def base_discovery_reward_fn(
             + r_best_backbone_group
             + r_goal_best
             + r_generalization
+            + r_accuracy_quality
             + r_structure_group
             + r_structure_archive
             + r_descriptor_diversity
@@ -4022,6 +4059,7 @@ def base_discovery_reward_fn(
     res['r_goal_match'] = r_goal_match
     res['r_trainset_novelty'] = r_trainset_novelty
     res['r_generalization'] = r_generalization
+    res['r_accuracy_quality'] = r_accuracy_quality
     res['r_structure_group'] = r_structure_group
     res['r_structure_archive'] = r_structure_archive
     res['r_descriptor_diversity'] = r_descriptor_diversity
@@ -4098,6 +4136,7 @@ def base_discovery_reward_fn(
         'r_goal_best': r_goal_best,
         'r_goal_match': r_goal_match,
         'r_generalization': r_generalization,
+        'r_accuracy_quality': r_accuracy_quality,
         'r_structure_group': r_structure_group,
         'r_structure_archive': r_structure_archive,
         'r_descriptor_diversity': r_descriptor_diversity,

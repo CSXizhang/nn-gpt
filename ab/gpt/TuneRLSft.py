@@ -1304,7 +1304,11 @@ def _reapply_trainability_clamp(res: Dict[str, Any], reward_value: float, graph_
     elif not res.get("backward_ok"):
         reward_value = min(reward_value, -0.10)
     elif not res.get("loss_drop_ok"):
-        reward_value = min(reward_value, 0.0)
+        accuracy_floor = TuneRL._formal_accuracy_reward_floor(res)
+        if accuracy_floor > 0.0:
+            reward_value = accuracy_floor
+        else:
+            reward_value = min(reward_value, 0.0)
     return reward_value
 
 
