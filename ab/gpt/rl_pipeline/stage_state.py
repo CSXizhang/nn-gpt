@@ -137,6 +137,7 @@ def capture_reward_runtime_state(
         "prev_closed_group_mean_reward_target_by_backbone": float_dict_payload(runtime["prev_closed_group_mean_reward_target_by_backbone"]),
         "best_closed_group_mean_reward_target_by_backbone": float_dict_payload(runtime["best_closed_group_mean_reward_target_by_backbone"]),
         "saved_best_reward_target_by_backbone_cnn": float_dict_payload(runtime["saved_best_reward_target_by_backbone_cnn"]),
+        "block_signature_best_reward_target": float_dict_payload(runtime["block_signature_best_reward_target"]),
         "prev_group_feedback": feedback_summary_payload(runtime["prev_group_feedback"]),
         "best_group_feedback": feedback_summary_payload(runtime["best_group_feedback"]),
         "current_group_top_feedback": current_group_top_feedback_payload(),
@@ -250,6 +251,7 @@ def restore_reward_runtime_state(
     restore_float_dict(runtime["prev_closed_group_mean_reward_target_by_backbone"], state.get("prev_closed_group_mean_reward_target_by_backbone"))
     restore_float_dict(runtime["best_closed_group_mean_reward_target_by_backbone"], state.get("best_closed_group_mean_reward_target_by_backbone"))
     restore_float_dict(runtime["saved_best_reward_target_by_backbone_cnn"], state.get("saved_best_reward_target_by_backbone_cnn"))
+    restore_float_dict(runtime["block_signature_best_reward_target"], state.get("block_signature_best_reward_target"))
 
     runtime["best_reward_target_by_goal"].clear()
     runtime["best_reward_target_by_goal"].update(
@@ -294,6 +296,17 @@ def restore_reward_runtime_state(
     runtime["generation_history"][:] = copy_history_items(state.get("generation_history"), limit=max_stage_sample_history)
     runtime["closed_group_history"][:] = copy_history_items(state.get("closed_group_history"), limit=max_stage_group_history)
     runtime["stage_event_history"][:] = copy_history_items(state.get("stage_event_history"), limit=max_stage_group_history)
+    if not runtime["block_signature_best_reward_target"]:
+        for item in runtime["generation_history"]:
+            block_signature = str(item.get("block_signature") or "")
+            if not block_signature or block_signature == "incomplete_block":
+                continue
+            try:
+                reward_target_value = float(item.get("reward_target_value"))
+            except (TypeError, ValueError):
+                continue
+            current_best = runtime["block_signature_best_reward_target"].get(block_signature, float("-inf"))
+            runtime["block_signature_best_reward_target"][block_signature] = max(float(current_best), reward_target_value)
     runtime["discovery_family_hashes_seen"].clear()
     runtime["discovery_family_hashes_seen"].update(str(item) for item in (state.get("discovery_family_hashes_seen") or []))
 
@@ -328,6 +341,7 @@ def reset_reward_runtime_state(
         "prev_closed_group_mean_reward_target_by_backbone",
         "best_closed_group_mean_reward_target_by_backbone",
         "saved_best_reward_target_by_backbone_cnn",
+        "block_signature_best_reward_target",
         "stage_closed_group_counts",
         "stage_best_group_mean_reward_target",
         "stage_entry_generation_totals",

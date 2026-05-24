@@ -134,6 +134,7 @@ current_group_reward_target_count_by_backbone = Counter()
 prev_closed_group_mean_reward_target_by_backbone: Dict[str, float] = {}
 best_closed_group_mean_reward_target_by_backbone: Dict[str, float] = {}
 saved_best_reward_target_by_backbone_cnn: Dict[str, float] = {}
+block_signature_best_reward_target: Dict[str, float] = {}
 
 
 # ===== Configuration Options =====
@@ -145,6 +146,7 @@ GROUP_BATCH_SIZE = 20
 GROUP_IMPROVEMENT_DELTA = 0.003
 BEST_GROUP_REFRESH_DELTA = 0.0015
 GOAL_REFRESH_DELTA = 0.0015
+BLOCK_REPEAT_REFRESH_DELTA = 0.0015
 NON_IMPROVING_REWARD_CAP = 0.04
 FORMAL_REWARD_TRANSFORM = "norm_128_flip"
 BACKBONE_BASELINE_MIN_ARCHIVE_SAMPLES = 3
@@ -284,7 +286,7 @@ STAGE23_BLOCK_BATCH_REPEAT_MAX_PENALTY = -0.12
 STAGE23_BLOCK_ARCHIVE_NOVEL_BONUS = 0.18
 STAGE23_BLOCK_ARCHIVE_REPEAT_MAX_PENALTY = -0.25
 STAGE23_BLOCK_ARCHIVE_REPEAT_WINDOW = 16
-STAGE23_REPEATED_BLOCK_REWARD_CAP = 0.20
+STAGE23_REPEATED_BLOCK_REWARD_CAP = 0.03
 STAGE23_REPEATED_SIGNATURE_REWARD_CAP = 0.03
 STAGE23_NON_DOMINANT_CNN_BONUS = 0.08
 STAGE23_DOMINANT_CNN_SOFT_SHARE = 0.45
@@ -3160,6 +3162,7 @@ def base_discovery_reward_fn(
     archive_snapshot_cnn_signature_counts: Optional[Dict[str, int]] = None,
     archive_snapshot_block_signature_counts: Optional[Dict[str, int]] = None,
     archive_snapshot_backbone_cnn_pair_counts: Optional[Dict[str, int]] = None,
+    archive_snapshot_block_best_reward_target: Optional[Dict[str, float]] = None,
     group_baseline_train_acc: Optional[float] = None,
     group_baseline_reward_target_acc: Optional[float] = None,
     reward_batch_index: Optional[int] = None,
@@ -3411,6 +3414,9 @@ def base_discovery_reward_fn(
     formal_progress_refresh = False
     backbone_reward_target_gain = None
     backbone_reward_target_improved = False
+    block_best_reward_target_acc = None
+    block_target_reward_target_acc = None
+    block_reward_target_improved = False
 
     if executable_candidate:
         novel_vs_trainset_family = graph_info.family_hash not in train_family_hashes
@@ -3678,6 +3684,20 @@ def base_discovery_reward_fn(
                 and reward_target_float >= float(best_reward_target_for_goal) + GOAL_REFRESH_DELTA
             ):
                 r_goal_best = stage_profile["goal_best_scale"] * GOAL_REFRESH_BONUS
+            if (
+                (not group_warmup)
+                and block_signature
+                and block_signature != "incomplete_block"
+                and archive_snapshot_block_best_reward_target is not None
+            ):
+                block_best_reward_target_acc = _optional_float(
+                    archive_snapshot_block_best_reward_target.get(block_signature)
+                )
+                if block_best_reward_target_acc is not None:
+                    block_target_reward_target_acc = (
+                        float(block_best_reward_target_acc) + BLOCK_REPEAT_REFRESH_DELTA
+                    )
+                    block_reward_target_improved = reward_target_float >= block_target_reward_target_acc
             effective_prev_target_reward_target_acc = (
                 backbone_prev_target_reward_target_acc
                 if backbone_prev_target_reward_target_acc is not None
@@ -3916,13 +3936,13 @@ def base_discovery_reward_fn(
         if has_formal_epoch and dominant_cnn_repeat:
             total_reward = min(total_reward, stage_profile["descriptor_non_improving_cap"])
             cnn_reward_cap_applied = True
-        block_repeat_quality_refresh = bool(r_goal_best > 0.0 or beat_best_backbone_target or beat_best_target)
+        block_repeat_quality_refresh = bool(block_reward_target_improved)
         repeated_block_without_refresh = bool(
             has_formal_epoch
             and formal_success_candidate
             and block_signature
             and block_signature != "incomplete_block"
-            and (archive_snapshot_block_freq > 0 or batch_same_block_count > 1)
+            and archive_snapshot_block_freq > 0
             and not block_repeat_quality_refresh
         )
         repeated_signature_without_refresh = bool(
@@ -3977,6 +3997,9 @@ def base_discovery_reward_fn(
     res['group_reward_target_improved'] = group_reward_target_improved
     res['backbone_reward_target_gain'] = backbone_reward_target_gain
     res['backbone_reward_target_improved'] = backbone_reward_target_improved
+    res['block_best_reward_target_acc'] = block_best_reward_target_acc
+    res['block_target_reward_target_acc'] = block_target_reward_target_acc
+    res['block_reward_target_improved'] = block_reward_target_improved
     res['reward_batch_index'] = reward_batch_index
     res['reward_group_id'] = reward_group_id
     res['group_warmup'] = group_warmup
@@ -4115,6 +4138,9 @@ def base_discovery_reward_fn(
         'group_reward_target_improved': group_reward_target_improved,
         'backbone_reward_target_gain': backbone_reward_target_gain,
         'backbone_reward_target_improved': backbone_reward_target_improved,
+        'block_best_reward_target_acc': block_best_reward_target_acc,
+        'block_target_reward_target_acc': block_target_reward_target_acc,
+        'block_reward_target_improved': block_reward_target_improved,
         'reward_batch_index': reward_batch_index,
         'reward_group_id': reward_group_id,
         'group_warmup': group_warmup,
@@ -4202,6 +4228,7 @@ def reward_fn(
     archive_snapshot_cnn_signature_counts: Optional[Dict[str, int]] = None,
     archive_snapshot_block_signature_counts: Optional[Dict[str, int]] = None,
     archive_snapshot_backbone_cnn_pair_counts: Optional[Dict[str, int]] = None,
+    archive_snapshot_block_best_reward_target: Optional[Dict[str, float]] = None,
     group_baseline_train_acc: Optional[float] = None,
     group_baseline_reward_target_acc: Optional[float] = None,
     reward_batch_index: Optional[int] = None,
@@ -4229,6 +4256,7 @@ def reward_fn(
         archive_snapshot_cnn_signature_counts=archive_snapshot_cnn_signature_counts,
         archive_snapshot_block_signature_counts=archive_snapshot_block_signature_counts,
         archive_snapshot_backbone_cnn_pair_counts=archive_snapshot_backbone_cnn_pair_counts,
+        archive_snapshot_block_best_reward_target=archive_snapshot_block_best_reward_target,
         group_baseline_train_acc=group_baseline_train_acc,
         group_baseline_reward_target_acc=group_baseline_reward_target_acc,
         reward_batch_index=reward_batch_index,
@@ -4344,20 +4372,19 @@ def _is_repeated_block_without_refresh(res: Dict[str, Any]) -> bool:
         return False
     archive_freq = int(res.get("archive_snapshot_block_freq", 0) or 0)
     batch_count = int(res.get("batch_same_block_count", 0) or 0)
-    return archive_freq > 0 or batch_count > 1
+    if archive_freq > 0:
+        return True
+    return batch_count > 1 and _optional_float(res.get("block_best_reward_target_acc")) is not None
 
 
 def _has_block_repeat_quality_refresh(res: Dict[str, Any]) -> bool:
-    if float(res.get("r_goal_best", 0.0) or 0.0) > 0.0:
-        return True
     reward_target_value = _optional_float(res.get("reward_target_value"))
     if reward_target_value is None:
         return False
-    best_targets = (
-        _optional_float(res.get("backbone_best_target_reward_target_acc")),
-        _optional_float(res.get("best_target_reward_target_acc")),
-    )
-    return any(target is not None and reward_target_value >= target for target in best_targets)
+    block_best = _optional_float(res.get("block_best_reward_target_acc"))
+    if block_best is None:
+        return int(res.get("archive_snapshot_block_freq", 0) or 0) <= 0
+    return reward_target_value >= float(block_best) + BLOCK_REPEAT_REFRESH_DELTA
 
 def _reward_failure_result(
     *,
@@ -4676,6 +4703,7 @@ def _score_reward_entries(
     archive_snapshot_cnn_signature_counts = dict(cnn_signature_archive_counts)
     archive_snapshot_block_signature_counts = dict(block_signature_archive_counts)
     archive_snapshot_backbone_cnn_pair_counts = dict(backbone_cnn_pair_archive_counts)
+    archive_snapshot_block_best_reward_target = dict(block_signature_best_reward_target)
     batch_graph_hashes = [
         entry["graph_info"].graph_hash if entry.get("graph_info") and entry["graph_info"].parse_ok else "incomplete"
         for entry in entries
@@ -4725,6 +4753,7 @@ def _score_reward_entries(
                 archive_snapshot_cnn_signature_counts=archive_snapshot_cnn_signature_counts,
                 archive_snapshot_block_signature_counts=archive_snapshot_block_signature_counts,
                 archive_snapshot_backbone_cnn_pair_counts=archive_snapshot_backbone_cnn_pair_counts,
+                archive_snapshot_block_best_reward_target=archive_snapshot_block_best_reward_target,
                 group_baseline_train_acc=group_context["group_baseline_train_acc"],
                 group_baseline_reward_target_acc=group_context["group_baseline_reward_target_acc"],
                 reward_batch_index=group_context["reward_batch_index"],
@@ -4814,6 +4843,11 @@ def _finalize_scored_results(scored_results: List[Dict[str, Any]]) -> None:
                 cnn_signature_archive_counts[cnn_signature] += 1
             if block_signature and block_signature != "incomplete_block":
                 block_signature_archive_counts[block_signature] += 1
+                if reward_target_value is not None:
+                    block_signature_best_reward_target[block_signature] = max(
+                        float(block_signature_best_reward_target.get(block_signature, float("-inf"))),
+                        float(reward_target_value),
+                    )
             if backbone_signature and cnn_signature:
                 backbone_cnn_pair_archive_counts[backbone_cnn_pair_key] += 1
             motif_name_counts[res.get("pattern_name", graph_info.suggested_pattern_name)] += 1
