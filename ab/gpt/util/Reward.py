@@ -2865,11 +2865,22 @@ def _formal_horizon_score_map(payloads: Dict[str, Dict[str, Any]]) -> Dict[str, 
 
 def _formal_multi_horizon_target_value(payloads: Dict[str, Dict[str, Any]]) -> float:
     scores = _formal_horizon_score_map(payloads)
-    return float(
-        0.20 * float(scores.get("1", 0.0) or 0.0)
-        + 0.35 * float(scores.get("5", 0.0) or 0.0)
-        + 0.45 * float(scores.get("10", 0.0) or 0.0)
-    )
+    weighted_scores = [
+        (0.20, scores.get("1")),
+        (0.35, scores.get("5")),
+        (0.45, scores.get("10")),
+    ]
+    available = [
+        (weight, float(score))
+        for weight, score in weighted_scores
+        if score is not None
+    ]
+    if not available:
+        return 0.0
+    weight_sum = sum(weight for weight, _score in available)
+    if weight_sum <= 0.0:
+        return 0.0
+    return float(sum(weight * score for weight, score in available) / weight_sum)
 
 
 def _formal_history_core_from_epoch_rows(epoch_rows: list[Dict[str, Any]]) -> Dict[str, Any]:
