@@ -2826,7 +2826,7 @@ def _clip(value: float, lower: float, upper: float) -> float:
     return float(max(lower, min(upper, value)))
 
 
-def _formal_horizon_score_map(payloads: Dict[str, Dict[str, Any]]) -> Dict[str, float]:
+def _formal_horizon_score_map(payloads: Dict[str, Dict[str, Any]]) -> Dict[str, Optional[float]]:
     def _completed(horizon: int) -> bool:
         return bool((payloads.get(str(horizon)) or {}).get("reached_horizon"))
 
@@ -2840,11 +2840,11 @@ def _formal_horizon_score_map(payloads: Dict[str, Dict[str, Any]]) -> Dict[str, 
     acc10 = _metric(10, "test_acc")
     train10 = _metric(10, "train_acc")
 
-    score1 = _clip(float(acc1 or 0.0), 0.0, 1.0) if acc1 is not None else 0.0
+    score1 = _clip(float(acc1), 0.0, 1.0) if acc1 is not None else None
     score5 = (
         _clip(float(acc5) + 0.25 * max(0.0, float(acc5) - float(acc1 or 0.0)), 0.0, 1.0)
         if acc5 is not None
-        else 0.0
+        else None
     )
     overfit10 = (
         max(0.0, float(train10) - float(acc10) - 0.08)
@@ -2854,12 +2854,12 @@ def _formal_horizon_score_map(payloads: Dict[str, Dict[str, Any]]) -> Dict[str, 
     score10 = (
         _clip(float(acc10) + 0.20 * max(0.0, float(acc10) - float(acc5 or 0.0)) - 0.50 * overfit10, 0.0, 1.0)
         if acc10 is not None
-        else 0.0
+        else None
     )
     return {
-        "1": float(score1),
-        "5": float(score5),
-        "10": float(score10),
+        "1": score1,
+        "5": score5,
+        "10": score10,
     }
 
 
