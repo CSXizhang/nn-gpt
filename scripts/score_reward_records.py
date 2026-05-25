@@ -48,7 +48,7 @@ def _seed_accuracy(record: Dict[str, Any]) -> float:
 def _set_default_env(args: argparse.Namespace) -> None:
     os.environ.setdefault("NNGPT_RL_REWARD_VARIANT", args.reward_variant)
     os.environ.setdefault("NNGPT_RL_RESUME_STAGE", "stage2_formal_explore")
-    os.environ.setdefault("NNGPT_RL_FORMAL_REWARD_EPOCHS", "1")
+    os.environ.setdefault("NNGPT_RL_FORMAL_REWARD_EPOCHS", "10")
     os.environ.setdefault(
         "NNGPT_SFT_BASE_MODEL_ID",
         "/home/s471802/nn-gpt/out/llm/deepseek-ai/deepseek-coder-6.7b-instruct",

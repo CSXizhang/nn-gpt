@@ -780,7 +780,7 @@ def _write_sft_run_config(
         "reward": {
             "variant": TuneRL.resolve_reward_variant(),
             "env": _selected_env(reward_env_names),
-            "formal_epochs": os.getenv("NNGPT_RL_FORMAL_REWARD_EPOCHS", "1"),
+            "formal_epochs": os.getenv("NNGPT_RL_FORMAL_REWARD_EPOCHS", "10"),
         },
         "init": {
             "load_initial_adapter": resolve_sft_load_initial_adapter(),
@@ -821,7 +821,7 @@ def _write_sft_run_config(
             "train_set": "full",
             "test_set": "full",
             "train_epochs": SFT_EVAL_TRAIN_EPOCHS,
-            "formal_epochs": os.getenv("NNGPT_RL_FORMAL_REWARD_EPOCHS", "1"),
+            "formal_epochs": os.getenv("NNGPT_RL_FORMAL_REWARD_EPOCHS", "10"),
             "full_test_acc": SFT_EVAL_FULL_TEST_ACC,
             "run_unfrozen": SFT_EVAL_RUN_UNFROZEN,
             "worker_eval_limit_seconds": SFT_EVAL_LIMIT_SECONDS,

@@ -17,7 +17,7 @@ Options:
   --max-steps N           default: 75
   --num-generations N     default: 4
   --formal-reward-epochs E
-                           default: 1
+                           default: 10
   --no-run-archive        do not append metadata to run_archive_index.md
 USAGE
 }
@@ -32,7 +32,7 @@ mem="80G"
 cpus="16"
 max_steps="75"
 num_generations="4"
-formal_reward_epochs="1"
+formal_reward_epochs="10"
 write_archive="1"
 
 while [ "$#" -gt 0 ]; do
