@@ -43,6 +43,7 @@ mkdir -p "${run_root}/slurm"
 
 export PYTHONUNBUFFERED=1
 export TOKENIZERS_PARALLELISM=false
+export PYTHONPATH="/home/s471802/nn-gpt:/home/s471802/nn-dataset:${PYTHONPATH:-}"
 if [ -z "${MASTER_PORT:-}" ]; then
   if [ -n "${SLURM_JOB_ID:-}" ]; then
     export MASTER_PORT=$((20000 + SLURM_JOB_ID % 20000))
