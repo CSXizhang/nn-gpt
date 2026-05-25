@@ -95,6 +95,7 @@ echo "Formal reward epochs: ${NNGPT_RL_FORMAL_REWARD_EPOCHS}"
 echo "Num generations: ${NNGPT_SFT_NUM_GENERATIONS}"
 echo "Max steps: ${NNGPT_SFT_MAX_STEPS}"
 echo "Max completion length: ${NNGPT_SFT_MAX_COMPLETION_LENGTH}"
+echo "Generation kwargs JSON: ${NNGPT_SFT_GENERATION_KWARGS_JSON:-}"
 echo "Master addr: ${MASTER_ADDR}"
 echo "Master port: ${MASTER_PORT}"
 
