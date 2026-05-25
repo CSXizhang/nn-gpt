@@ -151,6 +151,12 @@ NON_IMPROVING_REWARD_CAP = 0.04
 FORMAL_REWARD_TRANSFORM = "norm_128_flip"
 BACKBONE_BASELINE_MIN_ARCHIVE_SAMPLES = 3
 SAVE_DUPLICATE_BACKBONE_CNN_DELTA = 0.002
+ANTI_COLLAPSE_CLIP_DEFAULT_WINDOW = 100
+ANTI_COLLAPSE_CLIP_DEFAULT_MIN_ARCHIVE = 40
+ANTI_COLLAPSE_CLIP_DEFAULT_FULL_SHARE = 0.25
+ANTI_COLLAPSE_CLIP_DEFAULT_BLOCK_SHARE = 0.35
+ANTI_COLLAPSE_CLIP_DEFAULT_BACKBONE_SHARE = 0.50
+ANTI_COLLAPSE_CLIP_DEFAULT_REFRESH_DELTA = 0.003
 BATCH_ELITE_SOFT_BONUSES = (0.10, 0.07, 0.05, 0.03, 0.02)
 BATCH_ELITE_IMPROVING_BONUSES = (0.18, 0.13, 0.09, 0.06, 0.04)
 STRUCTURE_MACRO_BONUS = 0.04
@@ -448,6 +454,12 @@ def _backbone_cnn_pair_key(backbone_signature: str, cnn_signature: str) -> str:
     return f"{str(backbone_signature or 'unknown_backbone_pair')}::{str(cnn_signature or 'incomplete_cnn')}"
 
 
+def _full_architecture_signature(backbone_signature: str, block_signature: str) -> str:
+    backbone = str(backbone_signature or "unknown_backbone_pair").strip() or "unknown_backbone_pair"
+    block = str(block_signature or "incomplete_block").strip() or "incomplete_block"
+    return f"{backbone}::{block}"
+
+
 def _block_signature_from_code(block_code: str) -> str:
     source = textwrap.dedent(str(block_code or "")).strip()
     if not source:
@@ -484,6 +496,15 @@ def _result_block_signature(res: Dict[str, Any], completion: str = "") -> str:
         return signature
     block_code, _, _ = extract_completion_blocks(str(completion or ""))
     return _block_signature_from_code(block_code)
+
+
+def _result_full_signature(res: Dict[str, Any], completion: str = "", graph_info=None) -> str:
+    signature = str(res.get("full_signature") or "").strip()
+    if signature:
+        return signature
+    backbone_signature = _result_backbone_signature(res)
+    block_signature = _result_block_signature(res, completion)
+    return _full_architecture_signature(backbone_signature, block_signature)
 
 
 def capture_reward_runtime_state() -> Dict[str, Any]:
@@ -4096,6 +4117,7 @@ def base_discovery_reward_fn(
     res['cnn_signature'] = cnn_signature
     res['cnn_expr'] = cnn_expr
     res['block_signature'] = block_signature
+    res['full_signature'] = _full_architecture_signature(backbone_signature, block_signature)
     res['archive_snapshot_backbone_freq'] = archive_snapshot_backbone_freq
     res['archive_snapshot_cnn_freq'] = archive_snapshot_cnn_freq
     res['archive_snapshot_block_freq'] = archive_snapshot_block_freq
@@ -4424,6 +4446,318 @@ def _has_block_repeat_quality_refresh(res: Dict[str, Any]) -> bool:
     if block_best is None:
         return int(res.get("archive_snapshot_block_freq", 0) or 0) <= 0
     return reward_target_value >= float(block_best) + BLOCK_REPEAT_REFRESH_DELTA
+
+
+def _anti_collapse_clip_enabled() -> bool:
+    return env_flag("NNGPT_RL_ANTI_COLLAPSE_CLIP", False)
+
+
+def _anti_collapse_full_signature_from_parts(backbone_signature: str, block_signature: str) -> str:
+    return _full_architecture_signature(backbone_signature, block_signature)
+
+
+def _anti_collapse_item_full_signature(item: Dict[str, Any]) -> str:
+    res = item.get("result") or {}
+    signature = str(res.get("full_signature") or "").strip()
+    if signature:
+        return signature
+    return _anti_collapse_full_signature_from_parts(
+        _result_backbone_signature(res),
+        _result_block_signature(res, str(item.get("completion") or "")),
+    )
+
+
+def _anti_collapse_formal_success_item(item: Dict[str, Any]) -> bool:
+    res = item.get("result") or {}
+    return bool(res.get("formal_success_candidate")) and _has_completed_formal_epoch(res)
+
+
+def _anti_collapse_reward_target(item: Dict[str, Any]) -> Optional[float]:
+    return _result_reward_target_value(item.get("result") or {})
+
+
+def _anti_collapse_valid_backbone(backbone_signature: str) -> bool:
+    value = str(backbone_signature or "").strip()
+    return bool(value and value != "unknown_backbone_pair")
+
+
+def _anti_collapse_valid_block(block_signature: str) -> bool:
+    value = str(block_signature or "").strip()
+    return bool(value and value != "incomplete_block")
+
+
+def _anti_collapse_valid_full_signature(full_signature: str) -> bool:
+    value = str(full_signature or "").strip()
+    return bool(
+        value
+        and "unknown_backbone_pair" not in value
+        and "incomplete_block" not in value
+    )
+
+
+def _anti_collapse_recent_archive(window_size: int) -> List[Dict[str, Any]]:
+    stage_name = str(current_stage_name)
+    recent_rows = _recent_stage_generation_window(
+        stage_name,
+        max(int(window_size) * 8, int(window_size), 256),
+    )
+    archive: List[Dict[str, Any]] = []
+    for row in reversed(recent_rows):
+        if not bool(row.get("formal_success_candidate")):
+            continue
+        if _optional_float(row.get("reward_target_value")) is None:
+            continue
+        archive.append(row)
+        if len(archive) >= int(window_size):
+            break
+    archive.reverse()
+    return archive
+
+
+def _anti_collapse_archive_stats(archive: List[Dict[str, Any]]) -> Dict[str, Any]:
+    full_counts = Counter()
+    block_counts = Counter()
+    backbone_counts = Counter()
+    best_full: Dict[str, float] = {}
+    best_block: Dict[str, float] = {}
+    best_backbone: Dict[str, float] = {}
+
+    for row in archive:
+        reward_target = _optional_float(row.get("reward_target_value"))
+        if reward_target is None:
+            continue
+        backbone_signature = str(row.get("backbone_signature") or "").strip()
+        block_signature = str(row.get("block_signature") or "").strip()
+        full_signature = str(row.get("full_signature") or "").strip()
+        if not full_signature:
+            full_signature = _anti_collapse_full_signature_from_parts(backbone_signature, block_signature)
+
+        if _anti_collapse_valid_backbone(backbone_signature):
+            backbone_counts[backbone_signature] += 1
+            best_backbone[backbone_signature] = max(
+                float(best_backbone.get(backbone_signature, float("-inf"))),
+                float(reward_target),
+            )
+        if _anti_collapse_valid_block(block_signature):
+            block_counts[block_signature] += 1
+            best_block[block_signature] = max(
+                float(best_block.get(block_signature, float("-inf"))),
+                float(reward_target),
+            )
+        if _anti_collapse_valid_full_signature(full_signature):
+            full_counts[full_signature] += 1
+            best_full[full_signature] = max(
+                float(best_full.get(full_signature, float("-inf"))),
+                float(reward_target),
+            )
+
+    return {
+        "size": len(archive),
+        "full_counts": full_counts,
+        "block_counts": block_counts,
+        "backbone_counts": backbone_counts,
+        "best_full": best_full,
+        "best_block": best_block,
+        "best_backbone": best_backbone,
+    }
+
+
+def _anti_collapse_has_refresh(
+    reward_target: Optional[float],
+    best_value: Optional[float],
+    *,
+    refresh_delta: float,
+) -> bool:
+    if reward_target is None or best_value is None:
+        return True
+    return float(reward_target) > float(best_value) + float(refresh_delta)
+
+
+def _anti_collapse_clip_positive_reward(
+    item: Dict[str, Any],
+    reason: str,
+    stats: Counter,
+    *,
+    cap_value: float,
+) -> bool:
+    score = float(item.get("score", (item.get("result") or {}).get("reward", -1.0)))
+    cap = float(cap_value)
+    if score <= cap:
+        return False
+
+    res = item.get("result") or {}
+    if "anti_collapse_original_reward" not in res:
+        res["anti_collapse_original_reward"] = score
+    reasons = list(res.get("anti_collapse_clip_reasons") or [])
+    reasons.append(str(reason))
+    res["anti_collapse_clip_reasons"] = reasons
+    res["anti_collapse_clipped"] = True
+    res["anti_collapse_clipped_reward"] = cap
+    res["reward"] = cap
+    item["score"] = cap
+    stats[str(reason)] += 1
+    return True
+
+
+def _apply_accuracy_first_anti_collapse_clipping(
+    scored_results: List[Dict[str, Any]],
+    group_context: Dict[str, Any],
+) -> Dict[str, int]:
+    if not _anti_collapse_clip_enabled():
+        return {}
+    if str(group_context.get("current_stage_name") or current_stage_name) == STAGE1_STRUCTURE_EXPLORE:
+        return {}
+
+    stats: Counter = Counter()
+    refresh_delta = env_float(
+        "NNGPT_RL_ANTI_COLLAPSE_REFRESH_DELTA",
+        ANTI_COLLAPSE_CLIP_DEFAULT_REFRESH_DELTA,
+    )
+
+    prompt_groups: Dict[str, List[Dict[str, Any]]] = {}
+    for item in scored_results:
+        if not _anti_collapse_formal_success_item(item):
+            continue
+        if _anti_collapse_reward_target(item) is None:
+            continue
+        prompt_key = str(item.get("prompt") or "")
+        prompt_groups.setdefault(prompt_key, []).append(item)
+
+    prompt_neutral_caps: Dict[str, float] = {}
+    for prompt_key, group_items in prompt_groups.items():
+        scores = [
+            float(item.get("score", (item.get("result") or {}).get("reward", -1.0)))
+            for item in group_items
+        ]
+        group_mean = float(sum(scores) / len(scores)) if scores else 0.0
+        prompt_neutral_caps[prompt_key] = min(0.0, group_mean)
+
+    for group_items in prompt_groups.values():
+        signature_groups: Dict[str, List[Dict[str, Any]]] = {}
+        for item in group_items:
+            full_signature = _anti_collapse_item_full_signature(item)
+            if not _anti_collapse_valid_full_signature(full_signature):
+                continue
+            signature_groups.setdefault(full_signature, []).append(item)
+
+        for duplicates in signature_groups.values():
+            if len(duplicates) <= 1:
+                continue
+
+            def duplicate_rank_key(candidate: Dict[str, Any]) -> Tuple[float, float, float]:
+                reward_target = _anti_collapse_reward_target(candidate)
+                score = float(candidate.get("score", (candidate.get("result") or {}).get("reward", -1.0)))
+                index = float(candidate.get("global_index", candidate.get("local_index", 0)) or 0)
+                return (
+                    float(reward_target if reward_target is not None else float("-inf")),
+                    score,
+                    -index,
+                )
+
+            best_item = max(duplicates, key=duplicate_rank_key)
+            for item in duplicates:
+                if item is best_item:
+                    continue
+                prompt_key = str(item.get("prompt") or "")
+                _anti_collapse_clip_positive_reward(
+                    item,
+                    "group_duplicate_full_signature",
+                    stats,
+                    cap_value=prompt_neutral_caps.get(prompt_key, 0.0),
+                )
+
+    window_size = env_int("NNGPT_RL_ANTI_COLLAPSE_WINDOW", ANTI_COLLAPSE_CLIP_DEFAULT_WINDOW)
+    min_archive_size = env_int("NNGPT_RL_ANTI_COLLAPSE_MIN_ARCHIVE", ANTI_COLLAPSE_CLIP_DEFAULT_MIN_ARCHIVE)
+    archive = _anti_collapse_recent_archive(window_size)
+    archive_stats = _anti_collapse_archive_stats(archive)
+    archive_size = int(archive_stats.get("size", 0) or 0)
+    if archive_size >= int(min_archive_size):
+        full_threshold = env_float("NNGPT_RL_FULL_SIG_DOMINANT_SHARE", ANTI_COLLAPSE_CLIP_DEFAULT_FULL_SHARE)
+        block_threshold = env_float("NNGPT_RL_BLOCK_SIG_DOMINANT_SHARE", ANTI_COLLAPSE_CLIP_DEFAULT_BLOCK_SHARE)
+        backbone_threshold = env_float(
+            "NNGPT_RL_BACKBONE_SIG_DOMINANT_SHARE",
+            ANTI_COLLAPSE_CLIP_DEFAULT_BACKBONE_SHARE,
+        )
+        full_counts: Counter = archive_stats["full_counts"]
+        block_counts: Counter = archive_stats["block_counts"]
+        backbone_counts: Counter = archive_stats["backbone_counts"]
+        best_full: Dict[str, float] = archive_stats["best_full"]
+        best_block: Dict[str, float] = archive_stats["best_block"]
+        best_backbone: Dict[str, float] = archive_stats["best_backbone"]
+
+        for item in scored_results:
+            if not _anti_collapse_formal_success_item(item):
+                continue
+            reward_target = _anti_collapse_reward_target(item)
+            if reward_target is None:
+                continue
+            res = item.get("result") or {}
+            backbone_signature = _result_backbone_signature(res)
+            block_signature = _result_block_signature(res, str(item.get("completion") or ""))
+            full_signature = _anti_collapse_item_full_signature(item)
+
+            if (
+                _anti_collapse_valid_full_signature(full_signature)
+                and float(full_counts.get(full_signature, 0)) / float(archive_size) > float(full_threshold)
+                and not _anti_collapse_has_refresh(
+                    reward_target,
+                    best_full.get(full_signature),
+                    refresh_delta=refresh_delta,
+                )
+            ):
+                prompt_key = str(item.get("prompt") or "")
+                _anti_collapse_clip_positive_reward(
+                    item,
+                    "archive_dominant_full_signature",
+                    stats,
+                    cap_value=prompt_neutral_caps.get(prompt_key, 0.0),
+                )
+                continue
+
+            if (
+                _anti_collapse_valid_block(block_signature)
+                and float(block_counts.get(block_signature, 0)) / float(archive_size) > float(block_threshold)
+                and not _anti_collapse_has_refresh(
+                    reward_target,
+                    best_block.get(block_signature),
+                    refresh_delta=refresh_delta,
+                )
+            ):
+                prompt_key = str(item.get("prompt") or "")
+                _anti_collapse_clip_positive_reward(
+                    item,
+                    "archive_dominant_block_signature",
+                    stats,
+                    cap_value=prompt_neutral_caps.get(prompt_key, 0.0),
+                )
+                continue
+
+            if (
+                _anti_collapse_valid_backbone(backbone_signature)
+                and float(backbone_counts.get(backbone_signature, 0)) / float(archive_size) > float(backbone_threshold)
+                and not _anti_collapse_has_refresh(
+                    reward_target,
+                    best_backbone.get(backbone_signature),
+                    refresh_delta=refresh_delta,
+                )
+            ):
+                prompt_key = str(item.get("prompt") or "")
+                _anti_collapse_clip_positive_reward(
+                    item,
+                    "archive_dominant_backbone_signature",
+                    stats,
+                    cap_value=prompt_neutral_caps.get(prompt_key, 0.0),
+                )
+
+    if stats:
+        code_logger.log_to_file(
+            "[AntiCollapse Clip] "
+            f"reward_batch_index={group_context.get('reward_batch_index')} "
+            f"archive_size={archive_size if 'archive_size' in locals() else 0} "
+            + " ".join(f"{key}={value}" for key, value in sorted(stats.items()))
+        )
+    return {str(key): int(value) for key, value in stats.items()}
+
 
 def _reward_failure_result(
     *,
@@ -4838,6 +5172,7 @@ def _score_reward_entries(
         )
 
     _apply_batch_elite_bonuses(scored_results, group_context)
+    _apply_accuracy_first_anti_collapse_clipping(scored_results, group_context)
     for item in scored_results:
         item["score"] = float(item["result"].get("reward", item.get("score", -1.0)))
     return scored_results
@@ -4987,6 +5322,7 @@ def _finalize_scored_results(scored_results: List[Dict[str, Any]]) -> None:
                 "backbone_signature": backbone_signature,
                 "cnn_signature": cnn_signature,
                 "block_signature": block_signature,
+                "full_signature": _full_architecture_signature(backbone_signature, block_signature),
                 "backbone_cnn_pair_key": backbone_cnn_pair_key,
                 "reward": score,
                 "reward_target_metric": str(res.get("reward_target_metric") or ""),
