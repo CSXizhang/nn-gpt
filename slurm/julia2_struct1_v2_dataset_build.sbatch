@@ -41,6 +41,7 @@ cat > "${run_root}/run_config.json" <<EOF
   "target_new_samples": ${NNGPT_STRUCT1_V2_TARGET:-420},
   "per_pattern_target": ${NNGPT_STRUCT1_V2_PER_PATTERN_TARGET:-105},
   "formal_eval_epochs": 1,
+  "transform": "norm_128_flip",
   "gpus": 4,
   "nneval_workers_per_gpu": ${NNGPT_NNEVAL_WORKERS_PER_GPU:-1},
   "cuda_visible_devices": "${CUDA_VISIBLE_DEVICES:-}",
@@ -58,6 +59,7 @@ python -m ab.gpt.NNEval \
   --nn_name_prefix rl-bb-struct1-v2 \
   --nn_alter_epochs 1 \
   --nn_train_epochs 1 \
+  --transform norm_128_flip \
   --only_epoch 0 \
   --save_to_db \
   --cycle 0
@@ -73,6 +75,7 @@ python scripts/select_struct1_v2_sft_dataset.py \
   --max-graph-repeats "${NNGPT_STRUCT1_V2_MAX_GRAPH_REPEATS:-2}" \
   --max-block-repeats "${NNGPT_STRUCT1_V2_MAX_BLOCK_REPEATS:-5}" \
   --max-backbone-repeats "${NNGPT_STRUCT1_V2_MAX_BACKBONE_REPEATS:-8}" \
+  --required-transform norm_128_flip \
   --clean-dest-prefix \
   --report "${run_root}/dataset/selection_report.json"
 

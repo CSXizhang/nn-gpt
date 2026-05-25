@@ -47,13 +47,13 @@ def _code_name(prefix: str, canonical_code: str) -> str:
     return f"{prefix}-{hashlib.md5(compact.encode()).hexdigest()}"
 
 
-def _load_stat(path: Path) -> tuple[bool, float | None]:
+def _load_stat(path: Path) -> tuple[bool, float | None, str | None]:
     payload = json.loads(path.read_text(encoding="utf-8"))
     rows = payload if isinstance(payload, list) else [payload]
     for row in rows:
         if isinstance(row, dict) and REQUIRED_STAT_FIELDS.issubset(row):
-            return True, float(row["accuracy"])
-    return False, None
+            return True, float(row["accuracy"]), str(row["transform"])
+    return False, None, None
 
 
 def _stat_paths_for_name(source_root: Path, name: str) -> Iterable[Path]:
@@ -80,12 +80,15 @@ def _discover(args: argparse.Namespace) -> tuple[list[Candidate], dict[str, list
             skipped["missing_stat"].append(str(code_path))
             continue
         try:
-            has_stat, accuracy = _load_stat(stat_path)
+            has_stat, accuracy, transform = _load_stat(stat_path)
         except Exception as exc:
             skipped["bad_stat_json"].append(f"{stat_path}: {exc}")
             continue
         if not has_stat or accuracy is None:
             skipped["incomplete_stat"].append(str(stat_path))
+            continue
+        if args.required_transform and transform != args.required_transform:
+            skipped["wrong_transform"].append(f"{name}:{transform}")
             continue
         if accuracy < float(args.min_acc):
             skipped["low_accuracy"].append(f"{name}:{accuracy:.4f}")
@@ -256,6 +259,7 @@ def main() -> None:
     parser.add_argument("--max-graph-repeats", type=int, default=2)
     parser.add_argument("--max-block-repeats", type=int, default=5)
     parser.add_argument("--max-backbone-repeats", type=int, default=8)
+    parser.add_argument("--required-transform", default="norm_128_flip")
     parser.add_argument("--clean-dest-prefix", action="store_true")
     parser.add_argument("--report", required=True)
     args = parser.parse_args()
@@ -289,6 +293,7 @@ def main() -> None:
             "max_graph_repeats": int(args.max_graph_repeats),
             "max_block_repeats": int(args.max_block_repeats),
             "max_backbone_repeats": int(args.max_backbone_repeats),
+            "required_transform": args.required_transform,
         },
         "summary": _summary(written),
         "skipped": {key: len(value) for key, value in skipped.items()},
