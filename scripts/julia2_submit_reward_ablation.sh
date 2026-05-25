@@ -104,6 +104,7 @@ for variant in "${variants[@]}"; do
   export_vars+=",NNGPT_SFT_INITIAL_ADAPTER_MODE=trainable"
   export_vars+=",NNGPT_SFT_RL_NN_PREFIXES=rl-bb-struct1"
   export_vars+=",NNGPT_RL_RESUME_STAGE=stage2_formal_explore"
+  export_vars+=",NNGPT_REWARD_WORKERS_PER_GPU=1"
   export_vars+=",NNGPT_SFT_RESUME_TRAINER_CHECKPOINT="
   export_vars+=",NNGPT_SFT_RESUME_STAGE_CHECKPOINT="
 

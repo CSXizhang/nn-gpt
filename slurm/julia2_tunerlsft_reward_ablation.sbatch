@@ -56,7 +56,9 @@ export MASTER_ADDR="${MASTER_ADDR:-127.0.0.1}"
 export NNGPT_SFT_LOG_DIR="${run_root}/rl_output"
 export NNGPT_SFT_MODEL_OUT="${run_root}/grpo_backbone_outputs"
 export NNGPT_SFT_TRAINER_OUT="${run_root}/grpo_backbone_outputs_trainer"
+export NNGPT_SFT_EPOCH_ROOT="${run_root}/out/nngpt/llm/epoch_sft"
 export NNGPT_SFT_APPEND_LOGS=0
+export NNGPT_REWARD_WORKERS_PER_GPU="${NNGPT_REWARD_WORKERS_PER_GPU:-1}"
 
 for dir in "${NNGPT_SFT_LOG_DIR}" "${NNGPT_SFT_MODEL_OUT}" "${NNGPT_SFT_TRAINER_OUT}"; do
   if [ -e "${dir}" ]; then
