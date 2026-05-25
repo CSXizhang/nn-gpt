@@ -655,6 +655,60 @@ def env_float(name: str, default: float) -> float:
     return float(value)
 
 
+REWARD_VARIANT_ENV = "NNGPT_RL_REWARD_VARIANT"
+REWARD_VARIANT_FULL = "full"
+REWARD_VARIANT_NO_STRUCTURAL_NOVELTY = "no_structural_novelty"
+REWARD_VARIANT_STRONG_REPEAT_PENALTY = "strong_repeat_penalty"
+REWARD_VARIANTS = {
+    REWARD_VARIANT_FULL,
+    REWARD_VARIANT_NO_STRUCTURAL_NOVELTY,
+    REWARD_VARIANT_STRONG_REPEAT_PENALTY,
+}
+
+
+def resolve_reward_variant() -> str:
+    raw_value = os.getenv(REWARD_VARIANT_ENV, REWARD_VARIANT_FULL).strip().lower().replace("-", "_")
+    if raw_value in {"", "default", "baseline"}:
+        return REWARD_VARIANT_FULL
+    if raw_value not in REWARD_VARIANTS:
+        raise ValueError(
+            f"Invalid {REWARD_VARIANT_ENV}={raw_value!r}; "
+            f"expected one of {sorted(REWARD_VARIANTS)}"
+        )
+    return raw_value
+
+
+def _reward_variant_is_no_structural_novelty() -> bool:
+    return resolve_reward_variant() == REWARD_VARIANT_NO_STRUCTURAL_NOVELTY
+
+
+def _reward_variant_is_strong_repeat_penalty() -> bool:
+    return resolve_reward_variant() == REWARD_VARIANT_STRONG_REPEAT_PENALTY
+
+
+def _without_positive_bonus(value: float) -> float:
+    return min(float(value or 0.0), 0.0)
+
+
+def _remove_positive_structural_novelty_components(
+    components: Dict[str, float],
+) -> Tuple[Dict[str, float], Dict[str, Any]]:
+    adjusted: Dict[str, float] = {}
+    removed_positive: Dict[str, float] = {}
+    original: Dict[str, float] = {}
+    for key, value in components.items():
+        original_value = float(value or 0.0)
+        adjusted_value = _without_positive_bonus(original_value)
+        original[key] = original_value
+        adjusted[key] = adjusted_value
+        if adjusted_value != original_value:
+            removed_positive[key] = original_value - adjusted_value
+    return adjusted, {
+        "original_components": original,
+        "removed_positive_bonus": removed_positive,
+    }
+
+
 def _stage1_only_enabled() -> bool:
     return env_flag("NNGPT_RL_STAGE1_ONLY", False)
 
@@ -3054,8 +3108,14 @@ def _recompute_discovery_reward(
     if stage_name == STAGE1_STRUCTURE_EXPLORE:
         total_reward = _apply_stage1_trainability_clamp(res, total_reward, graph_info)
     elif stage_name == STAGE2_FORMAL_EXPLORE:
+        if _reward_variant_is_strong_repeat_penalty() and _is_strong_repeat_without_refresh(res):
+            total_reward = min(total_reward, 0.0)
+            res["strong_repeat_penalty_applied"] = True
         total_reward = _apply_executability_clamp(res, total_reward, graph_info)
     else:
+        if _reward_variant_is_strong_repeat_penalty() and _is_strong_repeat_without_refresh(res):
+            total_reward = min(total_reward, 0.0)
+            res["strong_repeat_penalty_applied"] = True
         total_reward = _apply_trainability_clamp(res, total_reward, graph_info)
     return total_reward, r_primary, r_tiebreak
 
@@ -3149,6 +3209,7 @@ def base_discovery_reward_fn(
     archive_snapshot_descriptor_counts: Optional[Dict[str, int]] = None,
     archive_snapshot_backbone_signature_counts: Optional[Dict[str, int]] = None,
     archive_snapshot_cnn_signature_counts: Optional[Dict[str, int]] = None,
+    archive_snapshot_graph_counts: Optional[Dict[str, int]] = None,
     archive_snapshot_block_signature_counts: Optional[Dict[str, int]] = None,
     archive_snapshot_backbone_cnn_pair_counts: Optional[Dict[str, int]] = None,
     group_baseline_train_acc: Optional[float] = None,
@@ -3159,6 +3220,7 @@ def base_discovery_reward_fn(
     completion_index: Optional[int] = None,
     batch_last_item: bool = False,
 ) -> Dict[str, Any]:
+    reward_variant = resolve_reward_variant()
     stage_name = str(current_stage_name)
     stage_profile = _stage_reward_profile(stage_name)
     stage_reward_metric = _stage_reward_target_metric(stage_name)
@@ -3283,6 +3345,11 @@ def base_discovery_reward_fn(
         if graph_info.parse_ok
         else 0
     )
+    archive_snapshot_graph_freq = (
+        int((archive_snapshot_graph_counts or {}).get(graph_info.graph_hash, 0))
+        if graph_info.parse_ok
+        else 0
+    )
     archive_snapshot_block_freq = (
         int((archive_snapshot_block_signature_counts or {}).get(block_signature, 0))
         if graph_info.parse_ok and block_signature and block_signature != "incomplete_block"
@@ -3382,6 +3449,10 @@ def base_discovery_reward_fn(
     descriptor_reward_cap_applied = False
     cnn_reward_cap_applied = False
     block_reward_cap_applied = False
+    strong_repeat_penalty_applied = False
+    repeated_graph_without_refresh = False
+    strong_repeat_reasons: List[str] = []
+    reward_variant_adjustment: Dict[str, Any] = {}
     executable_candidate = _is_executable_candidate(res, graph_info)
     formal_success_candidate = _is_trainable_candidate(res, graph_info)
     has_formal_epoch = _has_completed_formal_epoch(res)
@@ -3580,6 +3651,17 @@ def base_discovery_reward_fn(
         if (reward_target_value is not None) and (effective_group_baseline_reward_target_acc is not None) and (not group_warmup):
             group_reward_target_gain = float(reward_target_value - effective_group_baseline_reward_target_acc)
             group_reward_target_improved = bool(group_reward_target_gain >= GROUP_IMPROVEMENT_DELTA)
+        if reward_variant == REWARD_VARIANT_NO_STRUCTURAL_NOVELTY:
+            adjusted_components, reward_variant_adjustment = _remove_positive_structural_novelty_components(
+                {
+                    "r_trainset_novelty": r_trainset_novelty,
+                    "r_structure_group": r_structure_group,
+                    "r_structure_archive": r_structure_archive,
+                }
+            )
+            r_trainset_novelty = adjusted_components["r_trainset_novelty"]
+            r_structure_group = adjusted_components["r_structure_group"]
+            r_structure_archive = adjusted_components["r_structure_archive"]
         r_primary = (
             r_dense
             + r_goal_best
@@ -3865,6 +3947,30 @@ def base_discovery_reward_fn(
         r_repeat_family *= stage_profile["repeat_family_scale"]
         r_plain_fuse_penalty *= stage_profile["plain_fuse_scale"]
 
+        if reward_variant == REWARD_VARIANT_NO_STRUCTURAL_NOVELTY:
+            adjusted_components, reward_variant_adjustment = _remove_positive_structural_novelty_components(
+                {
+                    "r_trainset_novelty": r_trainset_novelty,
+                    "r_structure_group": r_structure_group,
+                    "r_structure_archive": r_structure_archive,
+                    "r_descriptor_diversity": r_descriptor_diversity,
+                    "r_cnn_diversity": r_cnn_diversity,
+                    "r_block_diversity": r_block_diversity,
+                    "global_descriptor_archive_reward": global_descriptor_archive_reward,
+                    "global_cnn_archive_reward": global_cnn_archive_reward,
+                    "block_archive_reward": block_archive_reward,
+                }
+            )
+            r_trainset_novelty = adjusted_components["r_trainset_novelty"]
+            r_structure_group = adjusted_components["r_structure_group"]
+            r_structure_archive = adjusted_components["r_structure_archive"]
+            r_descriptor_diversity = adjusted_components["r_descriptor_diversity"]
+            r_cnn_diversity = adjusted_components["r_cnn_diversity"]
+            r_block_diversity = adjusted_components["r_block_diversity"]
+            global_descriptor_archive_reward = adjusted_components["global_descriptor_archive_reward"]
+            global_cnn_archive_reward = adjusted_components["global_cnn_archive_reward"]
+            block_archive_reward = adjusted_components["block_archive_reward"]
+
         r_primary = (
             r_dense
             + r_formal_success_signal
@@ -3915,9 +4021,28 @@ def base_discovery_reward_fn(
             and (archive_snapshot_block_freq > 0 or batch_same_block_count > 1)
             and not block_repeat_quality_refresh
         )
+        repeated_graph_without_refresh = bool(
+            has_formal_epoch
+            and formal_success_candidate
+            and graph_info.parse_ok
+            and graph_info.graph_hash
+            and (archive_snapshot_graph_freq > 0 or batch_same_graph_count > 1)
+            and not block_repeat_quality_refresh
+        )
         if repeated_block_without_refresh:
             total_reward = min(total_reward, STAGE23_REPEATED_BLOCK_REWARD_CAP)
             block_reward_cap_applied = True
+        if dominant_descriptor_repeat:
+            strong_repeat_reasons.append("descriptor")
+        if dominant_cnn_repeat:
+            strong_repeat_reasons.append("backbone_cnn")
+        if repeated_block_without_refresh:
+            strong_repeat_reasons.append("block")
+        if repeated_graph_without_refresh:
+            strong_repeat_reasons.append("graph")
+        if reward_variant == REWARD_VARIANT_STRONG_REPEAT_PENALTY and strong_repeat_reasons:
+            total_reward = min(total_reward, 0.0)
+            strong_repeat_penalty_applied = True
         total_reward = _apply_executability_clamp(res, total_reward, graph_info)
 
     reward_target_value_for_payload = reward_target_value
@@ -4010,8 +4135,10 @@ def base_discovery_reward_fn(
     res['block_signature'] = block_signature
     res['archive_snapshot_backbone_freq'] = archive_snapshot_backbone_freq
     res['archive_snapshot_cnn_freq'] = archive_snapshot_cnn_freq
+    res['archive_snapshot_graph_freq'] = archive_snapshot_graph_freq
     res['archive_snapshot_block_freq'] = archive_snapshot_block_freq
     res['archive_snapshot_backbone_cnn_freq'] = archive_snapshot_backbone_cnn_freq
+    res['batch_same_graph_count'] = batch_same_graph_count
     res['batch_same_backbone_count'] = batch_same_backbone_count
     res['batch_same_backbone_cnn_count'] = batch_same_backbone_cnn_count
     res['batch_same_block_count'] = batch_same_block_count
@@ -4029,6 +4156,11 @@ def base_discovery_reward_fn(
     res['descriptor_reward_cap_applied'] = descriptor_reward_cap_applied
     res['cnn_reward_cap_applied'] = cnn_reward_cap_applied
     res['block_reward_cap_applied'] = block_reward_cap_applied
+    res['reward_variant'] = reward_variant
+    res['reward_variant_adjustment'] = reward_variant_adjustment
+    res['repeated_graph_without_refresh'] = repeated_graph_without_refresh
+    res['strong_repeat_penalty_applied'] = strong_repeat_penalty_applied
+    res['strong_repeat_penalty_reasons'] = list(dict.fromkeys(strong_repeat_reasons))
     res['history_exploration_pressure'] = float(training_context.get('exploration_pressure') or 0.0)
     res['minimal_init_template'] = minimal_init_template
     res['graph_expr'] = graph_info.graph_expr
@@ -4101,6 +4233,7 @@ def base_discovery_reward_fn(
         'archive_snapshot_descriptor_freq': archive_snapshot_descriptor_freq,
         'archive_snapshot_backbone_freq': archive_snapshot_backbone_freq,
         'archive_snapshot_cnn_freq': archive_snapshot_cnn_freq,
+        'archive_snapshot_graph_freq': archive_snapshot_graph_freq,
         'archive_snapshot_block_freq': archive_snapshot_block_freq,
         'archive_snapshot_backbone_cnn_freq': archive_snapshot_backbone_cnn_freq,
         'macro_structure_ok': passes_macro_structure_gate(graph_info),
@@ -4126,6 +4259,11 @@ def base_discovery_reward_fn(
         'descriptor_reward_cap_applied': descriptor_reward_cap_applied,
         'cnn_reward_cap_applied': cnn_reward_cap_applied,
         'block_reward_cap_applied': block_reward_cap_applied,
+        'reward_variant': reward_variant,
+        'reward_variant_adjustment': reward_variant_adjustment,
+        'repeated_graph_without_refresh': repeated_graph_without_refresh,
+        'strong_repeat_penalty_applied': strong_repeat_penalty_applied,
+        'strong_repeat_penalty_reasons': list(dict.fromkeys(strong_repeat_reasons)),
         'history_exploration_pressure': float(training_context.get('exploration_pressure') or 0.0),
         'minimal_init_template': minimal_init_template,
         'depth': graph_info.depth,
@@ -4171,6 +4309,7 @@ def reward_fn(
     archive_snapshot_descriptor_counts: Optional[Dict[str, int]] = None,
     archive_snapshot_backbone_signature_counts: Optional[Dict[str, int]] = None,
     archive_snapshot_cnn_signature_counts: Optional[Dict[str, int]] = None,
+    archive_snapshot_graph_counts: Optional[Dict[str, int]] = None,
     archive_snapshot_block_signature_counts: Optional[Dict[str, int]] = None,
     archive_snapshot_backbone_cnn_pair_counts: Optional[Dict[str, int]] = None,
     group_baseline_train_acc: Optional[float] = None,
@@ -4198,6 +4337,7 @@ def reward_fn(
         archive_snapshot_descriptor_counts=archive_snapshot_descriptor_counts,
         archive_snapshot_backbone_signature_counts=archive_snapshot_backbone_signature_counts,
         archive_snapshot_cnn_signature_counts=archive_snapshot_cnn_signature_counts,
+        archive_snapshot_graph_counts=archive_snapshot_graph_counts,
         archive_snapshot_block_signature_counts=archive_snapshot_block_signature_counts,
         archive_snapshot_backbone_cnn_pair_counts=archive_snapshot_backbone_cnn_pair_counts,
         group_baseline_train_acc=group_baseline_train_acc,
@@ -4228,6 +4368,8 @@ def _apply_batch_elite_bonuses(scored_results: List[Dict[str, Any]], group_conte
             continue
         if _is_repeated_block_without_refresh(res):
             continue
+        if _reward_variant_is_strong_repeat_penalty() and _is_strong_repeat_without_refresh(res):
+            continue
         eligible.append((float(reward_target_value), item))
 
     eligible.sort(key=lambda pair: pair[0], reverse=True)
@@ -4251,7 +4393,11 @@ def _apply_batch_elite_bonuses(scored_results: List[Dict[str, Any]], group_conte
         )
         res = item["result"]
         graph_info = item["graph_info"]
-        if (not _is_repeated_block_without_refresh(res)) and float(res.get("r_no_progress_penalty", 0.0) or 0.0) < 0.0:
+        if (
+            (not _is_repeated_block_without_refresh(res))
+            and not (_reward_variant_is_strong_repeat_penalty() and _is_strong_repeat_without_refresh(res))
+            and float(res.get("r_no_progress_penalty", 0.0) or 0.0) < 0.0
+        ):
             res["r_no_progress_penalty"] = 0.0
         res["r_batch_elite"] = bonus
         res["batch_elite_rank"] = rank + 1
@@ -4287,6 +4433,34 @@ def _is_repeated_block_without_refresh(res: Dict[str, Any]) -> bool:
     archive_freq = int(res.get("archive_snapshot_block_freq", 0) or 0)
     batch_count = int(res.get("batch_same_block_count", 0) or 0)
     return archive_freq > 0 or batch_count > 1
+
+
+def _is_repeated_graph_without_refresh(res: Dict[str, Any]) -> bool:
+    if bool(res.get("repeated_graph_without_refresh")):
+        return True
+    graph_hash = str(res.get("graph_hash") or "")
+    if not graph_hash:
+        return False
+    if _has_block_repeat_quality_refresh(res):
+        return False
+    archive_freq = int(res.get("archive_snapshot_graph_freq", 0) or 0)
+    batch_count = int(res.get("batch_same_graph_count", 0) or 0)
+    return archive_freq > 0 or batch_count > 1
+
+
+def _is_strong_repeat_without_refresh(res: Dict[str, Any]) -> bool:
+    if not _has_completed_formal_epoch(res):
+        return False
+    if not bool(res.get("formal_success_candidate")):
+        return False
+    if _has_block_repeat_quality_refresh(res):
+        return False
+    return bool(
+        res.get("dominant_descriptor_repeat")
+        or res.get("dominant_cnn_repeat")
+        or _is_repeated_block_without_refresh(res)
+        or _is_repeated_graph_without_refresh(res)
+    )
 
 
 def _has_block_repeat_quality_refresh(res: Dict[str, Any]) -> bool:
@@ -4616,6 +4790,7 @@ def _score_reward_entries(
     archive_snapshot_descriptor_counts = dict(descriptor_archive_counts)
     archive_snapshot_backbone_signature_counts = dict(backbone_signature_archive_counts)
     archive_snapshot_cnn_signature_counts = dict(cnn_signature_archive_counts)
+    archive_snapshot_graph_counts = dict(graph_archive_counts)
     archive_snapshot_block_signature_counts = dict(block_signature_archive_counts)
     archive_snapshot_backbone_cnn_pair_counts = dict(backbone_cnn_pair_archive_counts)
     batch_graph_hashes = [
@@ -4665,6 +4840,7 @@ def _score_reward_entries(
                 archive_snapshot_descriptor_counts=archive_snapshot_descriptor_counts,
                 archive_snapshot_backbone_signature_counts=archive_snapshot_backbone_signature_counts,
                 archive_snapshot_cnn_signature_counts=archive_snapshot_cnn_signature_counts,
+                archive_snapshot_graph_counts=archive_snapshot_graph_counts,
                 archive_snapshot_block_signature_counts=archive_snapshot_block_signature_counts,
                 archive_snapshot_backbone_cnn_pair_counts=archive_snapshot_backbone_cnn_pair_counts,
                 group_baseline_train_acc=group_context["group_baseline_train_acc"],

@@ -4,6 +4,7 @@ import re
 import shutil
 import random
 import inspect
+import subprocess
 import sys
 import tempfile
 import time
@@ -61,6 +62,7 @@ SFT_LENGTH_SOFT_PENALTY = 0.05
 SFT_LENGTH_HARD_EXTRA_PENALTY = 0.20
 SFT_REPEAT_LINE_PENALTY = 0.03
 SFT_REPEAT_LINE_MAX_PENALTY = 0.15
+SFT_RUNTIME_SOURCE_INFO: Dict[str, str] = {}
 
 # CIFAR-10 reward evaluation via nn-dataset / NNEval-aligned formal acc.
 SFT_EVAL_IMAGE_SIZE = 128
@@ -216,6 +218,7 @@ def raw_reward_fn(
     archive_snapshot_descriptor_counts: Dict[str, int] = None,
     archive_snapshot_backbone_signature_counts: Dict[str, int] = None,
     archive_snapshot_cnn_signature_counts: Dict[str, int] = None,
+    archive_snapshot_graph_counts: Dict[str, int] = None,
     archive_snapshot_block_signature_counts: Dict[str, int] = None,
     archive_snapshot_backbone_cnn_pair_counts: Dict[str, int] = None,
     group_baseline_train_acc: float | None = None,
@@ -242,6 +245,7 @@ def raw_reward_fn(
         archive_snapshot_descriptor_counts=archive_snapshot_descriptor_counts,
         archive_snapshot_backbone_signature_counts=archive_snapshot_backbone_signature_counts,
         archive_snapshot_cnn_signature_counts=archive_snapshot_cnn_signature_counts,
+        archive_snapshot_graph_counts=archive_snapshot_graph_counts,
         archive_snapshot_block_signature_counts=archive_snapshot_block_signature_counts,
         archive_snapshot_backbone_cnn_pair_counts=archive_snapshot_backbone_cnn_pair_counts,
         group_baseline_train_acc=group_baseline_train_acc,
@@ -349,6 +353,8 @@ def raw_reward_fn(
     )
     if compactness["xml_incomplete_length_cap"]:
         res["reward"] = min(float(res["reward"]), -0.8)
+    if TuneRL._reward_variant_is_strong_repeat_penalty() and bool(res.get("strong_repeat_penalty_applied")):
+        res["reward"] = min(float(res["reward"]), 0.0)
 
     res["raw_extraction"] = {
         **meta,
@@ -682,6 +688,159 @@ def _sft_trainer_checkpoint_supported() -> bool:
 
 def _runtime_is_main_process(runtime: Dict[str, Any]) -> bool:
     return int(runtime.get("rank", 0)) == 0
+
+
+def _run_git_command(*args: str) -> str:
+    try:
+        proc = subprocess.run(
+            ["git", *args],
+            cwd=Path(__file__).resolve().parents[2],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+    except Exception:
+        return ""
+    return proc.stdout.strip()
+
+
+def _sft_git_metadata() -> Dict[str, Any]:
+    return {
+        "commit": _run_git_command("rev-parse", "HEAD"),
+        "commit_short": _run_git_command("rev-parse", "--short", "HEAD"),
+        "commit_subject": _run_git_command("log", "-1", "--pretty=%s"),
+        "branch": _run_git_command("branch", "--show-current"),
+        "dirty": bool(_run_git_command("status", "--porcelain")),
+    }
+
+
+def _selected_env(names: List[str]) -> Dict[str, str]:
+    return {name: os.environ[name] for name in names if os.getenv(name) not in (None, "")}
+
+
+def _write_sft_run_config(
+    *,
+    runtime: Dict[str, Any],
+    runtime_settings: Dict[str, Any],
+    generation_kwargs: Dict[str, Any],
+    resume_spec: Dict[str, Any],
+    gpu_role_plan: Optional[Dict[str, Any]],
+    reward_worker_plan: Dict[str, Any],
+    use_deepspeed: bool,
+    deepspeed_config_path: Optional[str],
+    restored_runtime_state_path: Optional[Any],
+) -> None:
+    source_info = dict(SFT_RUNTIME_SOURCE_INFO)
+    reward_env_names = [
+        TuneRL.REWARD_VARIANT_ENV,
+        "NNGPT_RL_FORMAL_REWARD_EPOCHS",
+        "NNGPT_RL_RESUME_STAGE",
+        "NNGPT_RL_STAGE1_ONLY",
+        "NNGPT_RL_KL_COEF",
+        "NNGPT_RL_FORMAL_EVAL_LIMIT_SECONDS",
+        "NNGPT_RL_FORMAL_EPOCH_LIMIT_MINUTES",
+    ]
+    sampling_env_names = [
+        "NNGPT_SFT_TEMPERATURE",
+        "NNGPT_SFT_TOP_P",
+        "NNGPT_SFT_TOP_K",
+        "NNGPT_SFT_NUM_GENERATIONS",
+        "NNGPT_SFT_MAX_STEPS",
+        "NNGPT_SFT_GENERATION_BATCH_SIZE",
+        "NNGPT_SFT_STEPS_PER_GENERATION",
+        "NNGPT_SFT_MAX_PROMPT_LENGTH",
+        "NNGPT_SFT_MAX_COMPLETION_LENGTH",
+        "NNGPT_SFT_GENERATION_KWARGS_JSON",
+        "NNGPT_SFT_STOP_AFTER_FORWARD_XML",
+    ]
+    adapter_env_names = [
+        "NNGPT_SFT_BASE_MODEL_ID",
+        "NNGPT_SFT_TOKENIZER_ID",
+        "NNGPT_SFT_LOAD_INITIAL_ADAPTER",
+        "NNGPT_SFT_INITIAL_ADAPTER_MODE",
+        "NNGPT_SFT_INITIAL_ADAPTER_DTYPE",
+        "NNGPT_SFT_INIT_ADAPTER",
+        "NNGPT_SFT_RESUME_TRAINER_CHECKPOINT",
+        "NNGPT_SFT_RESUME_STAGE_CHECKPOINT",
+    ]
+    archive_env_names = [
+        "NNGPT_SFT_LOG_DIR",
+        "NNGPT_SFT_MODEL_OUT",
+        "NNGPT_SFT_TRAINER_OUT",
+        "NNGPT_SFT_EPOCH_ROOT",
+        "NNGPT_SFT_APPEND_LOGS",
+    ]
+    payload = {
+        "phase": "four_pattern_reward_ablation",
+        "created_at": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
+        "git": _sft_git_metadata(),
+        "model_source": source_info.get("model_source", TuneRL.base_model),
+        "tokenizer_source": source_info.get("tokenizer_source", getattr(TuneRL, "tokenizer_source", TuneRL.base_model)),
+        "source_mode": source_info.get("source_mode", ""),
+        "reward": {
+            "variant": TuneRL.resolve_reward_variant(),
+            "env": _selected_env(reward_env_names),
+            "formal_epochs": os.getenv("NNGPT_RL_FORMAL_REWARD_EPOCHS", "1"),
+        },
+        "init": {
+            "load_initial_adapter": resolve_sft_load_initial_adapter(),
+            "initial_adapter_mode": resolve_sft_initial_adapter_mode(),
+            "initial_adapter_dtype": resolve_sft_initial_adapter_dtype_label(),
+            "init_adapter": resolve_sft_init_adapter(),
+            "resume": resume_spec,
+            "restored_runtime_state_path": str(restored_runtime_state_path) if restored_runtime_state_path else None,
+            "adapter_env": _selected_env(adapter_env_names),
+        },
+        "sampling": {
+            "temperature": resolve_sft_temperature(),
+            "top_p": resolve_sft_top_p(),
+            "top_k": resolve_sft_top_k(),
+            "runtime_settings": runtime_settings,
+            "generation_kwargs": generation_kwargs,
+            "env": _selected_env(sampling_env_names),
+        },
+        "prompt": {
+            "nn_prefixes": list(resolve_sft_rl_nn_prefixes()),
+            "prompt_mode": resolve_sft_rl_prompt_mode(),
+            "feedback_char_budget": _env_int("NNGPT_SFT_FEEDBACK_CHAR_BUDGET", SFT_FEEDBACK_CHAR_BUDGET),
+        },
+        "archive": {
+            "fresh": not bool(resume_spec.get("active")),
+            "append_logs": _env_flag("NNGPT_SFT_APPEND_LOGS", False),
+            "log_dir": resolve_sft_log_dir(),
+            "model_out": resolve_sft_model_out(),
+            "trainer_out": resolve_sft_trainer_out(),
+            "epoch_root": resolve_sft_epoch_root(),
+            "env": _selected_env(archive_env_names),
+        },
+        "evaluator": {
+            "dataset": "cifar-10",
+            "transform": SFT_EVAL_TRANSFORM,
+            "resize": SFT_EVAL_IMAGE_SIZE,
+            "batch": SFT_EVAL_BATCH_SIZE,
+            "train_set": "full",
+            "test_set": "full",
+            "train_epochs": SFT_EVAL_TRAIN_EPOCHS,
+            "formal_epochs": os.getenv("NNGPT_RL_FORMAL_REWARD_EPOCHS", "1"),
+            "full_test_acc": SFT_EVAL_FULL_TEST_ACC,
+            "run_unfrozen": SFT_EVAL_RUN_UNFROZEN,
+            "worker_eval_limit_seconds": SFT_EVAL_LIMIT_SECONDS,
+            "formal_epoch_limit_minutes": SFT_EVAL_FORMAL_EPOCH_LIMIT_MINUTES,
+            "data_root": SFT_EVAL_DATA_ROOT,
+            "download": SFT_EVAL_DOWNLOAD,
+        },
+        "runtime": {
+            "distributed": runtime,
+            "gpu_role_plan": gpu_role_plan,
+            "reward_worker_plan": reward_worker_plan,
+            "use_deepspeed": use_deepspeed,
+            "deepspeed_config_path": deepspeed_config_path,
+        },
+    }
+    log_dir = Path(resolve_sft_log_dir())
+    log_dir.mkdir(parents=True, exist_ok=True)
+    with open(log_dir / "run_config.json", "w", encoding="utf-8") as handle:
+        json.dump(payload, handle, indent=2, ensure_ascii=False, sort_keys=True)
 
 
 def _resolved_visible_cuda_device_tokens(visible_cuda_devices: int) -> List[str]:
@@ -1323,6 +1482,7 @@ def sft_reward_fn(
     archive_snapshot_descriptor_counts: Dict[str, int] = None,
     archive_snapshot_backbone_signature_counts: Dict[str, int] = None,
     archive_snapshot_cnn_signature_counts: Dict[str, int] = None,
+    archive_snapshot_graph_counts: Dict[str, int] = None,
     archive_snapshot_block_signature_counts: Dict[str, int] = None,
     archive_snapshot_backbone_cnn_pair_counts: Dict[str, int] = None,
     group_baseline_train_acc: float | None = None,
@@ -1349,6 +1509,7 @@ def sft_reward_fn(
         archive_snapshot_descriptor_counts=archive_snapshot_descriptor_counts,
         archive_snapshot_backbone_signature_counts=archive_snapshot_backbone_signature_counts,
         archive_snapshot_cnn_signature_counts=archive_snapshot_cnn_signature_counts,
+        archive_snapshot_graph_counts=archive_snapshot_graph_counts,
         archive_snapshot_block_signature_counts=archive_snapshot_block_signature_counts,
         archive_snapshot_backbone_cnn_pair_counts=archive_snapshot_backbone_cnn_pair_counts,
         group_baseline_train_acc=group_baseline_train_acc,
@@ -1690,7 +1851,7 @@ def _build_sft_grpo_config(
     return TuneRL.GRPOConfig(**config_kwargs)
 
 
-def run_sft_training():
+def run_sft_training(*, gpu_role_plan: Optional[Dict[str, Any]] = None):
     import torch
 
     if not torch.cuda.is_available():
@@ -1846,6 +2007,19 @@ def run_sft_training():
         f"reward_tokens={mode_validation['reward_tokens']} "
         f"reward_exclude_train_gpu={mode_validation['reward_exclude_train_gpu']}"
     )
+    if _runtime_is_main_process(runtime):
+        _write_sft_run_config(
+            runtime=runtime,
+            runtime_settings=runtime_settings,
+            generation_kwargs=generation_kwargs,
+            resume_spec=resume_spec,
+            gpu_role_plan=gpu_role_plan,
+            reward_worker_plan=reward_worker_plan,
+            use_deepspeed=use_deepspeed,
+            deepspeed_config_path=deepspeed_config_path,
+            restored_runtime_state_path=restored_runtime_state_path,
+        )
+        print(f"[SFT RL] Run config: {Path(resolve_sft_log_dir()) / 'run_config.json'}")
     _print_runtime_cache_roots()
 
     rl_dataset = TuneRL.load_rl_dataset(tokenizer)
@@ -2013,7 +2187,13 @@ def run_sft_training():
 
 def patch_sft_runtime() -> tuple[str, str, str]:
     """Patch TuneRL to use the SFT runtime and CIFAR-aware reward."""
+    global SFT_RUNTIME_SOURCE_INFO
     model_source, tokenizer_source, source_mode = resolve_sft_model_sources()
+    SFT_RUNTIME_SOURCE_INFO = {
+        "model_source": model_source,
+        "tokenizer_source": tokenizer_source,
+        "source_mode": source_mode,
+    }
     load_initial_adapter = resolve_sft_load_initial_adapter()
     init_adapter_path = resolve_sft_init_adapter()
     TuneRL.base_model = model_source
@@ -2145,7 +2325,7 @@ def main() -> None:
     )
     print(f"[SFT RL] Save RL adapter: {resolve_sft_save_rl_model()}")
 
-    run_sft_training()
+    run_sft_training(gpu_role_plan=gpu_role_plan)
 
 
 if __name__ == "__main__":
