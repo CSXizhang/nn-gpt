@@ -188,6 +188,19 @@ def _select(candidates: list[Candidate], args: argparse.Namespace) -> list[Candi
     return selected
 
 
+def _pattern_counts(candidates: Iterable[Candidate]) -> dict[str, int]:
+    counts = Counter(candidate.pattern for candidate in candidates)
+    return {pattern: int(counts.get(pattern, 0)) for pattern in PATTERNS}
+
+
+def _pattern_deficits(selected: Iterable[Candidate], per_pattern_target: int) -> dict[str, int]:
+    counts = Counter(candidate.pattern for candidate in selected)
+    return {
+        pattern: max(0, int(per_pattern_target) - int(counts.get(pattern, 0)))
+        for pattern in PATTERNS
+    }
+
+
 def _clean_dest_prefix(repo_root: Path, prefix: str) -> None:
     for code_path in (repo_root / "ab/nn/nn").glob(f"{prefix}-*.py"):
         code_path.unlink()
@@ -272,6 +285,9 @@ def main() -> None:
             "candidate_count": len(candidates),
             "selected_count": len(selected),
             "target": int(args.target),
+            "eligible_pattern_counts": _pattern_counts(candidates),
+            "selected_pattern_counts": _pattern_counts(selected),
+            "pattern_deficits": _pattern_deficits(selected, int(args.per_pattern_target)),
             "skipped": {key: len(value) for key, value in skipped.items()},
             "selected_preview": [candidate.name for candidate in selected[:20]],
         }

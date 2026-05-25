@@ -19,7 +19,7 @@ FOUR_PATTERN_NAMES = (
 )
 
 
-def _parse_pattern_counts(raw: str | None, budget: int) -> dict[str, int]:
+def _parse_pattern_counts(raw: str | None, budget: int, allow_partial: bool = False) -> dict[str, int]:
     if raw:
         counts: dict[str, int] = {}
         for item in raw.split(","):
@@ -32,8 +32,10 @@ def _parse_pattern_counts(raw: str | None, budget: int) -> dict[str, int]:
                 raise ValueError(f"Unsupported pattern {name!r}; expected one of {FOUR_PATTERN_NAMES}")
             counts[name] = int(value)
         missing = [name for name in FOUR_PATTERN_NAMES if name not in counts]
-        if missing:
+        if missing and not allow_partial:
             raise ValueError(f"Missing pattern counts for: {', '.join(missing)}")
+        for name in missing:
+            counts[name] = 0
         return counts
 
     per_pattern, remainder = divmod(int(budget), len(FOUR_PATTERN_NAMES))
@@ -79,7 +81,11 @@ def generate(args: argparse.Namespace) -> None:
                 child.rmdir()
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    pattern_counts = _parse_pattern_counts(args.pattern_counts, int(args.budget))
+    pattern_counts = _parse_pattern_counts(
+        args.pattern_counts,
+        int(args.budget),
+        allow_partial=bool(args.allow_partial_pattern_counts),
+    )
     patterns = NNAlterBN.DIVERSE_FORWARD_PATTERNS
     helper_code = NNAlterBN.DIVERSE_FORWARD_HELPER
     template = (Path(fract_dir) / "backbone" / "FractalFusion_template.py").read_text(encoding="utf-8")
@@ -157,6 +163,7 @@ def main() -> None:
     parser.add_argument("--output-synth-dir", required=True)
     parser.add_argument("--budget", type=int, default=520)
     parser.add_argument("--pattern-counts", default="")
+    parser.add_argument("--allow-partial-pattern-counts", action="store_true")
     parser.add_argument("--seed", type=int, default=600)
     parser.add_argument("--append", action="store_true")
     parser.add_argument("--max-backbone-params-m", type=float, default=30.0)
