@@ -16,6 +16,8 @@ Options:
   --cpus N                default: 16
   --max-steps N           default: 75
   --num-generations N     default: 4
+  --max-completion-length N
+                           default: 1536
   --formal-reward-epochs E
                            default: 10
   --no-run-archive        do not append metadata to run_archive_index.md
@@ -32,6 +34,7 @@ mem="80G"
 cpus="16"
 max_steps="75"
 num_generations="4"
+max_completion_length="1536"
 formal_reward_epochs="10"
 write_archive="1"
 
@@ -47,6 +50,7 @@ while [ "$#" -gt 0 ]; do
     --cpus) cpus="$2"; shift 2 ;;
     --max-steps) max_steps="$2"; shift 2 ;;
     --num-generations) num_generations="$2"; shift 2 ;;
+    --max-completion-length) max_completion_length="$2"; shift 2 ;;
     --formal-reward-epochs) formal_reward_epochs="$2"; shift 2 ;;
     --no-run-archive) write_archive="0"; shift ;;
     -h|--help) usage; exit 0 ;;
@@ -99,6 +103,7 @@ for variant in "${variants[@]}"; do
   export_vars+=",NNGPT_SFT_INIT_ADAPTER=${init_adapter}"
   export_vars+=",NNGPT_RL_FORMAL_REWARD_EPOCHS=${formal_reward_epochs}"
   export_vars+=",NNGPT_SFT_NUM_GENERATIONS=${num_generations}"
+  export_vars+=",NNGPT_SFT_MAX_COMPLETION_LENGTH=${max_completion_length}"
   export_vars+=",NNGPT_SFT_MAX_STEPS=${max_steps}"
   export_vars+=",NNGPT_SFT_LOAD_INITIAL_ADAPTER=1"
   export_vars+=",NNGPT_SFT_INITIAL_ADAPTER_MODE=trainable"
@@ -124,6 +129,7 @@ for variant in "${variants[@]}"; do
       echo "- init adapter: ${init_adapter}"
       echo "- prompt/prefix: sft_aligned, rl-bb-struct1"
       echo "- formal reward epochs: ${formal_reward_epochs}"
+      echo "- max completion length: ${max_completion_length}"
       echo "- samples target: $((num_generations * max_steps)) (${num_generations} generations x ${max_steps} steps)"
       echo "- run root: ${run_root}"
       echo "- stdout/stderr: ${run_root}/slurm/abl-${variant}-${job_id}.out / .err"

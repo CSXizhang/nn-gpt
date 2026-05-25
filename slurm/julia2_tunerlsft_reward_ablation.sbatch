@@ -94,6 +94,7 @@ echo "NN prefixes: ${NNGPT_SFT_RL_NN_PREFIXES}"
 echo "Formal reward epochs: ${NNGPT_RL_FORMAL_REWARD_EPOCHS}"
 echo "Num generations: ${NNGPT_SFT_NUM_GENERATIONS}"
 echo "Max steps: ${NNGPT_SFT_MAX_STEPS}"
+echo "Max completion length: ${NNGPT_SFT_MAX_COMPLETION_LENGTH}"
 echo "Master addr: ${MASTER_ADDR}"
 echo "Master port: ${MASTER_PORT}"
 
