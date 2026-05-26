@@ -41,6 +41,7 @@ esac
 mkdir -p /home/s471802/nn-gpt/slurm_logs
 source /home/s471802/.venv/bin/activate
 repo_root="/home/s471802/nn-gpt"
+nn_dataset_root="${NN_DATASET_ROOT:-/home/s471802/nn-dataset}"
 cd "${repo_root}"
 
 run_root="/home/s471802/nn-gpt/parallel_runs/${NNGPT_ABLATION_RUN_ID}"
@@ -62,6 +63,16 @@ actual_source_head="$(git -C "${source_dir}" rev-parse HEAD)"
 if [ "${actual_source_head}" != "${source_commit_hash}" ]; then
   echo "Wrong source HEAD: expected ${source_commit_hash}, got ${actual_source_head}" >&2
   exit 2
+fi
+
+if [ ! -e "${source_dir}/db" ]; then
+  for shared_db_dir in "${nn_dataset_root}/db" "${repo_root}/db"; do
+    if [ -f "${shared_db_dir}/ab.nn.db" ]; then
+      ln -s "${shared_db_dir}" "${source_dir}/db"
+      echo "Shared nn-dataset DB: ${shared_db_dir}/ab.nn.db"
+      break
+    fi
+  done
 fi
 
 export PYTHONUNBUFFERED=1
