@@ -38,6 +38,7 @@ cat > "${run_root}/run_config.json" <<EOF
   "nn_dataset_commit_before": "${dataset_commit}",
   "source_prefix": "rl-bb-struct1-v2",
   "pattern_counts": "${NNGPT_STRUCT1_V2_PATTERN_COUNTS}",
+  "seed": ${NNGPT_STRUCT1_V2_SEED:-700},
   "raw_budget": ${NNGPT_STRUCT1_V2_APPEND_RAW_BUDGET:-80},
   "target_new_samples": ${NNGPT_STRUCT1_V2_TARGET:-420},
   "per_pattern_target": ${NNGPT_STRUCT1_V2_PER_PATTERN_TARGET:-105},
