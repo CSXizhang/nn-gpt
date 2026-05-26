@@ -11,6 +11,7 @@ import multiprocessing as mp
 import os
 from pathlib import Path
 import re
+import signal
 import subprocess
 import sys
 import tempfile
@@ -117,6 +118,65 @@ def _trim_cpu_allocator() -> None:
         malloc_trim = getattr(libc, "malloc_trim", None)
         if callable(malloc_trim):
             malloc_trim(0)
+    except Exception:
+        pass
+
+
+def _cpu_smoke_subprocess_memory_limit_bytes() -> Optional[int]:
+    raw_limit_gib = os.environ.get("NNGPT_RL_CPU_SMOKE_SUBPROCESS_MEM_GB")
+    if raw_limit_gib is not None and str(raw_limit_gib).strip() != "":
+        try:
+            limit_gib = float(raw_limit_gib)
+        except (TypeError, ValueError):
+            return None
+        if limit_gib <= 0:
+            return None
+        return int(limit_gib * (1024 ** 3))
+
+    raw_slurm_mem_mb = os.environ.get("SLURM_MEM_PER_NODE")
+    if raw_slurm_mem_mb is None or str(raw_slurm_mem_mb).strip() == "":
+        return None
+    try:
+        slurm_mem_bytes = int(float(raw_slurm_mem_mb)) * 1024 * 1024
+    except (TypeError, ValueError):
+        return None
+    if slurm_mem_bytes <= 0:
+        return None
+
+    reserved_bytes = 8 * (1024 ** 3)
+    limit_bytes = min(
+        int(slurm_mem_bytes * 0.75),
+        max(1, slurm_mem_bytes - reserved_bytes),
+    )
+    minimum_bytes = 4 * (1024 ** 3)
+    return max(minimum_bytes, limit_bytes)
+
+
+def _apply_cpu_smoke_subprocess_memory_limit() -> None:
+    limit_bytes = _cpu_smoke_subprocess_memory_limit_bytes()
+    if limit_bytes is None or limit_bytes <= 0:
+        return
+    try:
+        import resource
+    except Exception:
+        return
+    try:
+        soft, hard = resource.getrlimit(resource.RLIMIT_AS)
+        new_soft = int(limit_bytes) if soft < 0 else min(int(soft), int(limit_bytes))
+        new_hard = int(limit_bytes) if hard < 0 else min(int(hard), int(limit_bytes))
+        resource.setrlimit(resource.RLIMIT_AS, (new_soft, new_hard))
+    except Exception:
+        pass
+
+
+def _configure_cpu_smoke_child_runtime() -> None:
+    os.environ["CUDA_VISIBLE_DEVICES"] = ""
+    os.environ["NNGPT_SMOKE_PREVALIDATE"] = "1"
+    _apply_cpu_smoke_subprocess_memory_limit()
+    try:
+        threads = max(1, _safe_int_env("NNGPT_RL_CPU_SMOKE_SUBPROCESS_THREADS", 1))
+        torch.set_num_threads(threads)
+        torch.set_num_interop_threads(1)
     except Exception:
         pass
 
@@ -1481,7 +1541,221 @@ def _cpu_prevalidation_failure_result(
     return result
 
 
+def _cpu_smoke_prevalidate_child_entry(conn: Any, payload: Dict[str, Any]) -> None:
+    try:
+        _configure_cpu_smoke_child_runtime()
+        result = _cpu_smoke_prevalidate_reward_code_impl(
+            code=str(payload.get("code") or ""),
+            seed_accuracy_baseline=payload.get("seed_accuracy_baseline"),
+            effective_cfg=_deserialize_eval_cfg(payload.get("effective_cfg")),
+            backbone_model_names=payload.get("backbone_model_names"),
+            prm=payload.get("prm"),
+            code_trace=dict(payload.get("code_trace") or {}),
+        )
+        conn.send({"ok": True, "result": result})
+    except BaseException as exc:
+        error_type = type(exc).__name__
+        error_message = f"{error_type}: {exc}"
+        _clear_exception_frames(exc)
+        try:
+            conn.send({"ok": False, "error_type": error_type, "error": error_message})
+        except Exception:
+            pass
+    finally:
+        try:
+            conn.close()
+        except Exception:
+            pass
+        _trim_cpu_allocator()
+
+
+def _cpu_smoke_subprocess_failure_result(
+    *,
+    error_type: str,
+    error_message: str,
+    seed_accuracy_baseline: Optional[float],
+    effective_cfg: "EvalConfig",
+    backbone_model_names: Optional[list[str]],
+    code_trace: Dict[str, Any],
+) -> Dict[str, Any]:
+    return _cpu_prevalidation_failure_result(
+        reward=-3.0,
+        error_message=error_message,
+        error_type=error_type,
+        error_context={
+            "code_trace": code_trace,
+            "cpu_smoke": True,
+            "cpu_smoke_subprocess": True,
+        },
+        seed_accuracy_baseline=seed_accuracy_baseline,
+        effective_cfg=effective_cfg,
+        backbone_model_names=backbone_model_names,
+    )
+
+
+def _run_cpu_smoke_prevalidate_in_subprocess(
+    code: str,
+    *,
+    seed_accuracy_baseline: Optional[float],
+    effective_cfg: "EvalConfig",
+    backbone_model_names: Optional[list[str]],
+    prm: Optional[Dict[str, Any]],
+    code_trace: Dict[str, Any],
+) -> Optional[Dict[str, Any]]:
+    method = os.environ.get("NNGPT_RL_CPU_SMOKE_MP_METHOD", "spawn").strip() or "spawn"
+    try:
+        ctx = mp.get_context(method)
+    except ValueError:
+        ctx = mp.get_context("spawn")
+    parent_conn, child_conn = ctx.Pipe(duplex=False)
+    cfg_payload = _serialize_eval_cfg(effective_cfg)
+    cfg_payload["critic_fn"] = None
+    payload = {
+        "code": code,
+        "seed_accuracy_baseline": seed_accuracy_baseline,
+        "effective_cfg": cfg_payload,
+        "backbone_model_names": list(backbone_model_names or []),
+        "prm": dict(prm or {}),
+        "code_trace": dict(code_trace or {}),
+    }
+    original_cuda_visible_devices = os.environ.get("CUDA_VISIBLE_DEVICES")
+    original_smoke_flag = os.environ.get("NNGPT_SMOKE_PREVALIDATE")
+    process = ctx.Process(target=_cpu_smoke_prevalidate_child_entry, args=(child_conn, payload))
+    try:
+        os.environ["CUDA_VISIBLE_DEVICES"] = ""
+        os.environ["NNGPT_SMOKE_PREVALIDATE"] = "1"
+        process.start()
+    except Exception as exc:
+        _clear_exception_frames(exc)
+        return _cpu_smoke_subprocess_failure_result(
+            error_type=type(exc).__name__,
+            error_message=f"{type(exc).__name__}: {exc}",
+            seed_accuracy_baseline=seed_accuracy_baseline,
+            effective_cfg=effective_cfg,
+            backbone_model_names=backbone_model_names,
+            code_trace=code_trace,
+        )
+    finally:
+        try:
+            child_conn.close()
+        except Exception:
+            pass
+        if original_cuda_visible_devices is None:
+            os.environ.pop("CUDA_VISIBLE_DEVICES", None)
+        else:
+            os.environ["CUDA_VISIBLE_DEVICES"] = original_cuda_visible_devices
+        if original_smoke_flag is None:
+            os.environ.pop("NNGPT_SMOKE_PREVALIDATE", None)
+        else:
+            os.environ["NNGPT_SMOKE_PREVALIDATE"] = original_smoke_flag
+
+    timeout_seconds = _safe_float_env("NNGPT_RL_CPU_SMOKE_SUBPROCESS_TIMEOUT", 0.0)
+    deadline = None if timeout_seconds <= 0 else time.time() + timeout_seconds
+    message: Optional[Dict[str, Any]] = None
+    while True:
+        if parent_conn.poll(0.2):
+            try:
+                message = parent_conn.recv()
+            except EOFError:
+                message = None
+            break
+        if not process.is_alive():
+            break
+        if deadline is not None and time.time() >= deadline:
+            process.terminate()
+            process.join(timeout=5)
+            if process.is_alive():
+                process.kill()
+            process.join(timeout=5)
+            try:
+                parent_conn.close()
+            except Exception:
+                pass
+            return _cpu_smoke_subprocess_failure_result(
+                error_type="SmokeSubprocessTimeout",
+                error_message=f"SmokeSubprocessTimeout: CPU smoke subprocess exceeded {timeout_seconds:.1f}s",
+                seed_accuracy_baseline=seed_accuracy_baseline,
+                effective_cfg=effective_cfg,
+                backbone_model_names=backbone_model_names,
+                code_trace=code_trace,
+            )
+
+    process.join(timeout=5)
+    exitcode = process.exitcode
+    try:
+        parent_conn.close()
+    except Exception:
+        pass
+    if message is not None:
+        if bool(message.get("ok")):
+            result = message.get("result")
+            return result if isinstance(result, dict) else None
+        return _cpu_smoke_subprocess_failure_result(
+            error_type=str(message.get("error_type") or "SmokeSubprocessError"),
+            error_message=str(message.get("error") or "SmokeSubprocessError: child failed"),
+            seed_accuracy_baseline=seed_accuracy_baseline,
+            effective_cfg=effective_cfg,
+            backbone_model_names=backbone_model_names,
+            code_trace=code_trace,
+        )
+
+    if exitcode is not None and exitcode < 0:
+        signal_name = f"SIG{-exitcode}"
+        try:
+            signal_name = signal.Signals(-exitcode).name
+        except Exception:
+            pass
+        return _cpu_smoke_subprocess_failure_result(
+            error_type="SmokeSubprocessKilled",
+            error_message=f"SmokeSubprocessKilled: child exited via {signal_name}",
+            seed_accuracy_baseline=seed_accuracy_baseline,
+            effective_cfg=effective_cfg,
+            backbone_model_names=backbone_model_names,
+            code_trace=code_trace,
+        )
+    return _cpu_smoke_subprocess_failure_result(
+        error_type="SmokeSubprocessError",
+        error_message=f"SmokeSubprocessError: child exited without result exitcode={exitcode}",
+        seed_accuracy_baseline=seed_accuracy_baseline,
+        effective_cfg=effective_cfg,
+        backbone_model_names=backbone_model_names,
+        code_trace=code_trace,
+    )
+
+
 def _cpu_smoke_prevalidate_reward_code(
+    code: str,
+    *,
+    seed_accuracy_baseline: Optional[float],
+    effective_cfg: "EvalConfig",
+    backbone_model_names: Optional[list[str]],
+    prm: Optional[Dict[str, Any]],
+    code_trace: Dict[str, Any],
+) -> Optional[Dict[str, Any]]:
+    if not bool(getattr(effective_cfg, "formal_nn_eval", False)):
+        return None
+    if not _safe_bool_env("NNGPT_RL_CPU_SMOKE_PREVALIDATE", True):
+        return None
+    if _safe_bool_env("NNGPT_RL_CPU_SMOKE_SUBPROCESS", True):
+        return _run_cpu_smoke_prevalidate_in_subprocess(
+            code,
+            seed_accuracy_baseline=seed_accuracy_baseline,
+            effective_cfg=effective_cfg,
+            backbone_model_names=backbone_model_names,
+            prm=prm,
+            code_trace=code_trace,
+        )
+    return _cpu_smoke_prevalidate_reward_code_impl(
+        code,
+        seed_accuracy_baseline=seed_accuracy_baseline,
+        effective_cfg=effective_cfg,
+        backbone_model_names=backbone_model_names,
+        prm=prm,
+        code_trace=code_trace,
+    )
+
+
+def _cpu_smoke_prevalidate_reward_code_impl(
     code: str,
     *,
     seed_accuracy_baseline: Optional[float],

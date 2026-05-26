@@ -48,7 +48,7 @@ class RewardSmokeMemoryTest(unittest.TestCase):
             self.assertNotIn("(1, 3, 224, 224)", body)
 
     def test_cpu_smoke_keeps_forward_check_but_cleans_memory(self):
-        body = _function_source("ab/gpt/util/Reward.py", "_cpu_smoke_prevalidate_reward_code")
+        body = _function_source("ab/gpt/util/Reward.py", "_cpu_smoke_prevalidate_reward_code_impl")
 
         self.assertIn('NNGPT_SMOKE_PREVALIDATE"] = "1"', body)
         self.assertIn('_safe_bool_env("NNGPT_RL_CPU_SMOKE_STRICT_FORWARD", True)', body)
@@ -61,6 +61,22 @@ class RewardSmokeMemoryTest(unittest.TestCase):
         forward_index = body.index("output = model(forward_input)")
         self.assertGreater(forward_index, strict_index)
         self.assertEqual(body.count("output = model(forward_input)"), 1)
+
+    def test_cpu_smoke_is_isolated_in_subprocess_by_default(self):
+        wrapper = _function_source("ab/gpt/util/Reward.py", "_cpu_smoke_prevalidate_reward_code")
+        runner = _function_source("ab/gpt/util/Reward.py", "_run_cpu_smoke_prevalidate_in_subprocess")
+        mem_limit = _function_source("ab/gpt/util/Reward.py", "_cpu_smoke_subprocess_memory_limit_bytes")
+        child_runtime = _function_source("ab/gpt/util/Reward.py", "_configure_cpu_smoke_child_runtime")
+
+        self.assertIn('_safe_bool_env("NNGPT_RL_CPU_SMOKE_SUBPROCESS", True)', wrapper)
+        self.assertIn("_run_cpu_smoke_prevalidate_in_subprocess", wrapper)
+        self.assertIn('mp.get_context(method)', runner)
+        self.assertIn("ctx.Process", runner)
+        self.assertIn("SmokeSubprocessKilled", runner)
+        self.assertIn("SLURM_MEM_PER_NODE", mem_limit)
+        self.assertIn("0.75", mem_limit)
+        self.assertIn('os.environ["CUDA_VISIBLE_DEVICES"] = ""', child_runtime)
+        self.assertIn('os.environ["NNGPT_SMOKE_PREVALIDATE"] = "1"', child_runtime)
 
     def test_no_extra_pre_reward_logging_was_added(self):
         tunerl_source = _source("ab/gpt/TuneRL.py")
