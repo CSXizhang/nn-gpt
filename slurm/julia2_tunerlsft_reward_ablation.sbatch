@@ -42,6 +42,7 @@ mkdir -p /home/s471802/nn-gpt/slurm_logs
 source /home/s471802/.venv/bin/activate
 repo_root="/home/s471802/nn-gpt"
 nn_dataset_root="${NN_DATASET_ROOT:-/home/s471802/nn-dataset}"
+fallback_ab_nn_dir="${nn_dataset_root}/ab/nn"
 cd "${repo_root}"
 
 run_base="${NNGPT_ABLATION_RUN_BASE:-/home/s471802/nn-gpt/parallel_runs}"
@@ -91,10 +92,35 @@ for shared_data_dir in data data_v2; do
   fi
 done
 
+if [ ! -d "${fallback_ab_nn_dir}" ]; then
+  echo "nn-dataset source not found: ${fallback_ab_nn_dir}" >&2
+  exit 1
+fi
+mkdir -p "${source_dir}/ab" "${source_dir}/ab/nn"
+ln -sfn "${fallback_ab_nn_dir}/nn" "${source_dir}/ab/nn/nn"
+ln -sfn "${fallback_ab_nn_dir}/stat" "${source_dir}/ab/nn/stat"
+cat > "${source_dir}/ab/nn/__init__.py" <<'PY'
+import os
+from pkgutil import extend_path
+
+__path__ = extend_path(__path__, __name__)
+_fallback_dir = os.environ.get("NNGPT_FALLBACK_AB_NN_DIR")
+if _fallback_dir and os.path.isdir(_fallback_dir) and _fallback_dir not in __path__:
+    __path__.append(_fallback_dir)
+PY
+cp "${nn_dataset_root}/ab/nn/api.py" "${source_dir}/ab/nn/api.py"
+for subdir in util loader metric transform; do
+  rsync -a --delete \
+    --exclude '__pycache__' \
+    --exclude '*.pyc' \
+    "${nn_dataset_root}/ab/nn/${subdir}/" "${source_dir}/ab/nn/${subdir}/"
+done
+
 export PYTHONUNBUFFERED=1
 export TOKENIZERS_PARALLELISM=false
 export MALLOC_ARENA_MAX="${MALLOC_ARENA_MAX:-2}"
 export MALLOC_TRIM_THRESHOLD_="${MALLOC_TRIM_THRESHOLD_:-65536}"
+export NNGPT_FALLBACK_AB_NN_DIR="${fallback_ab_nn_dir}"
 export PYTHONPATH="${source_dir}:/home/s471802/nn-dataset:${PYTHONPATH:-}"
 if [ -z "${MASTER_PORT:-}" ]; then
   if [ -n "${SLURM_JOB_ID:-}" ]; then
