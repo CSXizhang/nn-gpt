@@ -25,7 +25,7 @@ export NNGPT_NNEVAL_USE_ALL_VISIBLE_GPUS=1
 export NNGPT_NNEVAL_WORKERS_PER_GPU="${NNGPT_NNEVAL_WORKERS_PER_GPU:-1}"
 
 run_root="/home/s471802/nn-gpt/parallel_runs/${NNGPT_STRUCT1_V2_SFT_RUN_ID}"
-epoch_root="${run_root}/out/nngpt/llm/epoch_sft"
+epoch_root="${NNGPT_STRUCT1_V2_SFT_EPOCH_ROOT:-${run_root}/out/nngpt/llm/epoch_sft}"
 mkdir -p "${run_root}/slurm" "${run_root}/out/nngpt/llm" /home/s471802/nn-gpt/slurm_logs
 
 code_commit="$(git -C /home/s471802/nn-gpt rev-parse HEAD)"
@@ -49,7 +49,8 @@ cat > "${run_root}/run_config.json" <<EOF
   "gpus": 4,
   "nneval_cuda_visible_devices": "${NNGPT_TUNEBACKBONE_EVAL_CUDA_VISIBLE_DEVICES}",
   "nneval_workers_per_gpu": ${NNGPT_NNEVAL_WORKERS_PER_GPU:-1},
-  "epoch_root": "${epoch_root}"
+  "epoch_root": "${epoch_root}",
+  "out_nngpt_archive": "${NNGPT_STRUCT1_V2_OUT_NNGPT_ARCHIVE:-}"
 }
 EOF
 
