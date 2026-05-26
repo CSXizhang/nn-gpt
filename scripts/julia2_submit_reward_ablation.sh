@@ -16,10 +16,13 @@ Options:
   --cpus N                default: 16
   --max-steps N           default: 75
   --num-generations N     default: 4
+  --generation-batch-size N
+                           optional NNGPT_SFT_GENERATION_BATCH_SIZE override
   --max-completion-length N
                            default: 1536
   --generation-kwargs-json JSON
                            optional NNGPT_SFT_GENERATION_KWARGS_JSON override
+  --exclude-train-gpu     set NNGPT_SFT_REWARD_EXCLUDE_TRAIN_GPU=1
   --formal-reward-epochs E
                            default: 10
   --no-run-archive        do not append metadata to run_archive_index.md
@@ -36,8 +39,10 @@ mem="80G"
 cpus="16"
 max_steps="75"
 num_generations="4"
+generation_batch_size=""
 max_completion_length="1536"
 generation_kwargs_json=""
+exclude_train_gpu="0"
 formal_reward_epochs="10"
 write_archive="1"
 
@@ -53,8 +58,10 @@ while [ "$#" -gt 0 ]; do
     --cpus) cpus="$2"; shift 2 ;;
     --max-steps) max_steps="$2"; shift 2 ;;
     --num-generations) num_generations="$2"; shift 2 ;;
+    --generation-batch-size) generation_batch_size="$2"; shift 2 ;;
     --max-completion-length) max_completion_length="$2"; shift 2 ;;
     --generation-kwargs-json) generation_kwargs_json="$2"; shift 2 ;;
+    --exclude-train-gpu) exclude_train_gpu="1"; shift ;;
     --formal-reward-epochs) formal_reward_epochs="$2"; shift 2 ;;
     --no-run-archive) write_archive="0"; shift ;;
     -h|--help) usage; exit 0 ;;
@@ -107,9 +114,15 @@ for variant in "${variants[@]}"; do
   export_vars+=",NNGPT_SFT_INIT_ADAPTER=${init_adapter}"
   export_vars+=",NNGPT_RL_FORMAL_REWARD_EPOCHS=${formal_reward_epochs}"
   export_vars+=",NNGPT_SFT_NUM_GENERATIONS=${num_generations}"
+  if [ -n "${generation_batch_size}" ]; then
+    export_vars+=",NNGPT_SFT_GENERATION_BATCH_SIZE=${generation_batch_size}"
+  fi
   export_vars+=",NNGPT_SFT_MAX_COMPLETION_LENGTH=${max_completion_length}"
   if [ -n "${generation_kwargs_json}" ]; then
     export_vars+=",NNGPT_SFT_GENERATION_KWARGS_JSON=${generation_kwargs_json}"
+  fi
+  if [ "${exclude_train_gpu}" = "1" ]; then
+    export_vars+=",NNGPT_SFT_REWARD_EXCLUDE_TRAIN_GPU=1"
   fi
   export_vars+=",NNGPT_SFT_MAX_STEPS=${max_steps}"
   export_vars+=",NNGPT_SFT_LOAD_INITIAL_ADAPTER=1"
@@ -137,6 +150,12 @@ for variant in "${variants[@]}"; do
       echo "- prompt/prefix: sft_aligned, rl-bb-struct1"
       echo "- formal reward epochs: ${formal_reward_epochs}"
       echo "- max completion length: ${max_completion_length}"
+      if [ -n "${generation_batch_size}" ]; then
+        echo "- generation batch size: ${generation_batch_size}"
+      fi
+      if [ "${exclude_train_gpu}" = "1" ]; then
+        echo "- reward exclude train GPU: 1"
+      fi
       if [ -n "${generation_kwargs_json}" ]; then
         echo "- generation kwargs json: ${generation_kwargs_json}"
       fi
