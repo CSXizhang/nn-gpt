@@ -6,9 +6,14 @@ usage() {
 Submit four-pattern reward ablation runs on Julia2.
 
 Options:
-  --run-prefix ID          default: YYYYmmdd_HHMM_reward_ablation_821f
+  --run-prefix ID          default: YYYYmmdd_HHMM_a3_reward_ablation_cleanhead
   --variants CSV          default: full,no_structural_novelty,strong_repeat_penalty
-  --init-adapter PATH     default: /home/s471802/nn-gpt/out/nngpt/llm/epoch/A3/deepseek-ai/deepseek-coder-6.7b-instruct
+  --source-commit COMMIT  code commit to clone into every run; default: current HEAD
+  --init-adapter PATH     default: archived A3 adapter from before struct1 v2 shared output
+  --base-model-id PATH    default: /home/s471802/nn-gpt/out/llm/deepseek-ai/deepseek-coder-6.7b-instruct
+  --tokenizer-id PATH     default: paper A3 tokenizer checkpoint-130
+  --nn-prefixes CSV       default: rl-bb-struct1
+  --prompt-mode MODE      default: sft_aligned
   --partition PART        default: h100
   --qos QOS               optional
   --gpus N                default: 4
@@ -29,9 +34,14 @@ Options:
 USAGE
 }
 
-run_prefix="$(date +%Y%m%d_%H%M)_reward_ablation_821f"
+run_prefix="$(date +%Y%m%d_%H%M)_a3_reward_ablation_cleanhead"
 variants_csv="full,no_structural_novelty,strong_repeat_penalty"
-init_adapter="/home/s471802/nn-gpt/out/nngpt/llm/epoch/A3/deepseek-ai/deepseek-coder-6.7b-instruct"
+source_commit=""
+init_adapter="/home/s471802/nn-gpt/out/nngpt_archive_20260526_105845_before_struct1_v2_sftcycle_sharedout/llm/epoch/A3/deepseek-ai/deepseek-coder-6.7b-instruct"
+base_model_id="/home/s471802/nn-gpt/out/llm/deepseek-ai/deepseek-coder-6.7b-instruct"
+tokenizer_id="/home/s471802/nn-gpt/parallel_runs/20260426_1905_main_resume_quality_diversity_std3/grpo_backbone_outputs_trainer/checkpoint-130"
+nn_prefixes="rl-bb-struct1"
+prompt_mode="sft_aligned"
 partition="h100"
 qos=""
 gpus="4"
@@ -50,7 +60,12 @@ while [ "$#" -gt 0 ]; do
   case "$1" in
     --run-prefix) run_prefix="$2"; shift 2 ;;
     --variants) variants_csv="$2"; shift 2 ;;
+    --source-commit) source_commit="$2"; shift 2 ;;
     --init-adapter) init_adapter="$2"; shift 2 ;;
+    --base-model-id) base_model_id="$2"; shift 2 ;;
+    --tokenizer-id) tokenizer_id="$2"; shift 2 ;;
+    --nn-prefixes) nn_prefixes="$2"; shift 2 ;;
+    --prompt-mode) prompt_mode="$2"; shift 2 ;;
     --partition) partition="$2"; shift 2 ;;
     --qos) qos="$2"; shift 2 ;;
     --gpus) gpus="$2"; shift 2 ;;
@@ -71,9 +86,15 @@ done
 
 cd /home/s471802/nn-gpt
 
-commit_hash="$(git rev-parse HEAD)"
-commit_short="$(git rev-parse --short HEAD)"
-commit_subject="$(git log -1 --pretty=%s)"
+submit_commit_hash="$(git rev-parse HEAD)"
+submit_commit_short="$(git rev-parse --short HEAD)"
+submit_commit_subject="$(git log -1 --pretty=%s)"
+if [ -z "${source_commit}" ]; then
+  source_commit="${submit_commit_hash}"
+fi
+source_commit_hash="$(git rev-parse "${source_commit}")"
+source_commit_short="$(git rev-parse --short "${source_commit_hash}")"
+source_commit_subject="$(git log -1 --pretty=%s "${source_commit_hash}")"
 
 IFS=',' read -r -a variants <<< "${variants_csv}"
 
@@ -110,6 +131,7 @@ for variant in "${variants[@]}"; do
 
   export_vars="ALL"
   export_vars+=",NNGPT_ABLATION_RUN_ID=${run_id}"
+  export_vars+=",NNGPT_ABLATION_SOURCE_COMMIT=${source_commit_hash}"
   export_vars+=",NNGPT_RL_REWARD_VARIANT=${variant}"
   export_vars+=",NNGPT_SFT_INIT_ADAPTER=${init_adapter}"
   export_vars+=",NNGPT_RL_FORMAL_REWARD_EPOCHS=${formal_reward_epochs}"
@@ -127,11 +149,14 @@ for variant in "${variants[@]}"; do
   export_vars+=",NNGPT_SFT_MAX_STEPS=${max_steps}"
   export_vars+=",NNGPT_SFT_LOAD_INITIAL_ADAPTER=1"
   export_vars+=",NNGPT_SFT_INITIAL_ADAPTER_MODE=trainable"
-  export_vars+=",NNGPT_SFT_RL_NN_PREFIXES=rl-bb-struct1"
+  export_vars+=",NNGPT_SFT_RL_NN_PREFIXES=${nn_prefixes}"
+  export_vars+=",NNGPT_SFT_RL_PROMPT_MODE=${prompt_mode}"
   export_vars+=",NNGPT_RL_RESUME_STAGE=stage2_formal_explore"
   export_vars+=",NNGPT_REWARD_WORKERS_PER_GPU=1"
   export_vars+=",NNGPT_SFT_RESUME_TRAINER_CHECKPOINT="
   export_vars+=",NNGPT_SFT_RESUME_STAGE_CHECKPOINT="
+  export_vars+=",NNGPT_SFT_BASE_MODEL_ID=${base_model_id}"
+  export_vars+=",NNGPT_SFT_TOKENIZER_ID=${tokenizer_id}"
 
   job_id="$(sbatch "${sbatch_args[@]}" --export "${export_vars}" slurm/julia2_tunerlsft_reward_ablation.sbatch)"
   job_id="${job_id%%;*}"
@@ -144,10 +169,13 @@ for variant in "${variants[@]}"; do
       echo "- 状态: submitted"
       echo "- main job: ${job_id}"
       echo "- 分区/GPU: ${partition}, ${gpus} GPU"
-      echo "- commit: ${commit_hash} (${commit_subject})"
+      echo "- submitter commit: ${submit_commit_hash} (${submit_commit_subject})"
+      echo "- source commit: ${source_commit_hash} (${source_commit_subject})"
       echo "- reward variant: ${variant}"
       echo "- init adapter: ${init_adapter}"
-      echo "- prompt/prefix: sft_aligned, rl-bb-struct1"
+      echo "- base model: ${base_model_id}"
+      echo "- tokenizer: ${tokenizer_id}"
+      echo "- prompt/prefix: ${prompt_mode}, ${nn_prefixes}"
       echo "- formal reward epochs: ${formal_reward_epochs}"
       echo "- max completion length: ${max_completion_length}"
       if [ -n "${generation_batch_size}" ]; then
@@ -168,5 +196,5 @@ for variant in "${variants[@]}"; do
     } >> run_archive_index.md
   fi
 
-  echo "variant=${variant} run_id=${run_id} job_id=${job_id} commit=${commit_short}"
+  echo "variant=${variant} run_id=${run_id} job_id=${job_id} source_commit=${source_commit_short} submit_commit=${submit_commit_short}"
 done

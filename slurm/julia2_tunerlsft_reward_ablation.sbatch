@@ -25,6 +25,10 @@ if [ -z "${NNGPT_SFT_INIT_ADAPTER:-}" ]; then
   echo "NNGPT_SFT_INIT_ADAPTER is required" >&2
   exit 2
 fi
+if [ -z "${NNGPT_ABLATION_SOURCE_COMMIT:-}" ]; then
+  echo "NNGPT_ABLATION_SOURCE_COMMIT is required" >&2
+  exit 2
+fi
 
 case "${NNGPT_RL_REWARD_VARIANT}" in
   full|no_structural_novelty|strong_repeat_penalty) ;;
@@ -36,16 +40,35 @@ esac
 
 mkdir -p /home/s471802/nn-gpt/slurm_logs
 source /home/s471802/.venv/bin/activate
-cd /home/s471802/nn-gpt
+repo_root="/home/s471802/nn-gpt"
+cd "${repo_root}"
 
 run_root="/home/s471802/nn-gpt/parallel_runs/${NNGPT_ABLATION_RUN_ID}"
 mkdir -p "${run_root}/slurm"
+source_commit_hash="$(git rev-parse "${NNGPT_ABLATION_SOURCE_COMMIT}")"
+source_commit_short="$(git rev-parse --short "${source_commit_hash}")"
+source_dir="${run_root}/source_${source_commit_short}"
+
+if [ -e "${source_dir}" ] && [ ! -d "${source_dir}/.git" ]; then
+  echo "Source dir exists but is not a git checkout: ${source_dir}" >&2
+  exit 1
+fi
+if [ ! -d "${source_dir}" ]; then
+  git clone --shared "${repo_root}" "${source_dir}"
+fi
+git -C "${source_dir}" fetch --all --tags >/dev/null 2>&1 || true
+git -C "${source_dir}" checkout --detach "${source_commit_hash}" >/dev/null
+actual_source_head="$(git -C "${source_dir}" rev-parse HEAD)"
+if [ "${actual_source_head}" != "${source_commit_hash}" ]; then
+  echo "Wrong source HEAD: expected ${source_commit_hash}, got ${actual_source_head}" >&2
+  exit 2
+fi
 
 export PYTHONUNBUFFERED=1
 export TOKENIZERS_PARALLELISM=false
 export MALLOC_ARENA_MAX="${MALLOC_ARENA_MAX:-2}"
 export MALLOC_TRIM_THRESHOLD_="${MALLOC_TRIM_THRESHOLD_:-65536}"
-export PYTHONPATH="/home/s471802/nn-gpt:/home/s471802/nn-dataset:${PYTHONPATH:-}"
+export PYTHONPATH="${source_dir}:/home/s471802/nn-dataset:${PYTHONPATH:-}"
 if [ -z "${MASTER_PORT:-}" ]; then
   if [ -n "${SLURM_JOB_ID:-}" ]; then
     export MASTER_PORT=$((20000 + SLURM_JOB_ID % 20000))
@@ -90,9 +113,15 @@ export NNGPT_RL_STAGE1_EVAL_LIMIT_SECONDS="${NNGPT_RL_STAGE1_EVAL_LIMIT_SECONDS:
 echo "Run id: ${NNGPT_ABLATION_RUN_ID}"
 echo "Reward variant: ${NNGPT_RL_REWARD_VARIANT}"
 echo "Run root: ${run_root}"
+echo "Source dir: ${source_dir}"
+echo "Source commit expected: ${source_commit_hash}"
+echo "Source commit actual: ${actual_source_head}"
 echo "Log dir: ${NNGPT_SFT_LOG_DIR}"
 echo "Init adapter: ${NNGPT_SFT_INIT_ADAPTER}"
+echo "Base model: ${NNGPT_SFT_BASE_MODEL_ID}"
+echo "Tokenizer: ${NNGPT_SFT_TOKENIZER_ID}"
 echo "NN prefixes: ${NNGPT_SFT_RL_NN_PREFIXES}"
+echo "Prompt mode: ${NNGPT_SFT_RL_PROMPT_MODE}"
 echo "Formal reward epochs: ${NNGPT_RL_FORMAL_REWARD_EPOCHS}"
 echo "Num generations: ${NNGPT_SFT_NUM_GENERATIONS}"
 echo "Generation batch size: ${NNGPT_SFT_GENERATION_BATCH_SIZE:-}"
@@ -103,4 +132,5 @@ echo "Generation kwargs JSON: ${NNGPT_SFT_GENERATION_KWARGS_JSON:-}"
 echo "Master addr: ${MASTER_ADDR}"
 echo "Master port: ${MASTER_PORT}"
 
+cd "${source_dir}"
 exec python -m ab.gpt.TuneRLSft
