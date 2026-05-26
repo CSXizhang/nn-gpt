@@ -680,6 +680,16 @@ def _evaluate_epoch(
             print('[DEBUG] Release_memory.')
             release_memory()
 
+            generated_count = len(glob.glob(str(models_dir / "B*" / new_nn_file)))
+            artifact_count = len(glob.glob(str(models_dir / "B*" / "eval_info.json")))
+            artifact_count += len(glob.glob(str(models_dir / "B*" / "error.txt")))
+            if generated_count > 0 and artifact_count == 0:
+                raise RuntimeError(
+                    "NNEval produced no per-model artifacts after generated code was found: "
+                    f"models_dir={models_dir}, generated={generated_count}. "
+                    "Check custom_synth_dir and epoch_root settings."
+                )
+
         print('Clear LEMUR query cache.')
         lemur.data.cache_clear()
         print('The cache has been cleared.')
