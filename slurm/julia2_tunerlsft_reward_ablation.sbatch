@@ -43,6 +43,8 @@ mkdir -p "${run_root}/slurm"
 
 export PYTHONUNBUFFERED=1
 export TOKENIZERS_PARALLELISM=false
+export MALLOC_ARENA_MAX="${MALLOC_ARENA_MAX:-2}"
+export MALLOC_TRIM_THRESHOLD_="${MALLOC_TRIM_THRESHOLD_:-65536}"
 export PYTHONPATH="/home/s471802/nn-gpt:/home/s471802/nn-dataset:${PYTHONPATH:-}"
 if [ -z "${MASTER_PORT:-}" ]; then
   if [ -n "${SLURM_JOB_ID:-}" ]; then

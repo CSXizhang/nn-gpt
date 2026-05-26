@@ -147,6 +147,24 @@ BEST_GROUP_REFRESH_DELTA = 0.0015
 GOAL_REFRESH_DELTA = 0.0015
 NON_IMPROVING_REWARD_CAP = 0.04
 FORMAL_REWARD_TRANSFORM = "norm_128_flip"
+
+
+def _formal_reward_resize(default: int = 128) -> int:
+    match = re.search(r"(?:^|_)norm_(\d+)(?:_|$)", FORMAL_REWARD_TRANSFORM)
+    if not match:
+        return int(default)
+    try:
+        value = int(match.group(1))
+    except (TypeError, ValueError):
+        return int(default)
+    return value if value > 0 else int(default)
+
+
+def _formal_reward_input_shape(batch: int = 1) -> Tuple[int, int, int, int]:
+    resize = _formal_reward_resize()
+    return (int(batch), 3, resize, resize)
+
+
 BACKBONE_BASELINE_MIN_ARCHIVE_SAMPLES = 3
 SAVE_DUPLICATE_BACKBONE_CNN_DELTA = 0.002
 BATCH_ELITE_SOFT_BONUSES = (0.10, 0.07, 0.05, 0.03, 0.02)
@@ -3273,16 +3291,17 @@ def base_discovery_reward_fn(
     if precomputed_eval_result is not None:
         res = dict(precomputed_eval_result)
     else:
+        formal_input_shape = _formal_reward_input_shape()
         res = evaluate_code_and_reward(
             final_code,
-            in_shape=(1, 3, 224, 224),
+            in_shape=formal_input_shape,
             out_shape=(10,),
             prm=prm,
             device="cuda" if torch.cuda.is_available() else "cpu",
             seed_accuracy_baseline=seed_accuracy_baseline,
             cfg=build_stage_eval_cfg(
                 stage_name=stage_name,
-                in_shape=(1, 3, 224, 224),
+                in_shape=formal_input_shape,
                 out_shape=(10,),
                 prm=prm,
                 device="cuda" if torch.cuda.is_available() else "cpu",
@@ -4628,9 +4647,10 @@ def _build_batched_eval_specs(
         if not final_code:
             continue
 
+        formal_input_shape = _formal_reward_input_shape()
         spec = {
             "code": final_code,
-            "in_shape": (1, 3, 224, 224),
+            "in_shape": formal_input_shape,
             "out_shape": (10,),
             "prm": {
                 "lr": 0.01,
@@ -4650,7 +4670,7 @@ def _build_batched_eval_specs(
             spec["cfg"] = _invoke_eval_cfg_builder(
                 eval_cfg_builder,
                 stage_name=str(group_context.get("current_stage_name") or current_stage_name),
-                in_shape=(1, 3, 224, 224),
+                in_shape=formal_input_shape,
                 out_shape=(10,),
                 prm=spec["prm"],
                 cfg=None,

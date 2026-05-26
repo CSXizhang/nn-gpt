@@ -2,6 +2,7 @@ from typing import Optional, Dict, Tuple, Callable, Any
 from dataclasses import dataclass, asdict, replace
 import atexit
 import ast
+import ctypes
 import csv
 import gc
 import importlib
@@ -14,6 +15,7 @@ import subprocess
 import sys
 import tempfile
 import time
+import traceback
 from concurrent.futures import ThreadPoolExecutor
 
 import torch
@@ -97,6 +99,26 @@ def _safe_float_env(name: str, default: float) -> float:
 def _env_is_set(name: str) -> bool:
     raw = os.environ.get(name)
     return raw is not None and raw != ""
+
+
+def _clear_exception_frames(exc: BaseException) -> None:
+    try:
+        traceback.clear_frames(exc.__traceback__)
+    except Exception:
+        pass
+
+
+def _trim_cpu_allocator() -> None:
+    gc.collect()
+    if not sys.platform.startswith("linux"):
+        return
+    try:
+        libc = ctypes.CDLL("libc.so.6")
+        malloc_trim = getattr(libc, "malloc_trim", None)
+        if callable(malloc_trim):
+            malloc_trim(0)
+    except Exception:
+        pass
 
 
 def _optional_positive_int_env(name: str) -> Optional[int]:
@@ -1489,14 +1511,21 @@ def _cpu_smoke_prevalidate_reward_code(
     safe_prm["epoch"] = 1
 
     model = None
+    builder = None
+    forward_input = None
+    output = None
+    strict_forward = _safe_bool_env("NNGPT_RL_CPU_SMOKE_STRICT_FORWARD", True)
     smoke_context = {
         "code_trace": code_trace,
         "cpu_smoke": True,
         "cpu_smoke_input_shape": cpu_input_shape,
+        "cpu_smoke_strict_forward": strict_forward,
     }
     original_cuda_is_available = getattr(torch.cuda, "is_available", None)
     original_cuda_device_count = getattr(torch.cuda, "device_count", None)
+    original_smoke_flag = os.environ.get("NNGPT_SMOKE_PREVALIDATE")
     try:
+        os.environ["NNGPT_SMOKE_PREVALIDATE"] = "1"
         if callable(original_cuda_is_available):
             torch.cuda.is_available = lambda: False  # type: ignore[method-assign]
         if callable(original_cuda_device_count):
@@ -1515,13 +1544,15 @@ def _cpu_smoke_prevalidate_reward_code(
         train_setup = getattr(model, "train_setup", None)
         if callable(train_setup):
             train_setup(safe_prm)
-        forward_input = torch.randn(*cpu_input_shape, device="cpu")
-        with torch.no_grad():
-            output = model(forward_input)
-        smoke_context["cpu_smoke_output_shape"] = tuple(output.shape) if hasattr(output, "shape") else None
+        if strict_forward:
+            forward_input = torch.randn(*cpu_input_shape, device="cpu")
+            with torch.no_grad():
+                output = model(forward_input)
+            smoke_context["cpu_smoke_output_shape"] = tuple(output.shape) if hasattr(output, "shape") else None
     except Exception as exc:
         error_type = type(exc).__name__
         error_message = f"{error_type}: {exc}"
+        _clear_exception_frames(exc)
         return _cpu_prevalidation_failure_result(
             reward=-3.0,
             error_message=error_message,
@@ -1536,13 +1567,32 @@ def _cpu_smoke_prevalidate_reward_code(
             torch.cuda.is_available = original_cuda_is_available  # type: ignore[method-assign]
         if callable(original_cuda_device_count):
             torch.cuda.device_count = original_cuda_device_count  # type: ignore[method-assign]
+        if original_smoke_flag is None:
+            os.environ.pop("NNGPT_SMOKE_PREVALIDATE", None)
+        else:
+            os.environ["NNGPT_SMOKE_PREVALIDATE"] = original_smoke_flag
+        try:
+            del output
+        except Exception:
+            pass
+        try:
+            del forward_input
+        except Exception:
+            pass
         if model is not None:
             try:
                 model.to("cpu")
             except Exception:
                 pass
+        try:
             del model
-        gc.collect()
+        except Exception:
+            pass
+        try:
+            del builder
+        except Exception:
+            pass
+        _trim_cpu_allocator()
     return None
 
 

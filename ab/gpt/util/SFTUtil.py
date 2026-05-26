@@ -93,7 +93,8 @@ def goal_tag_parser_cues(tags) -> str:
             cues.append("- `branch_reuse`: let one branch explicitly feed or condition another through a reuse, adapter, mixer, or extra merge stage.")
     return "\n".join(cues) if cues else "- No extra parser-visible cues."
 
-skeleton_code = """import torch
+skeleton_code = """import os
+import torch
 import torch.nn as nn
 import numpy as np
 import gc
@@ -110,6 +111,10 @@ class TorchVision(nn.Module):
         self.model_name = str(model)
         self.adapter = nn.Conv2d(in_channels, 3, kernel_size=1) if in_channels != 3 else nn.Identity()
         kwargs = {"aux_logits": False} if "inception" in model.lower() else {}
+        if os.environ.get("NNGPT_SMOKE_PREVALIDATE") == "1":
+            weights = None
+        if isinstance(weights, str) and weights.strip().lower() in {"", "none"}:
+            weights = None
         try:
             if hasattr(torchvision.models, "get_model"):
                 self.m = torchvision.models.get_model(model, weights=weights, **kwargs)
