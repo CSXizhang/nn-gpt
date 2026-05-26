@@ -44,8 +44,18 @@ repo_root="/home/s471802/nn-gpt"
 nn_dataset_root="${NN_DATASET_ROOT:-/home/s471802/nn-dataset}"
 cd "${repo_root}"
 
-run_root="/home/s471802/nn-gpt/parallel_runs/${NNGPT_ABLATION_RUN_ID}"
+run_base="${NNGPT_ABLATION_RUN_BASE:-/home/s471802/nn-gpt/parallel_runs}"
+run_root="${run_base%/}/${NNGPT_ABLATION_RUN_ID}"
+compat_run_root="/home/s471802/nn-gpt/parallel_runs/${NNGPT_ABLATION_RUN_ID}"
 mkdir -p "${run_root}/slurm"
+if [ "${run_root}" != "${compat_run_root}" ]; then
+  if [ -e "${compat_run_root}" ] && [ ! -L "${compat_run_root}" ]; then
+    echo "Compat run path exists and is not a symlink: ${compat_run_root}" >&2
+    exit 1
+  fi
+  mkdir -p "$(dirname "${compat_run_root}")"
+  ln -sfn "${run_root}" "${compat_run_root}"
+fi
 source_commit_hash="$(git rev-parse "${NNGPT_ABLATION_SOURCE_COMMIT}")"
 source_commit_short="$(git rev-parse --short "${source_commit_hash}")"
 source_dir="${run_root}/source_${source_commit_short}"

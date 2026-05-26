@@ -7,6 +7,7 @@ Submit four-pattern reward ablation runs on Julia2.
 
 Options:
   --run-prefix ID          default: YYYYmmdd_HHMM_a3_reward_ablation_cleanhead
+  --run-base PATH          default: /home/s471802/nn-gpt/parallel_runs
   --variants CSV          default: full,no_structural_novelty,strong_repeat_penalty
   --source-commit COMMIT  code commit to clone into every run; default: current HEAD
   --init-adapter PATH     default: archived A3 adapter from before struct1 v2 shared output
@@ -35,6 +36,7 @@ USAGE
 }
 
 run_prefix="$(date +%Y%m%d_%H%M)_a3_reward_ablation_cleanhead"
+run_base="/home/s471802/nn-gpt/parallel_runs"
 variants_csv="full,no_structural_novelty,strong_repeat_penalty"
 source_commit=""
 init_adapter="/home/s471802/nn-gpt/out/nngpt_archive_20260526_105845_before_struct1_v2_sftcycle_sharedout/llm/epoch/A3/deepseek-ai/deepseek-coder-6.7b-instruct"
@@ -59,6 +61,7 @@ write_archive="1"
 while [ "$#" -gt 0 ]; do
   case "$1" in
     --run-prefix) run_prefix="$2"; shift 2 ;;
+    --run-base) run_base="$2"; shift 2 ;;
     --variants) variants_csv="$2"; shift 2 ;;
     --source-commit) source_commit="$2"; shift 2 ;;
     --init-adapter) init_adapter="$2"; shift 2 ;;
@@ -112,8 +115,17 @@ for variant in "${variants[@]}"; do
   esac
 
   run_id="${run_prefix}_${variant}"
-  run_root="/home/s471802/nn-gpt/parallel_runs/${run_id}"
+  run_root="${run_base%/}/${run_id}"
+  compat_run_root="/home/s471802/nn-gpt/parallel_runs/${run_id}"
   mkdir -p "${run_root}/slurm"
+  if [ "${run_root}" != "${compat_run_root}" ]; then
+    mkdir -p "$(dirname "${compat_run_root}")"
+    if [ -e "${compat_run_root}" ] && [ ! -L "${compat_run_root}" ]; then
+      echo "Compat run path exists and is not a symlink: ${compat_run_root}" >&2
+      exit 1
+    fi
+    ln -sfn "${run_root}" "${compat_run_root}"
+  fi
 
   sbatch_args=(
     --parsable
@@ -130,6 +142,7 @@ for variant in "${variants[@]}"; do
   fi
 
   export NNGPT_ABLATION_RUN_ID="${run_id}"
+  export NNGPT_ABLATION_RUN_BASE="${run_base%/}"
   export NNGPT_ABLATION_SOURCE_COMMIT="${source_commit_hash}"
   export NNGPT_RL_REWARD_VARIANT="${variant}"
   export NNGPT_SFT_INIT_ADAPTER="${init_adapter}"
@@ -194,6 +207,9 @@ for variant in "${variants[@]}"; do
       fi
       echo "- samples target: $((num_generations * max_steps)) (${num_generations} generations x ${max_steps} steps)"
       echo "- run root: ${run_root}"
+      if [ "${run_root}" != "${compat_run_root}" ]; then
+        echo "- compat run root: ${compat_run_root}"
+      fi
       echo "- stdout/stderr: ${run_root}/slurm/abl-${variant}-${job_id}.out / .err"
       echo "- 训练结果: TODO"
       echo "- 主要缺陷: TODO"
