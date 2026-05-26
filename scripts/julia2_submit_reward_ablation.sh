@@ -129,36 +129,41 @@ for variant in "${variants[@]}"; do
     sbatch_args+=(--qos "${qos}")
   fi
 
-  export_vars="ALL"
-  export_vars+=",NNGPT_ABLATION_RUN_ID=${run_id}"
-  export_vars+=",NNGPT_ABLATION_SOURCE_COMMIT=${source_commit_hash}"
-  export_vars+=",NNGPT_RL_REWARD_VARIANT=${variant}"
-  export_vars+=",NNGPT_SFT_INIT_ADAPTER=${init_adapter}"
-  export_vars+=",NNGPT_RL_FORMAL_REWARD_EPOCHS=${formal_reward_epochs}"
-  export_vars+=",NNGPT_SFT_NUM_GENERATIONS=${num_generations}"
+  export NNGPT_ABLATION_RUN_ID="${run_id}"
+  export NNGPT_ABLATION_SOURCE_COMMIT="${source_commit_hash}"
+  export NNGPT_RL_REWARD_VARIANT="${variant}"
+  export NNGPT_SFT_INIT_ADAPTER="${init_adapter}"
+  export NNGPT_RL_FORMAL_REWARD_EPOCHS="${formal_reward_epochs}"
+  export NNGPT_SFT_NUM_GENERATIONS="${num_generations}"
   if [ -n "${generation_batch_size}" ]; then
-    export_vars+=",NNGPT_SFT_GENERATION_BATCH_SIZE=${generation_batch_size}"
+    export NNGPT_SFT_GENERATION_BATCH_SIZE="${generation_batch_size}"
+  else
+    unset NNGPT_SFT_GENERATION_BATCH_SIZE
   fi
-  export_vars+=",NNGPT_SFT_MAX_COMPLETION_LENGTH=${max_completion_length}"
+  export NNGPT_SFT_MAX_COMPLETION_LENGTH="${max_completion_length}"
   if [ -n "${generation_kwargs_json}" ]; then
-    export_vars+=",NNGPT_SFT_GENERATION_KWARGS_JSON=${generation_kwargs_json}"
+    export NNGPT_SFT_GENERATION_KWARGS_JSON="${generation_kwargs_json}"
+  else
+    unset NNGPT_SFT_GENERATION_KWARGS_JSON
   fi
   if [ "${exclude_train_gpu}" = "1" ]; then
-    export_vars+=",NNGPT_SFT_REWARD_EXCLUDE_TRAIN_GPU=1"
+    export NNGPT_SFT_REWARD_EXCLUDE_TRAIN_GPU=1
+  else
+    unset NNGPT_SFT_REWARD_EXCLUDE_TRAIN_GPU
   fi
-  export_vars+=",NNGPT_SFT_MAX_STEPS=${max_steps}"
-  export_vars+=",NNGPT_SFT_LOAD_INITIAL_ADAPTER=1"
-  export_vars+=",NNGPT_SFT_INITIAL_ADAPTER_MODE=trainable"
-  export_vars+=",NNGPT_SFT_RL_NN_PREFIXES=${nn_prefixes}"
-  export_vars+=",NNGPT_SFT_RL_PROMPT_MODE=${prompt_mode}"
-  export_vars+=",NNGPT_RL_RESUME_STAGE=stage2_formal_explore"
-  export_vars+=",NNGPT_REWARD_WORKERS_PER_GPU=1"
-  export_vars+=",NNGPT_SFT_RESUME_TRAINER_CHECKPOINT="
-  export_vars+=",NNGPT_SFT_RESUME_STAGE_CHECKPOINT="
-  export_vars+=",NNGPT_SFT_BASE_MODEL_ID=${base_model_id}"
-  export_vars+=",NNGPT_SFT_TOKENIZER_ID=${tokenizer_id}"
+  export NNGPT_SFT_MAX_STEPS="${max_steps}"
+  export NNGPT_SFT_LOAD_INITIAL_ADAPTER=1
+  export NNGPT_SFT_INITIAL_ADAPTER_MODE=trainable
+  export NNGPT_SFT_RL_NN_PREFIXES="${nn_prefixes}"
+  export NNGPT_SFT_RL_PROMPT_MODE="${prompt_mode}"
+  export NNGPT_RL_RESUME_STAGE=stage2_formal_explore
+  export NNGPT_REWARD_WORKERS_PER_GPU=1
+  export NNGPT_SFT_RESUME_TRAINER_CHECKPOINT=
+  export NNGPT_SFT_RESUME_STAGE_CHECKPOINT=
+  export NNGPT_SFT_BASE_MODEL_ID="${base_model_id}"
+  export NNGPT_SFT_TOKENIZER_ID="${tokenizer_id}"
 
-  job_id="$(sbatch "${sbatch_args[@]}" --export "${export_vars}" slurm/julia2_tunerlsft_reward_ablation.sbatch)"
+  job_id="$(sbatch "${sbatch_args[@]}" --export=ALL slurm/julia2_tunerlsft_reward_ablation.sbatch)"
   job_id="${job_id%%;*}"
 
   if [ "${write_archive}" = "1" ]; then
