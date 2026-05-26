@@ -85,6 +85,12 @@ if [ ! -e "${source_dir}/db" ]; then
   done
 fi
 
+for shared_data_dir in data data_v2; do
+  if [ -e "${repo_root}/${shared_data_dir}" ] && [ ! -e "${source_dir}/${shared_data_dir}" ]; then
+    ln -s "${repo_root}/${shared_data_dir}" "${source_dir}/${shared_data_dir}"
+  fi
+done
+
 export PYTHONUNBUFFERED=1
 export TOKENIZERS_PARALLELISM=false
 export MALLOC_ARENA_MAX="${MALLOC_ARENA_MAX:-2}"
