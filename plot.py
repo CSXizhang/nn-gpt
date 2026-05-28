@@ -52,6 +52,7 @@ def collect_final_data():
 # 2. Compute plotting metrics
 data_map = collect_final_data()
 cycles = sorted(data_map.keys())
+adapter_labels = ["base" if c == 0 else f"A{c - 1}" for c in cycles]
 
 gen_rates, total_rates, acc_best, acc_avg, acc_median, err_down, err_up = [], [], [], [], [], [], []
 
@@ -124,9 +125,9 @@ plt.plot(cycles, acc_avg, color='#F57C00', linewidth=1.5, alpha=0.7,
 
 # 4. Fine-tuning
 plt.title('Model Evaluation: Code Generation Stability & Quality', fontsize=14, pad=15)
-plt.xlabel('Cycle (Experiment Index)', fontsize=12)
+plt.xlabel('Adapter used for generation/eval', fontsize=12)
 plt.ylabel('Percentage (%)', fontsize=12)
-plt.xticks(cycles)
+plt.xticks(cycles, adapter_labels, rotation=45, ha='right')
 
 # Lock Y-axis to [0, 100]
 plt.ylim(0, 100) 
