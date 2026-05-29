@@ -1,5 +1,4 @@
 import ast
-import os
 import re
 import textwrap
 
@@ -329,99 +328,6 @@ def _build_prompt_skeleton(code):
 
 prompt_skeleton_code = _build_prompt_skeleton(skeleton_code)
 
-compact_prompt_skeleton_code = """import os
-import torch
-import torch.nn as nn
-import torchvision
-from torch.amp import autocast, GradScaler
-
-class TorchVision(nn.Module):
-    # Fixed runtime wrapper: adapts input channels and returns unwrapped torchvision features.
-    def __init__(self, model: str, weights: str = "DEFAULT", unwrap: bool = True, truncate: int = 1, in_channels: int = 3):
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-
-def adaptive_pool_flatten(x):
-    if x.ndim == 4: return torch.nn.functional.adaptive_avg_pool2d(x, (1, 1)).flatten(1)
-    if x.ndim == 3: return x.mean(dim=1)
-    return x.flatten(1) if x.ndim > 2 else x
-
-def autocast_ctx(enabled=True):
-    return autocast("cuda", enabled=enabled)
-def make_scaler(enabled=True):
-    return GradScaler("cuda", enabled=enabled)
-
-def supported_hyperparameters():
-    return { 'lr', 'momentum' }
-
-def drop_conv3x3_block(in_channels, out_channels, stride=1, padding=1, bias=False, dropout_prob=0.0):
-
-class FractalBlock(nn.Module):
-    def __init__(self, in_channels, out_channels, num_columns, loc_drop_prob, dropout_prob):
-        super().__init__()
-        self.num_columns = int(num_columns)
-        depth = 2 ** max(self.num_columns - 1, 0)
-        blocks = []
-        for i in range(depth):
-            level = nn.ModuleList()
-            for j in range(self.num_columns):
-                if (i + 1) % (2 ** j) == 0:
-                    in_ch_ij = in_channels if (i + 1 == 2 ** j) else out_channels
-                    level.append(drop_conv3x3_block(in_ch_ij, out_channels, dropout_prob=dropout_prob))
-            blocks.append(level)
-        self.blocks = nn.ModuleList(blocks)
-
-    def forward(self, x):
-        outs = [x] * self.num_columns
-        for level_block in self.blocks:
-            outs_i = [blk(inp) for blk, inp in zip(level_block, outs)]
-            joined = torch.stack(outs_i, dim=0).mean(dim=0)
-            outs[:len(level_block)] = [joined] * len(level_block)
-        return outs[0]
-
-class FractalUnit(nn.Module):
-    def __init__(self, in_channels, out_channels, num_columns, loc_drop_prob, dropout_prob):
-        super().__init__()
-        self.block = FractalBlock(in_channels, out_channels, num_columns, loc_drop_prob, dropout_prob)
-        self.pool = nn.MaxPool2d(kernel_size=2, stride=2)
-
-    def forward(self, x):
-        return self.pool(self.block(x))
-
-class Net(nn.Module):
-    def __init__(self, in_shape: tuple, out_shape: tuple, prm: dict, device: torch.device) -> None:
-
-    def infer_dimensions_dynamically(self, num_classes):
-        if not hasattr(self, "_input_spec"):
-            raise RuntimeError("_input_spec must be set before infer_dimensions_dynamically")
-        c, h, w = self._input_spec
-        self.to(self.device)
-        was_training = self.training
-        self.eval()
-        classifier = getattr(self, "classifier", None)
-        with torch.no_grad():
-            dummy = torch.zeros(1, c, h, w).to(self.device)
-            self.classifier = nn.Identity()
-            output_feat = self.forward(dummy, is_probing=True)
-            output_feat = adaptive_pool_flatten(output_feat)
-            if output_feat.dim() != 2:
-                output_feat = output_feat.flatten(1)
-            dim_fused = output_feat.shape[1]
-        self.classifier = nn.Linear(dim_fused, num_classes).to(self.device)
-        if classifier is not None and isinstance(classifier, nn.Module):
-            del classifier
-        self.train(was_training)
-
-    @staticmethod
-    def _norm4d(x: torch.Tensor) -> torch.Tensor:
-        if x.dim() == 4: return x
-        if x.dim() == 5:
-            B, T, C, H, W = x.shape
-            return x.reshape(B * T, C, H, W)
-        raise ValueError(f"Expected 4D/5D input, got {tuple(x.shape)}")
-
-    def forward(self, x: torch.Tensor, is_probing: bool = False) -> torch.Tensor:
-"""
-
 prompt_template="""
 ### Role
 You are implementing one trainable dual-backbone image-classification model. Seed accuracy: {accuracy}.
@@ -458,11 +364,10 @@ You are implementing one trainable dual-backbone image-classification model. See
 
 
 def format_backbone_prompt(*, accuracy, target_pattern):
-    skeleton = compact_prompt_skeleton_code if os.getenv("NNGPT_SFT_COMPACT_SKELETON", "").strip().lower() in {"1", "true", "yes", "on"} else prompt_skeleton_code
     return prompt_template.format(
         accuracy=accuracy,
         target_pattern=target_pattern,
-        skeleton_code=skeleton,
+        skeleton_code=prompt_skeleton_code,
         available_backbones=", ".join(available_backbones),
     )
 
