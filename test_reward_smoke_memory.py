@@ -68,6 +68,30 @@ class RewardSmokeMemoryTest(unittest.TestCase):
         self.assertNotIn("raw_pre_reward", tunerl_source)
         self.assertNotIn("pre_reward_samples", tunerl_source)
 
+    def test_block_contribution_detects_fractal_unit_feature_path(self):
+        function_source = _function_source("ab/gpt/TuneRL.py", "_block_contributes_to_forward")
+        namespace = {"re": re}
+        exec(function_source, namespace)
+        contributes = namespace["_block_contributes_to_forward"]
+
+        init_code = """
+def __init__(self, in_shape, out_shape, prm, device):
+    self.features = nn.Sequential()
+    self.features.add_module("unit1", FractalUnit(3, 64, 2, 0.15, 0.1))
+"""
+        forward_code = """
+def forward(self, x, is_probing=False):
+    x_f_map = self.features(x)
+    return adaptive_pool_flatten(x_f_map)
+"""
+        bypass_forward_code = """
+def forward(self, x, is_probing=False):
+    return self.backbone_a(x)
+"""
+
+        self.assertTrue(contributes(init_code, forward_code))
+        self.assertFalse(contributes(init_code, bypass_forward_code))
+
 
 if __name__ == "__main__":
     unittest.main()

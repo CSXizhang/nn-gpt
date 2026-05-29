@@ -478,16 +478,17 @@ def _block_signature_from_code(block_code: str) -> str:
 def _block_contributes_to_forward(init_code: str, forward_code: str) -> bool:
     init_source = str(init_code or "")
     forward_source = str(forward_code or "")
-    if "drop_conv3x3_block" not in init_source and "drop_conv3x3_block" not in forward_source:
+    block_tokens = ("drop_conv3x3_block", "FractalUnit", "FractalBlock")
+    if not any(token in init_source or token in forward_source for token in block_tokens):
         return False
     if "drop_conv3x3_block" in forward_source:
         return True
-    if "drop_conv3x3_block" in init_source and "self.features" in init_source and "self.features" in forward_source:
+    if any(token in init_source for token in block_tokens) and "self.features" in init_source and "self.features" in forward_source:
         return True
 
     referenced_attrs = set(re.findall(r"self\.([A-Za-z_][A-Za-z0-9_]*)", forward_source))
     for line in init_source.splitlines():
-        if "drop_conv3x3_block" not in line:
+        if not any(token in line for token in block_tokens):
             continue
         match = re.search(r"self\.([A-Za-z_][A-Za-z0-9_]*)", line)
         if match and match.group(1) in referenced_attrs:
