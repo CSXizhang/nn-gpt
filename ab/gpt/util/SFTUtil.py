@@ -1,4 +1,5 @@
 import ast
+import os
 import re
 import textwrap
 
@@ -328,6 +329,43 @@ def _build_prompt_skeleton(code):
 
 prompt_skeleton_code = _build_prompt_skeleton(skeleton_code)
 
+compact_prompt_skeleton_code = """import torch
+import torch.nn as nn
+
+class TorchVision(nn.Module):
+    def __init__(self, model: str, weights: str = "DEFAULT", unwrap: bool = True, truncate: int = 1, in_channels: int = 3): ...
+    def forward(self, x: torch.Tensor) -> torch.Tensor: ...
+
+def adaptive_pool_flatten(x): ...
+def autocast_ctx(enabled=True): ...
+def make_scaler(enabled=True): ...
+def supported_hyperparameters():
+    return { 'lr', 'momentum' }
+
+def drop_conv3x3_block(in_channels, out_channels, stride=1, padding=1, bias=False, dropout_prob=0.0):
+
+class FractalBlock(nn.Module):
+    def __init__(self, in_channels, out_channels, num_columns, loc_drop_prob, dropout_prob): ...
+    def forward(self, x): ...
+
+class FractalUnit(nn.Module):
+    def __init__(self, in_channels, out_channels, num_columns, loc_drop_prob, dropout_prob): ...
+    def forward(self, x): ...
+
+class Net(nn.Module):
+    def __init__(self, in_shape: tuple, out_shape: tuple, prm: dict, device: torch.device) -> None:
+
+    def infer_dimensions_dynamically(self, num_classes):
+        # Requires self._input_spec = (c_in, h_in, w_in), runs forward(..., is_probing=True),
+        # pools the returned features, and creates self.classifier = nn.Linear(dim_fused, num_classes).
+        ...
+
+    @staticmethod
+    def _norm4d(x: torch.Tensor) -> torch.Tensor: ...
+
+    def forward(self, x: torch.Tensor, is_probing: bool = False) -> torch.Tensor:
+"""
+
 prompt_template="""
 ### Role
 You are implementing one trainable dual-backbone image-classification model. Seed accuracy: {accuracy}.
@@ -364,10 +402,11 @@ You are implementing one trainable dual-backbone image-classification model. See
 
 
 def format_backbone_prompt(*, accuracy, target_pattern):
+    skeleton = compact_prompt_skeleton_code if os.getenv("NNGPT_SFT_COMPACT_SKELETON", "").strip().lower() in {"1", "true", "yes", "on"} else prompt_skeleton_code
     return prompt_template.format(
         accuracy=accuracy,
         target_pattern=target_pattern,
-        skeleton_code=prompt_skeleton_code,
+        skeleton_code=skeleton,
         available_backbones=", ".join(available_backbones),
     )
 
