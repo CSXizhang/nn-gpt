@@ -179,6 +179,7 @@ STRUCTURE_ARCHIVE_RARITY_MEDIUM_BONUS = 0.02
 STRUCTURE_ARCHIVE_RARITY_LIGHT_BONUS = 0.01
 REPEAT_FAMILY_PENALTY = -0.05
 PLAIN_FUSE_PENALTY = -0.10
+PLAIN_DUAL_BACKBONE_FUSE_PENALTY = -0.28
 NO_PROGRESS_PENALTY = -0.06
 GOAL_REFRESH_BONUS = 0.30
 GOAL_MATCH_REWARD_SCALE = 0.12
@@ -308,6 +309,9 @@ STAGE23_DOMINANT_CNN_SOFT_SHARE = 0.45
 STAGE23_DOMINANT_CNN_STRONG_SHARE = 0.65
 STAGE23_DOMINANT_CNN_REPEAT_PENALTY = -0.08
 STAGE23_DOMINANT_CNN_REPEAT_STRONG_PENALTY = -0.12
+STAGE23_GLOBAL_CNN_REPEAT_PENALTY = -0.18
+STAGE23_GLOBAL_CNN_REPEAT_STRONG_PENALTY = -0.30
+STAGE23_DEAD_BLOCK_PENALTY = -0.04
 STAGE23_STRUCTURE_ARCHIVE_RARITY_CAP = 0.03
 STAGE2_DENSE_SCALE = 0.50
 STAGE2_PREV_GROUP_SCALE = 0.70
@@ -471,6 +475,46 @@ def _block_signature_from_code(block_code: str) -> str:
     return hashlib.sha1(payload.encode("utf-8")).hexdigest()
 
 
+def _block_contributes_to_forward(init_code: str, forward_code: str) -> bool:
+    init_source = str(init_code or "")
+    forward_source = str(forward_code or "")
+    if "drop_conv3x3_block" not in init_source and "drop_conv3x3_block" not in forward_source:
+        return False
+    if "drop_conv3x3_block" in forward_source:
+        return True
+    if "drop_conv3x3_block" in init_source and "self.features" in init_source and "self.features" in forward_source:
+        return True
+
+    referenced_attrs = set(re.findall(r"self\.([A-Za-z_][A-Za-z0-9_]*)", forward_source))
+    for line in init_source.splitlines():
+        if "drop_conv3x3_block" not in line:
+            continue
+        match = re.search(r"self\.([A-Za-z_][A-Za-z0-9_]*)", line)
+        if match and match.group(1) in referenced_attrs:
+            return True
+    return False
+
+
+def _is_plain_dual_backbone_concat(forward_code: str) -> bool:
+    source = str(forward_code or "")
+    if not ("self.backbone_a" in source and "self.backbone_b" in source):
+        return False
+    if "torch.cat" not in source or "adaptive_pool_flatten" not in source:
+        return False
+    structural_tokens = (
+        "_feature_to_input_image",
+        "self.features",
+        "self.stem",
+        "self.project",
+        "self.bridge",
+        "self.adapter",
+        "self.fuse",
+        "self.fractal",
+        "drop_conv3x3_block",
+    )
+    return not any(token in source for token in structural_tokens)
+
+
 def _result_backbone_signature(res: Dict[str, Any]) -> str:
     signature = str(res.get("backbone_signature") or "").strip()
     if signature:
@@ -490,10 +534,14 @@ def _result_cnn_signature(res: Dict[str, Any], graph_info) -> str:
 
 
 def _result_block_signature(res: Dict[str, Any], completion: str = "") -> str:
+    if res and res.get("block_contributes_to_forward") is False:
+        return "incomplete_block"
     signature = str(res.get("block_signature") or "").strip()
     if signature:
         return signature
-    block_code, _, _ = extract_completion_blocks(str(completion or ""))
+    block_code, init_code, forward_code = extract_completion_blocks(str(completion or ""))
+    if not _block_contributes_to_forward(init_code, forward_code):
+        return "incomplete_block"
     return _block_signature_from_code(block_code)
 
 
@@ -2566,7 +2614,9 @@ def _entry_block_signature(entry: Dict[str, Any]) -> str:
     signature = str(entry.get("block_signature") or "").strip()
     if signature:
         return signature
-    block_code, _, _ = extract_completion_blocks(str(entry.get("completion") or ""))
+    block_code, init_code, forward_code = extract_completion_blocks(str(entry.get("completion") or ""))
+    if not _block_contributes_to_forward(init_code, forward_code):
+        return "incomplete_block"
     return _block_signature_from_code(block_code)
 
 
@@ -3251,7 +3301,13 @@ def base_discovery_reward_fn(
         'epoch': 1,
     }
     block_code, init_code, forward_code = extract_completion_blocks(completion)
-    block_signature = _block_signature_from_code(block_code)
+    block_contributes_to_forward = _block_contributes_to_forward(init_code, forward_code)
+    block_signature = (
+        _block_signature_from_code(block_code)
+        if block_contributes_to_forward
+        else "incomplete_block"
+    )
+    plain_dual_backbone_concat = _is_plain_dual_backbone_concat(forward_code)
     backbone_model_names = _extract_backbone_model_names(init_code)
     if not block_code or not init_code or not forward_code:
         return _discovery_failure_result(
@@ -3518,7 +3574,7 @@ def base_discovery_reward_fn(
         ):
             dominant_family_repeat = True
             r_repeat_family = REPEAT_FAMILY_PENALTY
-        if graph_info.is_plain_parallel_triple:
+        if graph_info.is_plain_parallel_triple or plain_dual_backbone_concat:
             plain_parallel_repeat = True
             if stage_name == STAGE1_STRUCTURE_EXPLORE:
                 if goal_tag_hit_rate < STAGE1_DISCOVERY_MIN_GOAL_HIT_RATE:
@@ -3526,7 +3582,10 @@ def base_discovery_reward_fn(
                 else:
                     r_plain_fuse_penalty = min(r_plain_fuse_penalty, STAGE1_PLAIN_PARALLEL_WARMUP_PENALTY)
             elif (not group_warmup) and not discovery_candidate:
-                r_plain_fuse_penalty = PLAIN_FUSE_PENALTY
+                r_plain_fuse_penalty = min(
+                    r_plain_fuse_penalty,
+                    PLAIN_DUAL_BACKBONE_FUSE_PENALTY if plain_dual_backbone_concat else PLAIN_FUSE_PENALTY,
+                )
 
     if stage_name == STAGE1_STRUCTURE_EXPLORE:
         reward_target_value = None
@@ -3623,7 +3682,7 @@ def base_discovery_reward_fn(
                     reward_target_value = min(float(reward_target_value), STAGE1_ZERO_GOAL_HIT_REWARD_CAP)
                 elif goal_alignment_scale < 0.5:
                     reward_target_value = min(float(reward_target_value), STAGE1_LOW_GOAL_HIT_REWARD_CAP)
-            if graph_info.is_plain_parallel_triple:
+            if graph_info.is_plain_parallel_triple or plain_dual_backbone_concat:
                 reward_target_value = min(float(reward_target_value), STAGE1_PLAIN_PARALLEL_REWARD_CAP)
                 if goal_alignment_scale < STAGE1_DISCOVERY_MIN_GOAL_HIT_RATE:
                     reward_target_value = min(float(reward_target_value), STAGE1_OFF_TARGET_PLAIN_PARALLEL_REWARD_CAP)
@@ -3892,6 +3951,20 @@ def base_discovery_reward_fn(
             if (
                 (not group_warmup)
                 and quality_diversity_eligible
+                and dominant_cnn_signature
+                and cnn_signature == dominant_cnn_signature
+                and float(dominant_cnn_share or 0.0) >= STAGE23_DOMINANT_CNN_SOFT_SHARE
+                and not descriptor_progress_refresh
+            ):
+                dominant_cnn_repeat = True
+                if float(dominant_cnn_share or 0.0) >= STAGE23_DOMINANT_CNN_STRONG_SHARE:
+                    r_cnn_diversity += STAGE23_GLOBAL_CNN_REPEAT_STRONG_PENALTY
+                else:
+                    r_cnn_diversity += STAGE23_GLOBAL_CNN_REPEAT_PENALTY
+
+            if (
+                (not group_warmup)
+                and quality_diversity_eligible
                 and archive_snapshot_backbone_freq >= BACKBONE_BASELINE_MIN_ARCHIVE_SAMPLES
                 and dominant_backbone_cnn_signature
                 and cnn_signature != dominant_backbone_cnn_signature
@@ -3911,6 +3984,15 @@ def base_discovery_reward_fn(
                     r_cnn_diversity += STAGE23_DOMINANT_CNN_REPEAT_STRONG_PENALTY
                 else:
                     r_cnn_diversity += STAGE23_DOMINANT_CNN_REPEAT_PENALTY
+
+        if (
+            executable_candidate
+            and graph_info.parse_ok
+            and quality_diversity_eligible
+            and block_code
+            and not block_contributes_to_forward
+        ):
+            r_block_diversity += STAGE23_DEAD_BLOCK_PENALTY
 
         if (
             executable_candidate
@@ -4152,6 +4234,8 @@ def base_discovery_reward_fn(
     res['cnn_signature'] = cnn_signature
     res['cnn_expr'] = cnn_expr
     res['block_signature'] = block_signature
+    res['block_contributes_to_forward'] = block_contributes_to_forward
+    res['plain_dual_backbone_concat'] = plain_dual_backbone_concat
     res['archive_snapshot_backbone_freq'] = archive_snapshot_backbone_freq
     res['archive_snapshot_cnn_freq'] = archive_snapshot_cnn_freq
     res['archive_snapshot_graph_freq'] = archive_snapshot_graph_freq
@@ -4264,6 +4348,8 @@ def base_discovery_reward_fn(
         'cnn_signature': cnn_signature,
         'cnn_expr': cnn_expr,
         'block_signature': block_signature,
+        'block_contributes_to_forward': block_contributes_to_forward,
+        'plain_dual_backbone_concat': plain_dual_backbone_concat,
         'descriptor_key': graph_info.descriptor_key,
         'dominant_descriptor_key': dominant_descriptor_key,
         'dominant_descriptor_share': dominant_descriptor_share,
@@ -4386,6 +4472,11 @@ def _apply_batch_elite_bonuses(scored_results: List[Dict[str, Any]], group_conte
         if reward_target_value is None:
             continue
         if _is_repeated_block_without_refresh(res):
+            continue
+        improved = bool(res.get("group_reward_target_improved") or res.get("backbone_reward_target_improved"))
+        if (res.get("dominant_descriptor_repeat") or res.get("dominant_cnn_repeat")) and not improved:
+            continue
+        if res.get("plain_dual_backbone_concat") and not improved:
             continue
         if _reward_variant_is_strong_repeat_penalty() and _is_strong_repeat_without_refresh(res):
             continue
