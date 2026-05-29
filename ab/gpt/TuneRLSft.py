@@ -339,8 +339,6 @@ def raw_reward_fn(
     elif str(res.get("current_stage_name") or "") == TuneRL.STAGE1_STRUCTURE_EXPLORE:
         if TuneRL._is_trainable_candidate(res, graph_info):
             trainability_bonus = 0.10
-            if bool(res.get("loss_drop_ok")):
-                trainability_bonus += 0.10
             res["reward"] = float(res["reward"]) + trainability_bonus
             res["stage1_trainability_bonus"] = trainability_bonus
 
@@ -1432,7 +1430,6 @@ def _is_trainable_architecture(res: Dict[str, Any], graph_info) -> bool:
         and res.get("built_ok")
         and res.get("forward_shape_ok")
         and res.get("backward_ok")
-        and res.get("loss_drop_ok")
     )
 
 
@@ -1460,8 +1457,6 @@ def _reapply_trainability_clamp(res: Dict[str, Any], reward_value: float, graph_
         reward_value = min(reward_value, -0.30)
     elif not res.get("backward_ok"):
         reward_value = min(reward_value, -0.10)
-    elif not res.get("loss_drop_ok"):
-        reward_value = min(reward_value, 0.0)
     return reward_value
 
 

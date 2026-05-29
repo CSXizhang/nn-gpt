@@ -2747,7 +2747,15 @@ def _is_minimal_backbone_classifier_template(init_code: str) -> bool:
 
 
 def _stage1_validity_scale(res: Dict[str, Any]) -> float:
-    if bool(res.get("loss_drop_ok")):
+    if bool(
+        res.get("built_ok")
+        and res.get("forward_shape_ok")
+        and (
+            res.get("backward_ok")
+            or res.get("trained_step_ok")
+            or _has_completed_formal_epoch(res)
+        )
+    ):
         return 1.0
     if bool(res.get("backward_ok") or res.get("trained_step_ok") or _has_completed_formal_epoch(res)):
         return 0.45
@@ -2768,11 +2776,6 @@ def _stage1_validity_reward(res: Dict[str, Any], graph_info) -> float:
         return -0.30
     if not _stage1_trainability_ok(res, graph_info):
         return -0.04
-    if not res.get("loss_drop_ok"):
-        loss_drop = _optional_float(res.get("loss_drop"))
-        if loss_drop is None:
-            return 0.04
-        return _clip(0.04 + 0.20 * float(loss_drop), 0.00, 0.08)
     return max(STAGE1_EXECUTABLE_BONUS, 0.12)
 
 
@@ -3010,11 +3013,6 @@ def _apply_trainability_clamp(res: Dict[str, Any], reward_value: float, graph_in
         loss_drop = _optional_float(res.get("loss_drop"))
         partial_progress = _clip(0.25 * float(loss_drop or 0.0), -0.04, 0.04)
         return min(reward_value, -0.12 + partial_progress)
-    if not res.get("loss_drop_ok"):
-        loss_drop = _optional_float(res.get("loss_drop"))
-        if loss_drop is None:
-            return min(reward_value, -0.02)
-        return min(reward_value, _clip(-0.02 + 0.20 * float(loss_drop), -0.08, 0.04))
     return reward_value
 
 
@@ -3031,8 +3029,6 @@ def _apply_stage1_trainability_clamp(res: Dict[str, Any], reward_value: float, g
         return min(reward_value, -0.30)
     if not _stage1_trainability_ok(res, graph_info):
         return min(reward_value, -0.04)
-    if not res.get("loss_drop_ok"):
-        return min(reward_value, 0.10)
     return reward_value
 
 

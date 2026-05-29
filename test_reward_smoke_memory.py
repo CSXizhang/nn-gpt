@@ -92,6 +92,18 @@ def forward(self, x, is_probing=False):
         self.assertTrue(contributes(init_code, forward_code))
         self.assertFalse(contributes(init_code, bypass_forward_code))
 
+    def test_loss_drop_is_not_a_reward_gate(self):
+        gated_functions = [
+            _function_source("ab/gpt/TuneRL.py", "_stage1_validity_reward"),
+            _function_source("ab/gpt/TuneRL.py", "_apply_trainability_clamp"),
+            _function_source("ab/gpt/TuneRL.py", "_apply_stage1_trainability_clamp"),
+            _function_source("ab/gpt/TuneRLSft.py", "_is_trainable_architecture"),
+            _function_source("ab/gpt/TuneRLSft.py", "_reapply_trainability_clamp"),
+        ]
+
+        for function_source in gated_functions:
+            self.assertNotIn('res.get("loss_drop_ok")', function_source)
+
 
 if __name__ == "__main__":
     unittest.main()
