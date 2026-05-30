@@ -309,6 +309,14 @@ STAGE23_BLOCK_ARCHIVE_NOVEL_BONUS = 0.08
 STAGE23_BLOCK_ARCHIVE_REPEAT_MAX_PENALTY = -0.08
 STAGE23_BLOCK_ARCHIVE_REPEAT_WINDOW = 16
 STAGE23_REPEATED_BLOCK_REWARD_CAP = 2.0
+STAGE23_DUPLICATE_LOW_ACC_THRESHOLD = 0.92
+STAGE23_DUPLICATE_LOW_ACC_REWARD_CAP = 0.03
+STAGE23_HIGH_ACC_BONUS_THRESHOLD = 0.92
+STAGE23_HIGH_ACC_BONUS = 0.08
+STAGE23_HIGH_ACC_STRONG_THRESHOLD = 0.925
+STAGE23_HIGH_ACC_STRONG_BONUS = 0.12
+STAGE23_HIGH_ACC_ELITE_THRESHOLD = 0.93
+STAGE23_HIGH_ACC_ELITE_BONUS = 0.18
 STAGE23_NON_DOMINANT_CNN_BONUS = 0.08
 STAGE23_DOMINANT_CNN_SOFT_SHARE = 0.45
 STAGE23_DOMINANT_CNN_STRONG_SHARE = 0.65
@@ -3690,6 +3698,9 @@ def base_discovery_reward_fn(
     reward_target_value = _result_reward_target_value(res)
     if reward_target_value is None and stage_name != STAGE1_STRUCTURE_EXPLORE:
         reward_target_value = frozen_test_acc
+    quality_acc_value = _optional_float(frozen_test_acc)
+    if quality_acc_value is None:
+        quality_acc_value = _optional_float(reward_target_value)
     goal_key = primary_goal_key(prompt_goal_tags or [], prompt_target_pattern)
     best_reward_target_for_goal = best_reward_target_by_goal.get(goal_key)
     group_train_acc_gain = None
@@ -4373,6 +4384,34 @@ def base_discovery_reward_fn(
         if reward_variant == REWARD_VARIANT_STRONG_REPEAT_PENALTY and strong_repeat_reasons:
             total_reward = min(total_reward, 0.0)
             strong_repeat_penalty_applied = True
+        duplicate_low_acc_signature = bool(
+            has_formal_epoch
+            and formal_success_candidate
+            and pattern_detection.get("target_structure_match") is not False
+            and (
+                archive_snapshot_backbone_freq > 0
+                or batch_same_backbone_count > 1
+                or archive_snapshot_backbone_cnn_freq > 0
+                or batch_same_backbone_cnn_count > 1
+                or archive_snapshot_block_freq > 0
+                or batch_same_block_count > 1
+            )
+        )
+        if (
+            has_formal_epoch
+            and formal_success_candidate
+            and pattern_detection.get("target_structure_match") is not False
+            and quality_acc_value is not None
+        ):
+            if quality_acc_value >= STAGE23_HIGH_ACC_ELITE_THRESHOLD:
+                total_reward += STAGE23_HIGH_ACC_ELITE_BONUS
+            elif quality_acc_value >= STAGE23_HIGH_ACC_STRONG_THRESHOLD:
+                total_reward += STAGE23_HIGH_ACC_STRONG_BONUS
+            elif quality_acc_value >= STAGE23_HIGH_ACC_BONUS_THRESHOLD:
+                total_reward += STAGE23_HIGH_ACC_BONUS
+            elif duplicate_low_acc_signature and quality_acc_value < STAGE23_DUPLICATE_LOW_ACC_THRESHOLD:
+                total_reward = min(total_reward, STAGE23_DUPLICATE_LOW_ACC_REWARD_CAP)
+            total_reward = _clip(total_reward, -2.0, 2.0)
         total_reward = _apply_executability_clamp(res, total_reward, graph_info)
 
     reward_target_value_for_payload = reward_target_value
