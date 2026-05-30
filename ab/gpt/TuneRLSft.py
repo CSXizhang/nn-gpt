@@ -355,6 +355,10 @@ def raw_reward_fn(
         res["reward"] = min(float(res["reward"]), -0.8)
     if TuneRL._reward_variant_is_strong_repeat_penalty() and bool(res.get("strong_repeat_penalty_applied")):
         res["reward"] = min(float(res["reward"]), 0.0)
+    res["reward"] = TuneRL._apply_target_structure_reward_gate(
+        res,
+        float(res.get("reward", -2.0)),
+    )
 
     res["raw_extraction"] = {
         **meta,

@@ -202,6 +202,26 @@ def forward(self, x, is_probing=False):
         self.assertLess(warmup_index, clamp_index)
         self.assertLess(clamp_index, reward_write_index)
 
+    def test_target_structure_gate_covers_reward_postprocessing_exits(self):
+        recompute_body = _function_source("ab/gpt/TuneRL.py", "_recompute_discovery_reward")
+        recompute_gate_index = recompute_body.index("_apply_target_structure_reward_gate")
+        recompute_return_index = recompute_body.index("return total_reward")
+        self.assertLess(recompute_gate_index, recompute_return_index)
+
+        elite_body = _function_source("ab/gpt/TuneRL.py", "_apply_batch_elite_bonuses")
+        target_skip_index = elite_body.index('res.get("target_structure_match") is False')
+        eligible_index = elite_body.index("eligible.append")
+        self.assertLess(target_skip_index, eligible_index)
+
+        sft_body = _function_source("ab/gpt/TuneRLSft.py", "raw_reward_fn")
+        warmup_index = sft_body.index("warmup_dense_reward")
+        compactness_index = sft_body.index("_completion_compactness_penalty")
+        gate_index = sft_body.index("_apply_target_structure_reward_gate")
+        raw_meta_index = sft_body.index('res["raw_extraction"]')
+        self.assertLess(warmup_index, gate_index)
+        self.assertLess(compactness_index, gate_index)
+        self.assertLess(gate_index, raw_meta_index)
+
     def test_loss_drop_is_not_a_reward_gate(self):
         gated_functions = [
             _function_source("ab/gpt/TuneRL.py", "_stage1_validity_reward"),

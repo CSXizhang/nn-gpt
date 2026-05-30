@@ -2704,6 +2704,14 @@ def _apply_target_structure_final_clamp(
     return min(float(reward_value), penalty, 0.0)
 
 
+def _apply_target_structure_reward_gate(res: Dict[str, Any], reward_value: float) -> float:
+    return _apply_target_structure_final_clamp(
+        res,
+        reward_value,
+        float(res.get("r_target_structure_penalty", 0.0) or 0.0),
+    )
+
+
 def prompt_goal_satisfied(graph_info, tag: str) -> bool:
     if not graph_info or not graph_info.parse_ok:
         return False
@@ -3386,6 +3394,7 @@ def _recompute_discovery_reward(
             total_reward = min(total_reward, 0.0)
             res["strong_repeat_penalty_applied"] = True
         total_reward = _apply_trainability_clamp(res, total_reward, graph_info)
+    total_reward = _apply_target_structure_reward_gate(res, total_reward)
     return total_reward, r_primary, r_tiebreak
 
 
@@ -4715,6 +4724,8 @@ def _apply_batch_elite_bonuses(scored_results: List[Dict[str, Any]], group_conte
         if not _has_completed_formal_epoch(res):
             continue
         if reward_target_value is None:
+            continue
+        if res.get("target_structure_match") is False:
             continue
         if _is_repeated_block_without_refresh(res):
             continue
