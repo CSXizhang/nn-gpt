@@ -110,7 +110,13 @@ def forward(self, x, is_probing=False):
             "Any": object,
             "Dict": dict,
             "List": list,
+            "Tuple": tuple,
             "normalize_pattern_name": normalize_pattern_name,
+            "TARGET_STRUCTURE_DEAD_BLOCK_PENALTY": -0.25,
+            "TARGET_STRUCTURE_DUAL_BACKBONE_PENALTY": -0.20,
+            "TARGET_STRUCTURE_PATH_PENALTY": -0.15,
+            "TARGET_STRUCTURE_PARSE_PENALTY": -0.30,
+            "TARGET_STRUCTURE_PENALTY_FLOOR": -0.45,
         }
         for function_name in (
             "_compact_graph_expr",
@@ -118,9 +124,12 @@ def forward(self, x, is_probing=False):
             "_graph_has_backbone_before_block",
             "build_actual_structure_signature",
             "detect_target_structure",
+            "_target_structure_penalty",
+            "_apply_target_structure_reward_adjustment",
         ):
             exec(_function_source("ab/gpt/TuneRL.py", function_name), namespace)
         detect_target_structure = namespace["detect_target_structure"]
+        apply_adjustment = namespace["_apply_target_structure_reward_adjustment"]
 
         dead_direct_fuse = SimpleNamespace(
             pattern_name="B_to_Fractal_plus_A",
@@ -147,6 +156,10 @@ def forward(self, x, is_probing=False):
         self.assertFalse(dead_result["target_structure_match"])
         self.assertIn("target_fractal_but_block_dead", dead_result["target_structure_mismatch_reasons"])
         self.assertIn("block_dead", dead_result["actual_structure_signature"])
+        group, archive, penalty, suppressed = apply_adjustment(dead_result, 0.12, 0.05)
+        self.assertEqual((group, archive), (0.0, 0.0))
+        self.assertAlmostEqual(penalty, -0.40)
+        self.assertAlmostEqual(suppressed, 0.17)
 
         live_fractal_branch = SimpleNamespace(
             pattern_name="A_to_Fractal_plus_B",
@@ -172,6 +185,8 @@ def forward(self, x, is_probing=False):
         self.assertTrue(live_result["target_structure_match"])
         self.assertIn("block_live", live_result["actual_structure_signature"])
         self.assertIn("liveblock123", live_result["actual_structure_signature"])
+        group, archive, penalty, suppressed = apply_adjustment(live_result, 0.12, 0.05)
+        self.assertEqual((group, archive, penalty, suppressed), (0.12, 0.05, 0.0, 0.0))
 
     def test_loss_drop_is_not_a_reward_gate(self):
         gated_functions = [

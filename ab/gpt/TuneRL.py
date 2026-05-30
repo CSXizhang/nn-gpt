@@ -180,6 +180,11 @@ STRUCTURE_ARCHIVE_RARITY_LIGHT_BONUS = 0.01
 REPEAT_FAMILY_PENALTY = -0.05
 PLAIN_FUSE_PENALTY = -0.10
 PLAIN_DUAL_BACKBONE_FUSE_PENALTY = -0.28
+TARGET_STRUCTURE_DEAD_BLOCK_PENALTY = -0.25
+TARGET_STRUCTURE_DUAL_BACKBONE_PENALTY = -0.20
+TARGET_STRUCTURE_PATH_PENALTY = -0.15
+TARGET_STRUCTURE_PARSE_PENALTY = -0.30
+TARGET_STRUCTURE_PENALTY_FLOOR = -0.45
 NO_PROGRESS_PENALTY = -0.06
 GOAL_REFRESH_BONUS = 0.30
 GOAL_MATCH_REWARD_SCALE = 0.12
@@ -2641,6 +2646,49 @@ def detect_target_structure(
     return result
 
 
+def _target_structure_penalty(reasons: List[str]) -> float:
+    reason_set = set(str(reason) for reason in (reasons or []))
+    penalty = 0.0
+    if "graph_parse_failed" in reason_set:
+        penalty += TARGET_STRUCTURE_PARSE_PENALTY
+    if "target_fractal_but_block_dead" in reason_set:
+        penalty += TARGET_STRUCTURE_DEAD_BLOCK_PENALTY
+    if "target_dual_but_forward_uses_less_than_two_backbones" in reason_set:
+        penalty += TARGET_STRUCTURE_DUAL_BACKBONE_PENALTY
+    if any(
+        reason in reason_set
+        for reason in (
+            "fractal_not_before_backbone",
+            "missing_backbone_to_fractal_path",
+            "missing_fractal_to_backbone_path",
+            "missing_backbone_to_fractal_branch",
+        )
+    ):
+        penalty += TARGET_STRUCTURE_PATH_PENALTY
+    return max(TARGET_STRUCTURE_PENALTY_FLOOR, penalty)
+
+
+def _apply_target_structure_reward_adjustment(
+    pattern_detection: Dict[str, Any],
+    r_structure_group: float,
+    r_structure_archive: float,
+) -> Tuple[float, float, float, float]:
+    if bool(pattern_detection.get("target_structure_match", True)):
+        return r_structure_group, r_structure_archive, 0.0, 0.0
+    suppressed_positive = max(0.0, float(r_structure_group or 0.0)) + max(
+        0.0,
+        float(r_structure_archive or 0.0),
+    )
+    return (
+        min(0.0, float(r_structure_group or 0.0)),
+        min(0.0, float(r_structure_archive or 0.0)),
+        _target_structure_penalty(
+            list(pattern_detection.get("target_structure_mismatch_reasons") or [])
+        ),
+        suppressed_positive,
+    )
+
+
 def prompt_goal_satisfied(graph_info, tag: str) -> bool:
     if not graph_info or not graph_info.parse_ok:
         return False
@@ -3304,6 +3352,7 @@ def _recompute_discovery_reward(
         + float(res.get("r_batch_elite", 0.0) or 0.0)
         + float(res.get("r_repeat_family", 0.0) or 0.0)
         + float(res.get("r_plain_fuse_penalty", 0.0) or 0.0)
+        + float(res.get("r_target_structure_penalty", 0.0) or 0.0)
         + float(res.get("r_template_penalty", 0.0) or 0.0)
         + float(res.get("r_history_context", 0.0) or 0.0)
         + float(res.get("r_no_progress_penalty", 0.0) or 0.0)
@@ -3649,6 +3698,8 @@ def base_discovery_reward_fn(
     r_batch_elite = 0.0
     r_repeat_family = 0.0
     r_plain_fuse_penalty = 0.0
+    r_target_structure_penalty = 0.0
+    target_structure_positive_suppressed = 0.0
     r_template_penalty = 0.0
     r_history_context = 0.0
     r_no_progress_penalty = 0.0
@@ -3882,6 +3933,16 @@ def base_discovery_reward_fn(
             r_trainset_novelty = adjusted_components["r_trainset_novelty"]
             r_structure_group = adjusted_components["r_structure_group"]
             r_structure_archive = adjusted_components["r_structure_archive"]
+        (
+            r_structure_group,
+            r_structure_archive,
+            r_target_structure_penalty,
+            target_structure_positive_suppressed,
+        ) = _apply_target_structure_reward_adjustment(
+            pattern_detection,
+            r_structure_group,
+            r_structure_archive,
+        )
         r_primary = (
             r_dense
             + r_goal_best
@@ -3889,6 +3950,7 @@ def base_discovery_reward_fn(
             + r_structure_archive
             + r_repeat_family
             + r_plain_fuse_penalty
+            + r_target_structure_penalty
             + r_template_penalty
             + r_history_context
             + r_no_progress_penalty
@@ -4214,6 +4276,16 @@ def base_discovery_reward_fn(
             global_cnn_archive_reward = adjusted_components["global_cnn_archive_reward"]
             block_archive_reward = adjusted_components["block_archive_reward"]
 
+        (
+            r_structure_group,
+            r_structure_archive,
+            r_target_structure_penalty,
+            target_structure_positive_suppressed,
+        ) = _apply_target_structure_reward_adjustment(
+            pattern_detection,
+            r_structure_group,
+            r_structure_archive,
+        )
         r_primary = (
             r_dense
             + r_formal_success_signal
@@ -4231,6 +4303,7 @@ def base_discovery_reward_fn(
             + r_batch_elite
             + r_repeat_family
             + r_plain_fuse_penalty
+            + r_target_structure_penalty
             + r_template_penalty
             + r_history_context
             + r_no_progress_penalty
@@ -4349,6 +4422,8 @@ def base_discovery_reward_fn(
     res['r_batch_elite'] = r_batch_elite
     res['r_repeat_family'] = r_repeat_family
     res['r_plain_fuse_penalty'] = r_plain_fuse_penalty
+    res['r_target_structure_penalty'] = r_target_structure_penalty
+    res['target_structure_positive_suppressed'] = target_structure_positive_suppressed
     res['r_template_penalty'] = r_template_penalty
     res['r_history_context'] = r_history_context
     res['r_no_progress_penalty'] = r_no_progress_penalty
@@ -4436,6 +4511,8 @@ def base_discovery_reward_fn(
         'r_batch_elite': r_batch_elite,
         'r_repeat_family': r_repeat_family,
         'r_plain_fuse_penalty': r_plain_fuse_penalty,
+        'r_target_structure_penalty': r_target_structure_penalty,
+        'target_structure_positive_suppressed': target_structure_positive_suppressed,
         'r_template_penalty': r_template_penalty,
         'r_history_context': r_history_context,
         'r_no_progress_penalty': r_no_progress_penalty,
