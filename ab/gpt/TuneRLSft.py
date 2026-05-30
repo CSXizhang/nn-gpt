@@ -77,6 +77,8 @@ SFT_EVAL_LIMIT_SECONDS = 900
 SFT_EVAL_FORMAL_EPOCH_LIMIT_MINUTES = 30
 SFT_EVAL_DATA_ROOT = "data_v2"
 SFT_EVAL_DOWNLOAD = True
+SFT_EVAL_SPLIT_PROTOCOL = "721"
+SFT_EVAL_SPLIT_SEED = 42
 SFT_VAL_METRIC_BASELINE = 0.10
 
 # Local desktop cache roots.
@@ -780,6 +782,9 @@ def _write_sft_run_config(
         "NNGPT_SFT_EPOCH_ROOT",
         "NNGPT_SFT_APPEND_LOGS",
     ]
+    split_protocol = _env_str("NNGPT_SFT_EVAL_SPLIT_PROTOCOL", SFT_EVAL_SPLIT_PROTOCOL)
+    split_seed = _env_int("NNGPT_SFT_EVAL_SPLIT_SEED", SFT_EVAL_SPLIT_SEED)
+    use_721_split = split_protocol.strip().lower() == "721"
     payload = {
         "phase": "four_pattern_reward_ablation",
         "created_at": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
@@ -828,8 +833,11 @@ def _write_sft_run_config(
             "transform": SFT_EVAL_TRANSFORM,
             "resize": SFT_EVAL_IMAGE_SIZE,
             "batch": SFT_EVAL_BATCH_SIZE,
-            "train_set": "full",
-            "test_set": "full",
+            "split_protocol": split_protocol,
+            "split_seed": split_seed,
+            "train_set": "cifar10-train[70%]" if use_721_split else "official-train",
+            "reward_eval_set": "cifar10-train[20%]" if use_721_split else "official-test",
+            "heldout_test_set": "cifar10-train[10%]" if use_721_split else "none",
             "train_epochs": SFT_EVAL_TRAIN_EPOCHS,
             "formal_epochs": os.getenv("NNGPT_RL_FORMAL_REWARD_EPOCHS", "10"),
             "full_test_acc": SFT_EVAL_FULL_TEST_ACC,
@@ -1412,6 +1420,8 @@ def build_sft_reward_eval_cfg(
         val_subset_size=SFT_EVAL_VAL_SUBSET,
         data_root=SFT_EVAL_DATA_ROOT,
         download=SFT_EVAL_DOWNLOAD,
+        split_protocol=_env_str("NNGPT_SFT_EVAL_SPLIT_PROTOCOL", SFT_EVAL_SPLIT_PROTOCOL),
+        split_seed=_env_int("NNGPT_SFT_EVAL_SPLIT_SEED", SFT_EVAL_SPLIT_SEED),
         measure_latency=getattr(cfg, "measure_latency", True),
         kl_div=getattr(cfg, "kl_div", None),
         critic_fn=getattr(cfg, "critic_fn", None),
@@ -2333,7 +2343,9 @@ def main() -> None:
     print(
         f"[SFT RL] Eval plan: stage1=static_only(no-check_nn), stage2/3=nn-dataset-formal(cifar-10), "
         f"transform={SFT_EVAL_TRANSFORM}, resize={SFT_EVAL_IMAGE_SIZE}, batch={SFT_EVAL_BATCH_SIZE}, "
-        f"train_set=full, test_set=full, train_epochs={SFT_EVAL_TRAIN_EPOCHS}, "
+        f"split={_env_str('NNGPT_SFT_EVAL_SPLIT_PROTOCOL', SFT_EVAL_SPLIT_PROTOCOL)}, "
+        f"split_seed={_env_int('NNGPT_SFT_EVAL_SPLIT_SEED', SFT_EVAL_SPLIT_SEED)}, "
+        f"train_set=70%, reward_eval_set=20%, heldout_test_set=10%, train_epochs={SFT_EVAL_TRAIN_EPOCHS}, "
         f"freeze_only_backbone_eval=True, formal_epoch_limit_minutes={SFT_EVAL_FORMAL_EPOCH_LIMIT_MINUTES}, "
         f"worker_eval_limit_seconds={SFT_EVAL_LIMIT_SECONDS}, "
         f"baseline={SFT_VAL_METRIC_BASELINE:.2f}"

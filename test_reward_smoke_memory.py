@@ -1,9 +1,10 @@
 import ast
+import random
 import re
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
-from typing import Optional
+from typing import Any, Dict, Optional
 
 from ab.gpt.util import SFTUtil
 from ab.gpt.util.ArchDiscovery import normalize_pattern_name
@@ -248,6 +249,28 @@ def forward(self, x, is_probing=False):
             self.assertIn(parameter_name, tunerl_reward)
             self.assertIn(parameter_name, sft_reward)
             self.assertIn(parameter_name, sft_raw_reward)
+
+    def test_sft_rl_reward_eval_uses_721_split(self):
+        tunerlsft_source = _source("ab/gpt/TuneRLSft.py")
+        self.assertRegex(tunerlsft_source, r'SFT_EVAL_SPLIT_PROTOCOL\s*=\s*"721"')
+        self.assertIn("split_protocol=_env_str", tunerlsft_source)
+        self.assertIn("heldout_test_set=10%", tunerlsft_source)
+
+        reward_loader = _function_source("ab/gpt/util/Reward.py", "_build_cifar10_loaders")
+        self.assertIn('split_protocol == "721"', reward_loader)
+        self.assertIn("train=True", reward_loader)
+        self.assertIn("eval_source", reward_loader)
+        self.assertIn("train=False", reward_loader)
+
+        namespace = {"Any": Any, "Dict": Dict, "random": random}
+        exec(_function_source("ab/gpt/util/Reward.py", "_stratified_721_indices"), namespace)
+        split_indices = namespace["_stratified_721_indices"]
+        train_indices, val_indices, test_indices = split_indices([0] * 10 + [1] * 10, seed=7)
+
+        self.assertEqual((len(train_indices), len(val_indices), len(test_indices)), (14, 4, 2))
+        self.assertFalse(set(train_indices) & set(val_indices))
+        self.assertFalse(set(train_indices) & set(test_indices))
+        self.assertFalse(set(val_indices) & set(test_indices))
 
     def test_stage23_local_competition_preserves_early_search_space(self):
         namespace = {
