@@ -2505,6 +2505,142 @@ def extract_prompt_goal_tags(prompt_text: str) -> List[str]:
     return [tag.strip() for tag in match.group(1).split(",") if tag.strip()]
 
 
+def extract_prompt_target_pattern(prompt_text: str) -> str:
+    if not prompt_text:
+        return ""
+    match = re.search(
+        r"(?:^|\n)\s*(?:-\s*)?Target pattern:\s*`?([A-Za-z0-9_-]+)`?",
+        prompt_text,
+        flags=re.IGNORECASE,
+    )
+    if not match:
+        return ""
+    return match.group(1).strip()
+
+
+def _compact_graph_expr(graph_expr: str) -> str:
+    return re.sub(r"\s+", "", str(graph_expr or ""))
+
+
+def _graph_has_block_before_backbone(graph_expr: str) -> bool:
+    compact = _compact_graph_expr(graph_expr)
+    return bool(
+        re.search(
+            r"Backbone\[[^\]]+\]\(_feature_to_input_image\((?:Sequential\[Block\]|Block|Fractal)",
+            compact,
+        )
+    )
+
+
+def _graph_has_backbone_before_block(graph_expr: str) -> bool:
+    compact = _compact_graph_expr(graph_expr)
+    return bool(
+        re.search(
+            r"(?:Sequential\[Block\]|Block|Fractal)\(_feature_to_input_image\(Backbone\[[^\]]+\]",
+            compact,
+        )
+    )
+
+
+def build_actual_structure_signature(
+    graph_info,
+    *,
+    block_contributes_to_forward: bool,
+    block_signature: str = "",
+) -> str:
+    if graph_info is None or not getattr(graph_info, "parse_ok", False):
+        return "incomplete|block_unknown|bb0|d0|incomplete"
+    block_state = "block_live" if block_contributes_to_forward else "block_dead"
+    block_key = str(block_signature or "").strip() if block_contributes_to_forward else "incomplete_block"
+    if not block_key:
+        block_key = "unknown_block"
+    return "|".join(
+        [
+            str(getattr(graph_info, "family_id", "") or "UnknownFamily"),
+            str(getattr(graph_info, "descriptor_key", "") or "unknown_descriptor"),
+            f"bb{int(getattr(graph_info, 'backbone_calls', 0) or 0)}",
+            block_state,
+            str(getattr(graph_info, "family_hash", "") or "unknown_family_hash")[:12],
+            str(getattr(graph_info, "cnn_signature", "") or "unknown_cnn")[:12],
+            str(block_key)[:12],
+        ]
+    )
+
+
+def detect_target_structure(
+    *,
+    prompt_target_pattern: str,
+    graph_info,
+    block_contributes_to_forward: bool,
+    block_signature: str = "",
+) -> Dict[str, Any]:
+    prompt_target_pattern = str(prompt_target_pattern or "").strip()
+    normalized_target = normalize_pattern_name(prompt_target_pattern) if prompt_target_pattern else ""
+    declared_pattern = str(getattr(graph_info, "pattern_name", "") or "") if graph_info is not None else ""
+    actual_pattern = str(getattr(graph_info, "suggested_pattern_name", "") or "") if graph_info is not None else ""
+    actual_signature = build_actual_structure_signature(
+        graph_info,
+        block_contributes_to_forward=bool(block_contributes_to_forward),
+        block_signature=block_signature,
+    )
+    result = {
+        "prompt_target_pattern": prompt_target_pattern,
+        "normalized_prompt_target_pattern": normalized_target,
+        "declared_pattern": declared_pattern,
+        "actual_pattern": actual_pattern,
+        "declared_pattern_matches_prompt": (
+            bool(normalized_target)
+            and normalize_pattern_name(declared_pattern) == normalized_target
+        ),
+        "actual_structure_signature": actual_signature,
+        "target_structure_key": f"{normalized_target or 'open'}::{actual_signature}",
+        "target_structure_match": True,
+        "target_structure_mismatch_reasons": [],
+        "actual_backbone_calls": int(getattr(graph_info, "backbone_calls", 0) or 0) if graph_info is not None else 0,
+        "actual_block_live": bool(block_contributes_to_forward),
+        "actual_block_before_backbone": False,
+        "actual_backbone_before_block": False,
+    }
+    if not normalized_target:
+        return result
+    if graph_info is None or not getattr(graph_info, "parse_ok", False):
+        result["target_structure_match"] = False
+        result["target_structure_mismatch_reasons"] = ["graph_parse_failed"]
+        return result
+
+    graph_expr = str(getattr(graph_info, "graph_expr", "") or "")
+    block_before_backbone = _graph_has_block_before_backbone(graph_expr)
+    backbone_before_block = _graph_has_backbone_before_block(graph_expr)
+    result["actual_block_before_backbone"] = block_before_backbone
+    result["actual_backbone_before_block"] = backbone_before_block
+
+    reasons: List[str] = []
+    target_needs_block = "Fractal" in normalized_target
+    target_needs_dual_backbone = (
+        "DualBackbone" in normalized_target
+        or "_to_B" in normalized_target
+        or "_plus_B" in normalized_target
+        or normalized_target.endswith("_plus_A")
+    )
+    if target_needs_block and not block_contributes_to_forward:
+        reasons.append("target_fractal_but_block_dead")
+    if target_needs_dual_backbone and int(getattr(graph_info, "backbone_calls", 0) or 0) < 2:
+        reasons.append("target_dual_but_forward_uses_less_than_two_backbones")
+    if normalized_target == "Fractal_to_DualBackbone" and not block_before_backbone:
+        reasons.append("fractal_not_before_backbone")
+    elif normalized_target == "A_to_Fractal_to_B":
+        if not backbone_before_block:
+            reasons.append("missing_backbone_to_fractal_path")
+        if not block_before_backbone:
+            reasons.append("missing_fractal_to_backbone_path")
+    elif normalized_target in {"A_to_Fractal_plus_B", "B_to_Fractal_plus_A"} and not backbone_before_block:
+        reasons.append("missing_backbone_to_fractal_branch")
+
+    result["target_structure_match"] = not reasons
+    result["target_structure_mismatch_reasons"] = reasons
+    return result
+
+
 def prompt_goal_satisfied(graph_info, tag: str) -> bool:
     if not graph_info or not graph_info.parse_ok:
         return False
@@ -2525,8 +2661,12 @@ def prompt_goal_satisfied(graph_info, tag: str) -> bool:
     return False
 
 
-def primary_goal_key(prompt_goal_tags: List[str]) -> str:
-    return "__".join(prompt_goal_tags or ["open"])
+def primary_goal_key(prompt_goal_tags: List[str], prompt_target_pattern: str = "") -> str:
+    tags = [str(tag).strip() for tag in (prompt_goal_tags or []) if str(tag).strip()]
+    if tags:
+        return "__".join(tags)
+    normalized_target = normalize_pattern_name(prompt_target_pattern) if prompt_target_pattern else ""
+    return normalized_target or "open"
 
 
 def goal_family_save_cap(graph_info) -> int:
@@ -3270,6 +3410,7 @@ def base_discovery_reward_fn(
     batch_cnn_signatures: List[str] = None,
     batch_block_signatures: List[str] = None,
     prompt_goal_tags: List[str] = None,
+    prompt_target_pattern: str = "",
     archive_snapshot_family_counts: Optional[Dict[str, int]] = None,
     archive_snapshot_descriptor_counts: Optional[Dict[str, int]] = None,
     archive_snapshot_backbone_signature_counts: Optional[Dict[str, int]] = None,
@@ -3327,9 +3468,14 @@ def base_discovery_reward_fn(
         forward_code,
         legacy_patterns=SFTUtil.legacy_patterns,
     )
-    effective_pattern_name = (
-        graph_info.pattern_name if graph_info.has_custom_pattern_name else graph_info.suggested_pattern_name
+    prompt_target_pattern = str(prompt_target_pattern or "").strip()
+    pattern_detection = detect_target_structure(
+        prompt_target_pattern=prompt_target_pattern,
+        graph_info=graph_info,
+        block_contributes_to_forward=block_contributes_to_forward,
+        block_signature=block_signature,
     )
+    effective_pattern_name = graph_info.suggested_pattern_name
     pattern_override = graph_info.suggested_pattern_name if not graph_info.has_custom_pattern_name else ""
 
     final_code = reconstruct_code(completion, pattern_name_override=pattern_override)
@@ -3481,7 +3627,7 @@ def base_discovery_reward_fn(
     reward_target_value = _result_reward_target_value(res)
     if reward_target_value is None and stage_name != STAGE1_STRUCTURE_EXPLORE:
         reward_target_value = frozen_test_acc
-    goal_key = primary_goal_key(prompt_goal_tags or [])
+    goal_key = primary_goal_key(prompt_goal_tags or [], prompt_target_pattern)
     best_reward_target_for_goal = best_reward_target_by_goal.get(goal_key)
     group_train_acc_gain = None
     group_train_acc_improved = False
@@ -3583,7 +3729,6 @@ def base_discovery_reward_fn(
                     r_plain_fuse_penalty,
                     PLAIN_DUAL_BACKBONE_FUSE_PENALTY if plain_dual_backbone_concat else PLAIN_FUSE_PENALTY,
                 )
-
     if stage_name == STAGE1_STRUCTURE_EXPLORE:
         reward_target_value = None
         stage1_validity_scale = _stage1_validity_scale(res)
@@ -4263,6 +4408,10 @@ def base_discovery_reward_fn(
     res['strong_repeat_penalty_reasons'] = list(dict.fromkeys(strong_repeat_reasons))
     res['history_exploration_pressure'] = float(training_context.get('exploration_pressure') or 0.0)
     res['minimal_init_template'] = minimal_init_template
+    res.update(pattern_detection)
+    res['declared_pattern_name'] = pattern_detection["declared_pattern"]
+    res['actual_pattern_name'] = pattern_detection["actual_pattern"]
+    res['target_pattern_match'] = pattern_detection["target_structure_match"]
     res['graph_expr'] = graph_info.graph_expr
     res['pattern_name'] = effective_pattern_name
     res['suggested_pattern_name'] = graph_info.suggested_pattern_name
@@ -4407,6 +4556,7 @@ def reward_fn(
     batch_cnn_signatures: List[str] = None,
     batch_block_signatures: List[str] = None,
     prompt_goal_tags: List[str] = None,
+    prompt_target_pattern: str = "",
     archive_snapshot_family_counts: Optional[Dict[str, int]] = None,
     archive_snapshot_descriptor_counts: Optional[Dict[str, int]] = None,
     archive_snapshot_backbone_signature_counts: Optional[Dict[str, int]] = None,
@@ -4435,6 +4585,7 @@ def reward_fn(
         batch_cnn_signatures=batch_cnn_signatures,
         batch_block_signatures=batch_block_signatures,
         prompt_goal_tags=prompt_goal_tags,
+        prompt_target_pattern=prompt_target_pattern,
         archive_snapshot_family_counts=archive_snapshot_family_counts,
         archive_snapshot_descriptor_counts=archive_snapshot_descriptor_counts,
         archive_snapshot_backbone_signature_counts=archive_snapshot_backbone_signature_counts,
@@ -4623,6 +4774,7 @@ def _prepare_local_reward_entries(
     batch_graph_infos: List[Any] = []
     batch_backbone_model_names: List[List[str]] = []
     batch_prompt_goal_tags = [extract_prompt_goal_tags(prompt) for prompt in prompts]
+    batch_prompt_target_patterns = [extract_prompt_target_pattern(prompt) for prompt in prompts]
 
     for i, completion in enumerate(completions):
         _, init_code, forward_code = extract_completion_blocks(completion)
@@ -4656,7 +4808,8 @@ def _prepare_local_reward_entries(
                     else "incomplete_cnn"
                 ),
                 "prompt_goal_tags": batch_prompt_goal_tags[i],
-                "goal_key": primary_goal_key(batch_prompt_goal_tags[i]),
+                "prompt_target_pattern": batch_prompt_target_patterns[i],
+                "goal_key": primary_goal_key(batch_prompt_goal_tags[i], batch_prompt_target_patterns[i]),
                 "seed_accuracy_baseline": seed_accuracy_baselines[i],
                 "precomputed_eval_result": None,
             }
@@ -4944,6 +5097,7 @@ def _score_reward_entries(
                 batch_cnn_signatures=batch_cnn_signatures,
                 batch_block_signatures=batch_block_signatures,
                 prompt_goal_tags=entry.get("prompt_goal_tags"),
+                prompt_target_pattern=entry.get("prompt_target_pattern", ""),
                 archive_snapshot_family_counts=archive_snapshot_family_counts,
                 archive_snapshot_descriptor_counts=archive_snapshot_descriptor_counts,
                 archive_snapshot_backbone_signature_counts=archive_snapshot_backbone_signature_counts,

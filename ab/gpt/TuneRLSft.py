@@ -214,6 +214,7 @@ def raw_reward_fn(
     batch_cnn_signatures: List[str] = None,
     batch_block_signatures: List[str] = None,
     prompt_goal_tags: List[str] = None,
+    prompt_target_pattern: str = "",
     archive_snapshot_family_counts: Dict[str, int] = None,
     archive_snapshot_descriptor_counts: Dict[str, int] = None,
     archive_snapshot_backbone_signature_counts: Dict[str, int] = None,
@@ -241,6 +242,7 @@ def raw_reward_fn(
         batch_cnn_signatures=batch_cnn_signatures,
         batch_block_signatures=batch_block_signatures,
         prompt_goal_tags=prompt_goal_tags,
+        prompt_target_pattern=prompt_target_pattern,
         archive_snapshot_family_counts=archive_snapshot_family_counts,
         archive_snapshot_descriptor_counts=archive_snapshot_descriptor_counts,
         archive_snapshot_backbone_signature_counts=archive_snapshot_backbone_signature_counts,
@@ -1473,6 +1475,7 @@ def sft_reward_fn(
     batch_cnn_signatures: List[str] = None,
     batch_block_signatures: List[str] = None,
     prompt_goal_tags: List[str] = None,
+    prompt_target_pattern: str = "",
     archive_snapshot_family_counts: Dict[str, int] = None,
     archive_snapshot_descriptor_counts: Dict[str, int] = None,
     archive_snapshot_backbone_signature_counts: Dict[str, int] = None,
@@ -1500,6 +1503,7 @@ def sft_reward_fn(
         batch_cnn_signatures=batch_cnn_signatures,
         batch_block_signatures=batch_block_signatures,
         prompt_goal_tags=prompt_goal_tags,
+        prompt_target_pattern=prompt_target_pattern,
         archive_snapshot_family_counts=archive_snapshot_family_counts,
         archive_snapshot_descriptor_counts=archive_snapshot_descriptor_counts,
         archive_snapshot_backbone_signature_counts=archive_snapshot_backbone_signature_counts,
@@ -1517,7 +1521,7 @@ def sft_reward_fn(
     )
     res["reward"] = _reapply_trainability_clamp(res, float(res.get("reward", -2.0)), graph_info)
     res["anti_collapse"] = {
-        "goal_key": TuneRL.primary_goal_key(prompt_goal_tags),
+        "goal_key": TuneRL.primary_goal_key(prompt_goal_tags, prompt_target_pattern),
         "trainable_ok": _is_trainable_architecture(res, graph_info),
         "anti_collapse_delta": 0.0,
     }

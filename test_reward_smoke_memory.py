@@ -2,8 +2,10 @@ import ast
 import re
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
 
 from ab.gpt.util import SFTUtil
+from ab.gpt.util.ArchDiscovery import normalize_pattern_name
 
 
 REPO_ROOT = Path(__file__).resolve().parent
@@ -91,6 +93,85 @@ def forward(self, x, is_probing=False):
 
         self.assertTrue(contributes(init_code, forward_code))
         self.assertFalse(contributes(init_code, bypass_forward_code))
+
+    def test_prompt_target_pattern_parser_reads_sft_contract(self):
+        function_source = _function_source("ab/gpt/TuneRL.py", "extract_prompt_target_pattern")
+        namespace = {"re": re}
+        exec(function_source, namespace)
+        parse_target = namespace["extract_prompt_target_pattern"]
+
+        prompt = "- Target pattern: `Fractal_to_DualBackbone`. Set self.pattern to this value."
+        self.assertEqual(parse_target(prompt), "Fractal_to_DualBackbone")
+        self.assertEqual(parse_target("Generate a model."), "")
+
+    def test_target_structure_detection_uses_forward_graph_not_declared_pattern(self):
+        namespace = {
+            "re": re,
+            "Any": object,
+            "Dict": dict,
+            "List": list,
+            "normalize_pattern_name": normalize_pattern_name,
+        }
+        for function_name in (
+            "_compact_graph_expr",
+            "_graph_has_block_before_backbone",
+            "_graph_has_backbone_before_block",
+            "build_actual_structure_signature",
+            "detect_target_structure",
+        ):
+            exec(_function_source("ab/gpt/TuneRL.py", function_name), namespace)
+        detect_target_structure = namespace["detect_target_structure"]
+
+        dead_direct_fuse = SimpleNamespace(
+            pattern_name="B_to_Fractal_plus_A",
+            suggested_pattern_name="DualBackbone_Fuse_Deep_123abc",
+            parse_ok=True,
+            family_id="DualBackboneFuse_Shallow",
+            descriptor_key="d4|m1|bb2|fr0|st0|pr0|fu1|fan2",
+            backbone_calls=2,
+            family_hash="f" * 40,
+            cnn_signature="c" * 40,
+            graph_expr=(
+                "classifier(Cat(PoolFlat(Backbone[efficientnet_b1](Input)), "
+                "PoolFlat(Backbone[resnet50](Input))))"
+            ),
+        )
+        dead_result = detect_target_structure(
+            prompt_target_pattern="B_to_Fractal_plus_A",
+            graph_info=dead_direct_fuse,
+            block_contributes_to_forward=False,
+            block_signature="deadblock",
+        )
+
+        self.assertTrue(dead_result["declared_pattern_matches_prompt"])
+        self.assertFalse(dead_result["target_structure_match"])
+        self.assertIn("target_fractal_but_block_dead", dead_result["target_structure_mismatch_reasons"])
+        self.assertIn("block_dead", dead_result["actual_structure_signature"])
+
+        live_fractal_branch = SimpleNamespace(
+            pattern_name="A_to_Fractal_plus_B",
+            suggested_pattern_name="DualBackbone_Fractal_Fuse_456def",
+            parse_ok=True,
+            family_id="Fractal_DualBackbone_Fuse",
+            descriptor_key="d7|m2|bb2|fr0|st0|pr0|fu2|fan3",
+            backbone_calls=2,
+            family_hash="a" * 40,
+            cnn_signature="b" * 40,
+            graph_expr=(
+                "classifier(Cat(PoolFlat(Sequential[Block](_feature_to_input_image("
+                "Backbone[resnet50](Input), 'a'))), PoolFlat(Backbone[efficientnet_b1](Input))))"
+            ),
+        )
+        live_result = detect_target_structure(
+            prompt_target_pattern="A_to_Fractal_plus_B",
+            graph_info=live_fractal_branch,
+            block_contributes_to_forward=True,
+            block_signature="liveblock123456789",
+        )
+
+        self.assertTrue(live_result["target_structure_match"])
+        self.assertIn("block_live", live_result["actual_structure_signature"])
+        self.assertIn("liveblock123", live_result["actual_structure_signature"])
 
     def test_loss_drop_is_not_a_reward_gate(self):
         gated_functions = [
