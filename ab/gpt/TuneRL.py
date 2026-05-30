@@ -2689,6 +2689,21 @@ def _apply_target_structure_reward_adjustment(
     )
 
 
+def _apply_target_structure_final_clamp(
+    pattern_detection: Dict[str, Any],
+    reward_value: float,
+    r_target_structure_penalty: float,
+) -> float:
+    if bool(pattern_detection.get("target_structure_match", True)):
+        return reward_value
+    penalty = float(r_target_structure_penalty or 0.0)
+    if penalty == 0.0:
+        penalty = _target_structure_penalty(
+            list(pattern_detection.get("target_structure_mismatch_reasons") or [])
+        )
+    return min(float(reward_value), penalty, 0.0)
+
+
 def prompt_goal_satisfied(graph_info, tag: str) -> bool:
     if not graph_info or not graph_info.parse_ok:
         return False
@@ -4369,6 +4384,11 @@ def base_discovery_reward_fn(
         warmup_dense_reward = _compute_warmup_dense_reward(reward_target_value)
         total_reward = float(warmup_dense_reward or 0.0)
         total_reward = _apply_executability_clamp(res, total_reward, graph_info)
+    total_reward = _apply_target_structure_final_clamp(
+        pattern_detection,
+        total_reward,
+        r_target_structure_penalty,
+    )
 
     res['reward'] = total_reward
     res['test_acc'] = test_acc

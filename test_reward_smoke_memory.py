@@ -126,10 +126,12 @@ def forward(self, x, is_probing=False):
             "detect_target_structure",
             "_target_structure_penalty",
             "_apply_target_structure_reward_adjustment",
+            "_apply_target_structure_final_clamp",
         ):
             exec(_function_source("ab/gpt/TuneRL.py", function_name), namespace)
         detect_target_structure = namespace["detect_target_structure"]
         apply_adjustment = namespace["_apply_target_structure_reward_adjustment"]
+        apply_final_clamp = namespace["_apply_target_structure_final_clamp"]
 
         dead_direct_fuse = SimpleNamespace(
             pattern_name="B_to_Fractal_plus_A",
@@ -160,6 +162,8 @@ def forward(self, x, is_probing=False):
         self.assertEqual((group, archive), (0.0, 0.0))
         self.assertAlmostEqual(penalty, -0.40)
         self.assertAlmostEqual(suppressed, 0.17)
+        self.assertAlmostEqual(apply_final_clamp(dead_result, 0.18, penalty), -0.40)
+        self.assertAlmostEqual(apply_final_clamp(dead_result, -0.30, -0.45), -0.45)
 
         live_fractal_branch = SimpleNamespace(
             pattern_name="A_to_Fractal_plus_B",
@@ -187,6 +191,16 @@ def forward(self, x, is_probing=False):
         self.assertIn("liveblock123", live_result["actual_structure_signature"])
         group, archive, penalty, suppressed = apply_adjustment(live_result, 0.12, 0.05)
         self.assertEqual((group, archive, penalty, suppressed), (0.12, 0.05, 0.0, 0.0))
+        self.assertAlmostEqual(apply_final_clamp(live_result, 0.18, penalty), 0.18)
+
+    def test_target_structure_clamp_runs_after_warmup_override(self):
+        body = _function_source("ab/gpt/TuneRL.py", "base_discovery_reward_fn")
+
+        warmup_index = body.index("warmup_dense_reward = _compute_warmup_dense_reward")
+        clamp_index = body.index("_apply_target_structure_final_clamp", warmup_index)
+        reward_write_index = body.index("res['reward'] = total_reward", clamp_index)
+        self.assertLess(warmup_index, clamp_index)
+        self.assertLess(clamp_index, reward_write_index)
 
     def test_loss_drop_is_not_a_reward_gate(self):
         gated_functions = [
