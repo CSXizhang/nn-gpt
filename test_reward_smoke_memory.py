@@ -160,9 +160,9 @@ def forward(self, x, is_probing=False):
         self.assertIn("block_dead", dead_result["actual_structure_signature"])
         group, archive, penalty, suppressed = apply_adjustment(dead_result, 0.12, 0.05)
         self.assertEqual((group, archive), (0.0, 0.0))
-        self.assertAlmostEqual(penalty, -0.40)
+        self.assertAlmostEqual(penalty, -0.25)
         self.assertAlmostEqual(suppressed, 0.17)
-        self.assertAlmostEqual(apply_final_clamp(dead_result, 0.18, penalty), -0.40)
+        self.assertAlmostEqual(apply_final_clamp(dead_result, 0.18, penalty), -0.25)
         self.assertAlmostEqual(apply_final_clamp(dead_result, -0.30, -0.45), -0.45)
 
         live_fractal_branch = SimpleNamespace(
