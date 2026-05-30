@@ -67,8 +67,8 @@ SFT_RUNTIME_SOURCE_INFO: Dict[str, str] = {}
 # CIFAR-10 reward evaluation via nn-dataset / NNEval-aligned formal acc.
 SFT_EVAL_IMAGE_SIZE = 128
 SFT_EVAL_BATCH_SIZE = 64
-SFT_EVAL_TRAIN_SUBSET = 256
-SFT_EVAL_VAL_SUBSET = 128
+SFT_EVAL_TRAIN_SUBSET = 0
+SFT_EVAL_VAL_SUBSET = 0
 SFT_EVAL_TRAIN_EPOCHS = 1
 SFT_EVAL_VAL_BATCHES = 2
 SFT_EVAL_FULL_TEST_ACC = True
@@ -838,6 +838,8 @@ def _write_sft_run_config(
             "split_protocol": split_protocol,
             "split_seed": split_seed,
             "eval_split_role": eval_split_role,
+            "train_subset_size": SFT_EVAL_TRAIN_SUBSET,
+            "val_subset_size": SFT_EVAL_VAL_SUBSET,
             "train_set": "cifar10-train[70%]" if use_721_split else "official-train",
             "reward_eval_set": "cifar10-train[20%]" if use_721_split else "official-test",
             "heldout_test_set": "cifar10-train[10%]" if use_721_split else "none",
@@ -2350,7 +2352,8 @@ def main() -> None:
         f"split={_env_str('NNGPT_SFT_EVAL_SPLIT_PROTOCOL', SFT_EVAL_SPLIT_PROTOCOL)}, "
         f"split_seed={_env_int('NNGPT_SFT_EVAL_SPLIT_SEED', SFT_EVAL_SPLIT_SEED)}, "
         f"eval_split_role={_env_str('NNGPT_SFT_EVAL_SPLIT_ROLE', SFT_EVAL_SPLIT_ROLE)}, "
-        f"train_set=70%, reward_eval_set=20%, heldout_test_set=10%, train_epochs={SFT_EVAL_TRAIN_EPOCHS}, "
+        f"train_set=full 70%, "
+        f"reward_eval_set=20%, heldout_test_set=10%, train_epochs={SFT_EVAL_TRAIN_EPOCHS}, "
         f"freeze_only_backbone_eval=True, formal_epoch_limit_minutes={SFT_EVAL_FORMAL_EPOCH_LIMIT_MINUTES}, "
         f"worker_eval_limit_seconds={SFT_EVAL_LIMIT_SECONDS}, "
         f"baseline={SFT_VAL_METRIC_BASELINE:.2f}"

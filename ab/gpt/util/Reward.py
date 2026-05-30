@@ -2442,8 +2442,8 @@ class EvalConfig:
     train_steps: Optional[int] = None
     max_val_batches: int = 2
     default_batch_size: int = 32
-    train_subset_size: int = 256
-    val_subset_size: int = 128
+    train_subset_size: int = 0
+    val_subset_size: int = 0
     data_root: str = "data_v2"
     download: bool = True
     split_protocol: str = "official"
@@ -2669,6 +2669,65 @@ def _restore_nn_dataset_dataroll_patch(patch_token: Optional[Tuple[type, Any, An
     data_roll_cls, original_init, original_next = patch_token
     data_roll_cls.__init__ = original_init
     data_roll_cls.__next__ = original_next
+
+
+def _patch_nn_dataset_load_dataset_for_reward(cfg: "EvalConfig") -> Optional[Dict[str, Any]]:
+    if DatasetSplit.normalize_split_protocol(getattr(cfg, "split_protocol", "official")) != "721":
+        return None
+
+    try:
+        import ab.nn.util.Loader as nn_loader  # type: ignore
+        import ab.nn.util.Train as nn_train  # type: ignore
+    except Exception:
+        return None
+
+    original_train_load_dataset = getattr(nn_train, "load_dataset", None)
+    original_loader_load_dataset = getattr(nn_loader, "load_dataset", None)
+    if original_train_load_dataset is None:
+        return None
+
+    split_seed = int(getattr(cfg, "split_seed", 42))
+    eval_split_role = str(getattr(cfg, "eval_split_role", "reward_eval") or "reward_eval")
+
+    def _patched_load_dataset(task, dataset_name, transform_name, transform_dir=None):
+        out_shape, minimum_accuracy, train_set, test_set = original_train_load_dataset(
+            task,
+            dataset_name,
+            transform_name,
+            transform_dir,
+        )
+        normalized_dataset = str(dataset_name or "").strip().lower().replace("_", "-")
+        if normalized_dataset not in {"cifar-10", "cifar10"}:
+            return out_shape, minimum_accuracy, train_set, test_set
+
+        split_datasets = DatasetSplit.split_existing_dataset_721(
+            train_set,
+            seed=split_seed,
+            eval_source=train_set,
+        )
+        eval_set = split_datasets.get(eval_split_role) or split_datasets["reward_eval"]
+        return out_shape, minimum_accuracy, split_datasets["train"], eval_set
+
+    nn_train.load_dataset = _patched_load_dataset
+    if original_loader_load_dataset is not None:
+        nn_loader.load_dataset = _patched_load_dataset
+    return {
+        "nn_train": nn_train,
+        "nn_loader": nn_loader,
+        "train_load_dataset": original_train_load_dataset,
+        "loader_load_dataset": original_loader_load_dataset,
+    }
+
+
+def _restore_nn_dataset_load_dataset_patch(patch_token: Optional[Dict[str, Any]]) -> None:
+    if not isinstance(patch_token, dict):
+        return
+    nn_train = patch_token.get("nn_train")
+    nn_loader = patch_token.get("nn_loader")
+    if nn_train is not None:
+        nn_train.load_dataset = patch_token.get("train_load_dataset")
+    if nn_loader is not None and patch_token.get("loader_load_dataset") is not None:
+        nn_loader.load_dataset = patch_token.get("loader_load_dataset")
 
 
 def _patch_nn_dataset_loader_utils_for_reward() -> Optional[Dict[str, Any]]:
@@ -3130,6 +3189,9 @@ def _formal_eval_with_nn_dataset(
         "epoch_limit_minutes": epoch_limit_minutes,
         "formal_reward_epochs": list(formal_reward_epochs),
         "formal_reward_max_epoch": int(formal_reward_max_epoch),
+        "split_protocol": DatasetSplit.normalize_split_protocol(getattr(cfg, "split_protocol", "official")),
+        "split_seed": int(getattr(cfg, "split_seed", 42)),
+        "eval_split_role": str(getattr(cfg, "eval_split_role", "reward_eval") or "reward_eval"),
     }
     safe_prm = dict(prm)
     safe_prm["freeze_backbones"] = bool(freeze_backbones)
@@ -3289,6 +3351,7 @@ def _formal_eval_with_nn_dataset(
         _clear_reward_cuda_state()
 
     started_at = time.time()
+    dataset_split_patch = None
     data_roll_patch = None
     loader_patch = None
     cuda_backend_state = None
@@ -3297,6 +3360,7 @@ def _formal_eval_with_nn_dataset(
             f"# reward formal eval nonce pid={os.getpid()} ns={time.time_ns()} "
             f"freeze={int(bool(freeze_backbones))}\n{code}"
         )
+        dataset_split_patch = _patch_nn_dataset_load_dataset_for_reward(cfg)
         data_roll_patch = _patch_nn_dataset_dataroll_for_reward()
         loader_patch = _patch_nn_dataset_loader_utils_for_reward()
         cuda_backend_state = _configure_formal_eval_cuda_backend(str(cfg.device))
@@ -3444,6 +3508,7 @@ def _formal_eval_with_nn_dataset(
     finally:
         _restore_formal_eval_cuda_backend(cuda_backend_state)
         _restore_nn_dataset_loader_utils_patch(loader_patch)
+        _restore_nn_dataset_load_dataset_patch(dataset_split_patch)
         _restore_nn_dataset_dataroll_patch(data_roll_patch)
         _clear_reward_cuda_state()
 

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import random
-from typing import Any
+from typing import Any, Optional
 
 
 def normalize_split_protocol(raw: Any) -> str:
@@ -36,6 +36,34 @@ def stratified_721_indices(targets: Any, *, seed: int = 42) -> tuple[list[int], 
     return train_indices, val_indices, test_indices
 
 
+def split_existing_dataset_721(
+    train_source: Any,
+    *,
+    seed: int = 42,
+    eval_source: Optional[Any] = None,
+) -> dict[str, Any]:
+    from torch.utils.data import Subset
+
+    targets = getattr(train_source, "targets", None)
+    if targets is None:
+        targets = getattr(train_source, "labels", None)
+    if targets is None:
+        raise ValueError("Cannot build 7/2/1 split: dataset has no targets/labels attribute")
+
+    train_indices, val_indices, test_indices = stratified_721_indices(
+        targets,
+        seed=int(seed),
+    )
+    eval_dataset = eval_source if eval_source is not None else train_source
+    return {
+        "protocol": "721",
+        "seed": int(seed),
+        "train": Subset(train_source, train_indices),
+        "reward_eval": Subset(eval_dataset, val_indices),
+        "heldout_test": Subset(eval_dataset, test_indices),
+    }
+
+
 def build_cifar10_split_datasets(
     *,
     root: str,
@@ -46,7 +74,6 @@ def build_cifar10_split_datasets(
     seed: int = 42,
 ) -> dict[str, Any]:
     from torchvision import datasets
-    from torch.utils.data import Subset
 
     split_protocol = normalize_split_protocol(protocol)
     if split_protocol == "721":
@@ -62,17 +89,11 @@ def build_cifar10_split_datasets(
             download=download,
             transform=eval_transform,
         )
-        train_indices, val_indices, test_indices = stratified_721_indices(
-            getattr(train_source, "targets"),
+        return split_existing_dataset_721(
+            train_source,
             seed=int(seed),
+            eval_source=eval_source,
         )
-        return {
-            "protocol": "721",
-            "seed": int(seed),
-            "train": Subset(train_source, train_indices),
-            "reward_eval": Subset(eval_source, val_indices),
-            "heldout_test": Subset(eval_source, test_indices),
-        }
 
     return {
         "protocol": "official",

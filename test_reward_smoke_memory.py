@@ -253,22 +253,44 @@ def forward(self, x, is_probing=False):
     def test_sft_rl_reward_eval_uses_721_split(self):
         split_module = importlib.import_module("ab.gpt.util.DatasetSplit")
         self.assertEqual(split_module.normalize_split_protocol("7/2/1"), "721")
+        try:
+            import torch.utils.data  # noqa: F401
+        except ModuleNotFoundError:
+            pass
+        else:
+            fake_targets = [label for label in range(10) for _ in range(10)]
+            fake_dataset = type("FakeDataset", (), {"targets": fake_targets})()
+            split_sets = split_module.split_existing_dataset_721(fake_dataset, seed=42)
+            self.assertEqual(len(split_sets["train"]), 70)
+            self.assertEqual(len(split_sets["reward_eval"]), 20)
+            self.assertEqual(len(split_sets["heldout_test"]), 10)
 
         tunerlsft_source = _source("ab/gpt/TuneRLSft.py")
         self.assertRegex(tunerlsft_source, r'SFT_EVAL_SPLIT_PROTOCOL\s*=\s*"721"')
+        self.assertRegex(tunerlsft_source, r"SFT_EVAL_TRAIN_SUBSET\s*=\s*0")
+        self.assertRegex(tunerlsft_source, r"SFT_EVAL_VAL_SUBSET\s*=\s*0")
         self.assertIn("split_protocol=_env_str", tunerlsft_source)
         self.assertIn("eval_split_role", tunerlsft_source)
+        self.assertNotIn("NNGPT_SFT_EVAL_TRAIN_SUBSET", tunerlsft_source)
         self.assertIn("heldout_test_set=10%", tunerlsft_source)
         baseline_runner_source = _source("scripts/baseline_experiment_runner.py")
         self.assertIn("eval_split_protocol", baseline_runner_source)
         self.assertIn("eval_split_role", baseline_runner_source)
+        self.assertNotIn("eval_train_subset", baseline_runner_source)
+        self.assertNotIn("NNGPT_SFT_EVAL_TRAIN_SUBSET", baseline_runner_source)
         self.assertIn("NNGPT_SFT_EVAL_SPLIT_PROTOCOL", baseline_runner_source)
 
         reward_loader = _function_source("ab/gpt/util/Reward.py", "_build_cifar10_loaders")
         self.assertIn("DatasetSplit.build_cifar10_split_datasets", reward_loader)
         self.assertIn('eval_split_role", "reward_eval"', reward_loader)
         self.assertNotIn("def _stratified_721_indices", _source("ab/gpt/util/Reward.py"))
+        reward_source = _source("ab/gpt/util/Reward.py")
+        self.assertIn("_patch_nn_dataset_load_dataset_for_reward", reward_source)
+        self.assertIn("DatasetSplit.split_existing_dataset_721", reward_source)
+        self.assertRegex(reward_source, r"train_subset_size:\s*int\s*=\s*0")
+        self.assertRegex(reward_source, r"val_subset_size:\s*int\s*=\s*0")
         split_source = _source("ab/gpt/util/DatasetSplit.py")
+        self.assertIn("def split_existing_dataset_721", split_source)
         self.assertIn("heldout_test", split_source)
         self.assertIn("train=False", split_source)
 
