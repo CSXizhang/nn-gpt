@@ -3,6 +3,7 @@ import re
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
+from typing import Optional
 
 from ab.gpt.util import SFTUtil
 from ab.gpt.util.ArchDiscovery import normalize_pattern_name
@@ -233,6 +234,79 @@ def forward(self, x, is_probing=False):
 
         for function_source in gated_functions:
             self.assertNotIn('res.get("loss_drop_ok")', function_source)
+
+    def test_stage23_local_competition_preserves_early_search_space(self):
+        namespace = {
+            "Optional": Optional,
+            "_clip": lambda value, lower, upper: max(lower, min(upper, float(value))),
+            "STAGE23_EARLY_LOCAL_COMPETITION_GENERATIONS": 240,
+            "STAGE23_EARLY_CELL_REPEAT_REWARD_CAP": 0.0,
+            "STAGE23_DUPLICATE_LOW_ACC_THRESHOLD": 0.92,
+            "STAGE23_DUPLICATE_LOW_ACC_REWARD_CAP": 0.03,
+            "STAGE23_NEW_CELL_BONUS": 0.04,
+            "STAGE23_CELL_IMPROVEMENT_DELTA": 0.003,
+            "STAGE23_CELL_IMPROVEMENT_BONUS": 0.08,
+            "STAGE23_HIGH_ACC_BONUS_THRESHOLD": 0.92,
+            "STAGE23_HIGH_ACC_BONUS": 0.08,
+            "STAGE23_HIGH_ACC_STRONG_THRESHOLD": 0.925,
+            "STAGE23_HIGH_ACC_STRONG_BONUS": 0.12,
+            "STAGE23_HIGH_ACC_ELITE_THRESHOLD": 0.93,
+            "STAGE23_HIGH_ACC_ELITE_BONUS": 0.18,
+        }
+        exec(_function_source("ab/gpt/TuneRL.py", "_stage23_local_competition_reward"), namespace)
+        adjust = namespace["_stage23_local_competition_reward"]
+
+        repeated_low_acc = adjust(
+            0.22,
+            generation_total=32,
+            target_ok=True,
+            has_formal_epoch=True,
+            formal_success_candidate=True,
+            quality_acc_value=0.91,
+            cell_archive_freq=2,
+            batch_same_cell_count=4,
+            cell_best_quality_acc=0.918,
+        )
+        self.assertEqual(repeated_low_acc, 0.0)
+
+        repeated_new_cell_in_batch = adjust(
+            0.18,
+            generation_total=32,
+            target_ok=True,
+            has_formal_epoch=True,
+            formal_success_candidate=True,
+            quality_acc_value=0.89,
+            cell_archive_freq=0,
+            batch_same_cell_count=2,
+            cell_best_quality_acc=None,
+        )
+        self.assertEqual(repeated_new_cell_in_batch, 0.0)
+
+        new_cell = adjust(
+            0.10,
+            generation_total=32,
+            target_ok=True,
+            has_formal_epoch=True,
+            formal_success_candidate=True,
+            quality_acc_value=0.86,
+            cell_archive_freq=0,
+            batch_same_cell_count=1,
+            cell_best_quality_acc=None,
+        )
+        self.assertAlmostEqual(new_cell, 0.14)
+
+        improved_cell = adjust(
+            0.10,
+            generation_total=320,
+            target_ok=True,
+            has_formal_epoch=True,
+            formal_success_candidate=True,
+            quality_acc_value=0.922,
+            cell_archive_freq=8,
+            batch_same_cell_count=3,
+            cell_best_quality_acc=0.915,
+        )
+        self.assertGreaterEqual(improved_cell, 0.26)
 
 
 if __name__ == "__main__":

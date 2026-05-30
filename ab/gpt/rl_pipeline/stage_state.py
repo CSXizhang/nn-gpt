@@ -119,6 +119,7 @@ def capture_reward_runtime_state(
         "cnn_signature_archive_counts": counter_payload(runtime["cnn_signature_archive_counts"]),
         "block_signature_archive_counts": counter_payload(runtime["block_signature_archive_counts"]),
         "backbone_cnn_pair_archive_counts": counter_payload(runtime["backbone_cnn_pair_archive_counts"]),
+        "backbone_block_pair_archive_counts": counter_payload(runtime["backbone_block_pair_archive_counts"]),
         "family_metric_best": {
             str(key): float(value)
             for key, value in runtime["family_metric_best"].items()
@@ -129,6 +130,7 @@ def capture_reward_runtime_state(
         "saved_backbone_signature_counts": counter_payload(runtime["saved_backbone_signature_counts"]),
         "saved_cnn_signature_counts": counter_payload(runtime["saved_cnn_signature_counts"]),
         "saved_backbone_cnn_pair_counts": counter_payload(runtime["saved_backbone_cnn_pair_counts"]),
+        "saved_backbone_block_pair_counts": counter_payload(runtime["saved_backbone_block_pair_counts"]),
         "goal_graph_archive_counts": nested_counter_payload(runtime["goal_graph_archive_counts"]),
         "goal_family_hash_archive_counts": nested_counter_payload(runtime["goal_family_hash_archive_counts"]),
         "saved_goal_family_hash_counts": nested_counter_payload(runtime["saved_goal_family_hash_counts"]),
@@ -137,6 +139,7 @@ def capture_reward_runtime_state(
         "prev_closed_group_mean_reward_target_by_backbone": float_dict_payload(runtime["prev_closed_group_mean_reward_target_by_backbone"]),
         "best_closed_group_mean_reward_target_by_backbone": float_dict_payload(runtime["best_closed_group_mean_reward_target_by_backbone"]),
         "saved_best_reward_target_by_backbone_cnn": float_dict_payload(runtime["saved_best_reward_target_by_backbone_cnn"]),
+        "best_quality_acc_by_backbone_block": float_dict_payload(runtime["best_quality_acc_by_backbone_block"]),
         "prev_group_feedback": feedback_summary_payload(runtime["prev_group_feedback"]),
         "best_group_feedback": feedback_summary_payload(runtime["best_group_feedback"]),
         "current_group_top_feedback": current_group_top_feedback_payload(),
@@ -229,6 +232,7 @@ def restore_reward_runtime_state(
     restore_counter(runtime["cnn_signature_archive_counts"], state.get("cnn_signature_archive_counts"))
     restore_counter(runtime["block_signature_archive_counts"], state.get("block_signature_archive_counts"))
     restore_counter(runtime["backbone_cnn_pair_archive_counts"], state.get("backbone_cnn_pair_archive_counts"))
+    restore_counter(runtime["backbone_block_pair_archive_counts"], state.get("backbone_block_pair_archive_counts"))
     runtime["family_metric_best"].clear()
     runtime["family_metric_best"].update(
         {
@@ -242,6 +246,7 @@ def restore_reward_runtime_state(
     restore_counter(runtime["saved_backbone_signature_counts"], state.get("saved_backbone_signature_counts"))
     restore_counter(runtime["saved_cnn_signature_counts"], state.get("saved_cnn_signature_counts"))
     restore_counter(runtime["saved_backbone_cnn_pair_counts"], state.get("saved_backbone_cnn_pair_counts"))
+    restore_counter(runtime["saved_backbone_block_pair_counts"], state.get("saved_backbone_block_pair_counts"))
     restore_nested_counters(runtime["goal_graph_archive_counts"], state.get("goal_graph_archive_counts"))
     restore_nested_counters(runtime["goal_family_hash_archive_counts"], state.get("goal_family_hash_archive_counts"))
     restore_nested_counters(runtime["saved_goal_family_hash_counts"], state.get("saved_goal_family_hash_counts"))
@@ -250,6 +255,7 @@ def restore_reward_runtime_state(
     restore_float_dict(runtime["prev_closed_group_mean_reward_target_by_backbone"], state.get("prev_closed_group_mean_reward_target_by_backbone"))
     restore_float_dict(runtime["best_closed_group_mean_reward_target_by_backbone"], state.get("best_closed_group_mean_reward_target_by_backbone"))
     restore_float_dict(runtime["saved_best_reward_target_by_backbone_cnn"], state.get("saved_best_reward_target_by_backbone_cnn"))
+    restore_float_dict(runtime["best_quality_acc_by_backbone_block"], state.get("best_quality_acc_by_backbone_block"))
 
     runtime["best_reward_target_by_goal"].clear()
     runtime["best_reward_target_by_goal"].update(
@@ -313,6 +319,7 @@ def reset_reward_runtime_state(
         "cnn_signature_archive_counts",
         "block_signature_archive_counts",
         "backbone_cnn_pair_archive_counts",
+        "backbone_block_pair_archive_counts",
         "family_metric_best",
         "motif_name_counts",
         "saved_graph_counts",
@@ -320,6 +327,7 @@ def reset_reward_runtime_state(
         "saved_backbone_signature_counts",
         "saved_cnn_signature_counts",
         "saved_backbone_cnn_pair_counts",
+        "saved_backbone_block_pair_counts",
         "goal_graph_archive_counts",
         "goal_family_hash_archive_counts",
         "saved_goal_family_hash_counts",
@@ -328,6 +336,7 @@ def reset_reward_runtime_state(
         "prev_closed_group_mean_reward_target_by_backbone",
         "best_closed_group_mean_reward_target_by_backbone",
         "saved_best_reward_target_by_backbone_cnn",
+        "best_quality_acc_by_backbone_block",
         "stage_closed_group_counts",
         "stage_best_group_mean_reward_target",
         "stage_entry_generation_totals",
