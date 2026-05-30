@@ -79,6 +79,7 @@ SFT_EVAL_DATA_ROOT = "data_v2"
 SFT_EVAL_DOWNLOAD = True
 SFT_EVAL_SPLIT_PROTOCOL = "721"
 SFT_EVAL_SPLIT_SEED = 42
+SFT_EVAL_SPLIT_ROLE = "reward_eval"
 SFT_VAL_METRIC_BASELINE = 0.10
 
 # Local desktop cache roots.
@@ -784,6 +785,7 @@ def _write_sft_run_config(
     ]
     split_protocol = _env_str("NNGPT_SFT_EVAL_SPLIT_PROTOCOL", SFT_EVAL_SPLIT_PROTOCOL)
     split_seed = _env_int("NNGPT_SFT_EVAL_SPLIT_SEED", SFT_EVAL_SPLIT_SEED)
+    eval_split_role = _env_str("NNGPT_SFT_EVAL_SPLIT_ROLE", SFT_EVAL_SPLIT_ROLE)
     use_721_split = split_protocol.strip().lower() == "721"
     payload = {
         "phase": "four_pattern_reward_ablation",
@@ -835,6 +837,7 @@ def _write_sft_run_config(
             "batch": SFT_EVAL_BATCH_SIZE,
             "split_protocol": split_protocol,
             "split_seed": split_seed,
+            "eval_split_role": eval_split_role,
             "train_set": "cifar10-train[70%]" if use_721_split else "official-train",
             "reward_eval_set": "cifar10-train[20%]" if use_721_split else "official-test",
             "heldout_test_set": "cifar10-train[10%]" if use_721_split else "none",
@@ -1422,6 +1425,7 @@ def build_sft_reward_eval_cfg(
         download=SFT_EVAL_DOWNLOAD,
         split_protocol=_env_str("NNGPT_SFT_EVAL_SPLIT_PROTOCOL", SFT_EVAL_SPLIT_PROTOCOL),
         split_seed=_env_int("NNGPT_SFT_EVAL_SPLIT_SEED", SFT_EVAL_SPLIT_SEED),
+        eval_split_role=_env_str("NNGPT_SFT_EVAL_SPLIT_ROLE", SFT_EVAL_SPLIT_ROLE),
         measure_latency=getattr(cfg, "measure_latency", True),
         kl_div=getattr(cfg, "kl_div", None),
         critic_fn=getattr(cfg, "critic_fn", None),
@@ -2345,6 +2349,7 @@ def main() -> None:
         f"transform={SFT_EVAL_TRANSFORM}, resize={SFT_EVAL_IMAGE_SIZE}, batch={SFT_EVAL_BATCH_SIZE}, "
         f"split={_env_str('NNGPT_SFT_EVAL_SPLIT_PROTOCOL', SFT_EVAL_SPLIT_PROTOCOL)}, "
         f"split_seed={_env_int('NNGPT_SFT_EVAL_SPLIT_SEED', SFT_EVAL_SPLIT_SEED)}, "
+        f"eval_split_role={_env_str('NNGPT_SFT_EVAL_SPLIT_ROLE', SFT_EVAL_SPLIT_ROLE)}, "
         f"train_set=70%, reward_eval_set=20%, heldout_test_set=10%, train_epochs={SFT_EVAL_TRAIN_EPOCHS}, "
         f"freeze_only_backbone_eval=True, formal_epoch_limit_minutes={SFT_EVAL_FORMAL_EPOCH_LIMIT_MINUTES}, "
         f"worker_eval_limit_seconds={SFT_EVAL_LIMIT_SECONDS}, "

@@ -1,10 +1,10 @@
 import ast
-import random
 import re
 import unittest
+import importlib
 from pathlib import Path
 from types import SimpleNamespace
-from typing import Any, Dict, Optional
+from typing import Optional
 
 from ab.gpt.util import SFTUtil
 from ab.gpt.util.ArchDiscovery import normalize_pattern_name
@@ -251,21 +251,28 @@ def forward(self, x, is_probing=False):
             self.assertIn(parameter_name, sft_raw_reward)
 
     def test_sft_rl_reward_eval_uses_721_split(self):
+        split_module = importlib.import_module("ab.gpt.util.DatasetSplit")
+        self.assertEqual(split_module.normalize_split_protocol("7/2/1"), "721")
+
         tunerlsft_source = _source("ab/gpt/TuneRLSft.py")
         self.assertRegex(tunerlsft_source, r'SFT_EVAL_SPLIT_PROTOCOL\s*=\s*"721"')
         self.assertIn("split_protocol=_env_str", tunerlsft_source)
+        self.assertIn("eval_split_role", tunerlsft_source)
         self.assertIn("heldout_test_set=10%", tunerlsft_source)
+        baseline_runner_source = _source("scripts/baseline_experiment_runner.py")
+        self.assertIn("eval_split_protocol", baseline_runner_source)
+        self.assertIn("eval_split_role", baseline_runner_source)
+        self.assertIn("NNGPT_SFT_EVAL_SPLIT_PROTOCOL", baseline_runner_source)
 
         reward_loader = _function_source("ab/gpt/util/Reward.py", "_build_cifar10_loaders")
-        self.assertIn('split_protocol == "721"', reward_loader)
-        self.assertIn("train=True", reward_loader)
-        self.assertIn("eval_source", reward_loader)
-        self.assertIn("train=False", reward_loader)
+        self.assertIn("DatasetSplit.build_cifar10_split_datasets", reward_loader)
+        self.assertIn('eval_split_role", "reward_eval"', reward_loader)
+        self.assertNotIn("def _stratified_721_indices", _source("ab/gpt/util/Reward.py"))
+        split_source = _source("ab/gpt/util/DatasetSplit.py")
+        self.assertIn("heldout_test", split_source)
+        self.assertIn("train=False", split_source)
 
-        namespace = {"Any": Any, "Dict": Dict, "random": random}
-        exec(_function_source("ab/gpt/util/Reward.py", "_stratified_721_indices"), namespace)
-        split_indices = namespace["_stratified_721_indices"]
-        train_indices, val_indices, test_indices = split_indices([0] * 10 + [1] * 10, seed=7)
+        train_indices, val_indices, test_indices = split_module.stratified_721_indices([0] * 10 + [1] * 10, seed=7)
 
         self.assertEqual((len(train_indices), len(val_indices), len(test_indices)), (14, 4, 2))
         self.assertFalse(set(train_indices) & set(val_indices))

@@ -10,7 +10,6 @@ import json
 import multiprocessing as mp
 import os
 from pathlib import Path
-import random
 import re
 import subprocess
 import sys
@@ -20,6 +19,7 @@ import traceback
 from concurrent.futures import ThreadPoolExecutor
 
 import torch
+import ab.gpt.util.DatasetSplit as DatasetSplit
 import ab.gpt.rl_pipeline.reward_payload as RewardPayload
 import torch.nn as nn
 import torch.nn.functional as F
@@ -2367,40 +2367,8 @@ def _quick_accuracy(
     return (correct / total) if total > 0 else 0.0
 
 
-def _normalize_cifar_split_protocol(raw: Any) -> str:
-    normalized = str(raw or "official").strip().lower().replace("-", "").replace("_", "").replace(" ", "")
-    if normalized in {"721", "7/2/1", "702010", "70/20/10"}:
-        return "721"
-    return "official"
-
-
-def _stratified_721_indices(targets: Any, *, seed: int = 42) -> tuple[list[int], list[int], list[int]]:
-    by_class: Dict[int, list[int]] = {}
-    for index, target in enumerate(list(targets)):
-        by_class.setdefault(int(target), []).append(int(index))
-
-    rng = random.Random(int(seed))
-    train_indices: list[int] = []
-    val_indices: list[int] = []
-    test_indices: list[int] = []
-    for label in sorted(by_class):
-        indices = list(by_class[label])
-        rng.shuffle(indices)
-        n_total = len(indices)
-        n_train = int(round(n_total * 0.70))
-        n_val = int(round(n_total * 0.20))
-        train_indices.extend(indices[:n_train])
-        val_indices.extend(indices[n_train : n_train + n_val])
-        test_indices.extend(indices[n_train + n_val :])
-
-    rng.shuffle(train_indices)
-    rng.shuffle(val_indices)
-    rng.shuffle(test_indices)
-    return train_indices, val_indices, test_indices
-
-
 def _build_cifar10_loaders(cfg: "EvalConfig") -> Tuple[DataLoader, DataLoader]:
-    from torchvision import datasets, transforms
+    from torchvision import transforms
 
     height = int(cfg.input_shape[2])
     width = int(cfg.input_shape[3])
@@ -2424,39 +2392,17 @@ def _build_cifar10_loaders(cfg: "EvalConfig") -> Tuple[DataLoader, DataLoader]:
         ]
     )
 
-    split_protocol = _normalize_cifar_split_protocol(getattr(cfg, "split_protocol", "official"))
-    if split_protocol == "721":
-        train_source = datasets.CIFAR10(
-            root=cfg.data_root,
-            train=True,
-            download=cfg.download,
-            transform=train_transform,
-        )
-        eval_source = datasets.CIFAR10(
-            root=cfg.data_root,
-            train=True,
-            download=cfg.download,
-            transform=val_transform,
-        )
-        train_indices, val_indices, _test_indices = _stratified_721_indices(
-            getattr(train_source, "targets"),
-            seed=int(getattr(cfg, "split_seed", 42)),
-        )
-        train_dataset = Subset(train_source, train_indices)
-        val_dataset = Subset(eval_source, val_indices)
-    else:
-        train_dataset = datasets.CIFAR10(
-            root=cfg.data_root,
-            train=True,
-            download=cfg.download,
-            transform=train_transform,
-        )
-        val_dataset = datasets.CIFAR10(
-            root=cfg.data_root,
-            train=False,
-            download=cfg.download,
-            transform=val_transform,
-        )
+    split_datasets = DatasetSplit.build_cifar10_split_datasets(
+        root=cfg.data_root,
+        train_transform=train_transform,
+        eval_transform=val_transform,
+        download=cfg.download,
+        protocol=getattr(cfg, "split_protocol", "official"),
+        seed=int(getattr(cfg, "split_seed", 42)),
+    )
+    eval_split_role = str(getattr(cfg, "eval_split_role", "reward_eval") or "reward_eval")
+    train_dataset = split_datasets["train"]
+    val_dataset = split_datasets.get(eval_split_role) or split_datasets["reward_eval"]
 
     if 0 < cfg.train_subset_size < len(train_dataset):
         train_dataset = Subset(train_dataset, range(cfg.train_subset_size))
@@ -2502,6 +2448,7 @@ class EvalConfig:
     download: bool = True
     split_protocol: str = "official"
     split_seed: int = 42
+    eval_split_role: str = "reward_eval"
     # Optional efficiency logging
     measure_latency: bool = True
     # Optional PPO/critic
@@ -4190,8 +4137,9 @@ def _loader_cache_key(cfg: EvalConfig) -> Tuple[Any, ...]:
         cfg.val_subset_size,
         cfg.data_root,
         cfg.download,
-        _normalize_cifar_split_protocol(getattr(cfg, "split_protocol", "official")),
+        DatasetSplit.normalize_split_protocol(getattr(cfg, "split_protocol", "official")),
         int(getattr(cfg, "split_seed", 42)),
+        str(getattr(cfg, "eval_split_role", "reward_eval") or "reward_eval"),
         bool(getattr(cfg, "full_test_acc", False)),
     )
 

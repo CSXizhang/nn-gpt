@@ -99,6 +99,12 @@ def _configure_sft_env(args: argparse.Namespace) -> None:
         os.environ["NNGPT_SFT_RL_PROMPT_MODE"] = str(args.prompt_mode)
     if getattr(args, "feedback_char_budget", None) is not None:
         os.environ["NNGPT_SFT_FEEDBACK_CHAR_BUDGET"] = str(args.feedback_char_budget)
+    if getattr(args, "eval_split_protocol", None):
+        os.environ["NNGPT_SFT_EVAL_SPLIT_PROTOCOL"] = str(args.eval_split_protocol)
+    if getattr(args, "eval_split_seed", None) is not None:
+        os.environ["NNGPT_SFT_EVAL_SPLIT_SEED"] = str(args.eval_split_seed)
+    if getattr(args, "eval_split_role", None):
+        os.environ["NNGPT_SFT_EVAL_SPLIT_ROLE"] = str(args.eval_split_role)
     os.environ.setdefault("NNGPT_RL_FORMAL_REWARD_EPOCHS", "1,5,10")
 
 
@@ -879,6 +885,7 @@ def command_eval_only(args: argparse.Namespace) -> None:
         gpu_count = int(torch.cuda.device_count()) if torch.cuda.is_available() else 0
     except Exception:
         gpu_count = 0
+    import ab.gpt.util.DatasetSplit as DatasetSplit
     import ab.gpt.util.Reward as RewardUtil
 
     output_dir = Path(args.output_dir)
@@ -895,6 +902,10 @@ def command_eval_only(args: argparse.Namespace) -> None:
     if not candidates:
         raise RuntimeError("No candidates provided for eval-only")
     source_format_counts = Counter(_candidate_source_format(candidate) for candidate in candidates)
+    split_protocol = DatasetSplit.normalize_split_protocol(os.environ.get("NNGPT_SFT_EVAL_SPLIT_PROTOCOL", "721"))
+    split_seed = int(os.environ.get("NNGPT_SFT_EVAL_SPLIT_SEED", "42") or 42)
+    eval_split_role = str(os.environ.get("NNGPT_SFT_EVAL_SPLIT_ROLE", "reward_eval") or "reward_eval")
+    use_721_split = split_protocol == "721"
 
     run_config = {
         "phase": "eval_only",
@@ -909,6 +920,12 @@ def command_eval_only(args: argparse.Namespace) -> None:
             "resize": 128,
             "batch": 64,
             "formal_reward_epochs": os.environ.get("NNGPT_RL_FORMAL_REWARD_EPOCHS", "1,5,10"),
+            "split_protocol": split_protocol,
+            "split_seed": split_seed,
+            "eval_split_role": eval_split_role,
+            "train_set": "cifar10-train[70%]" if use_721_split else "official-train",
+            "reward_eval_set": "cifar10-train[20%]" if use_721_split else "official-test",
+            "heldout_test_set": "cifar10-train[10%]" if use_721_split else "none",
             "workers_per_gpu": os.environ.get("NNGPT_REWARD_WORKERS_PER_GPU", ""),
             "eval_concurrency": int(args.eval_concurrency),
         },
@@ -1264,6 +1281,23 @@ def build_parser() -> argparse.ArgumentParser:
     eval_parser.add_argument("--nn-prefixes", default="")
     eval_parser.add_argument("--prompt-mode", default="")
     eval_parser.add_argument("--feedback-char-budget", type=int)
+    eval_parser.add_argument(
+        "--eval-split-protocol",
+        default=os.getenv("NNGPT_SFT_EVAL_SPLIT_PROTOCOL", "721"),
+        help="Shared CIFAR-10 split protocol for final/baseline eval; default: 721.",
+    )
+    eval_parser.add_argument(
+        "--eval-split-seed",
+        type=int,
+        default=int(os.getenv("NNGPT_SFT_EVAL_SPLIT_SEED", "42") or 42),
+        help="Seed for the shared CIFAR-10 7/2/1 split.",
+    )
+    eval_parser.add_argument(
+        "--eval-split-role",
+        default=os.getenv("NNGPT_SFT_EVAL_SPLIT_ROLE", "reward_eval"),
+        choices=("reward_eval", "heldout_test"),
+        help="Which shared split to score on; training defaults to reward_eval, paper final eval should use heldout_test.",
+    )
     eval_parser.add_argument(
         "--eval-concurrency",
         type=int,
