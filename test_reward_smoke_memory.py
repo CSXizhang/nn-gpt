@@ -235,6 +235,20 @@ def forward(self, x, is_probing=False):
         for function_source in gated_functions:
             self.assertNotIn('res.get("loss_drop_ok")', function_source)
 
+    def test_sft_reward_wrapper_accepts_tunerl_reward_context(self):
+        tunerl_reward = _function_source("ab/gpt/TuneRL.py", "reward_fn")
+        sft_reward = _function_source("ab/gpt/TuneRLSft.py", "sft_reward_fn")
+        sft_raw_reward = _function_source("ab/gpt/TuneRLSft.py", "raw_reward_fn")
+
+        for parameter_name in (
+            "batch_backbone_block_signatures",
+            "archive_snapshot_backbone_block_pair_counts",
+            "archive_snapshot_backbone_block_best_quality",
+        ):
+            self.assertIn(parameter_name, tunerl_reward)
+            self.assertIn(parameter_name, sft_reward)
+            self.assertIn(parameter_name, sft_raw_reward)
+
     def test_stage23_local_competition_preserves_early_search_space(self):
         namespace = {
             "Optional": Optional,
