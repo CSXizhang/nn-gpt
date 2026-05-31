@@ -4899,6 +4899,9 @@ def _apply_batch_elite_bonuses(scored_results: List[Dict[str, Any]], group_conte
         )
         res = item["result"]
         graph_info = item["graph_info"]
+        old_reward = float(res.get("reward", -2.0))
+        old_discovery_reward, _, _ = _recompute_discovery_reward(res, graph_info)
+        postprocess_delta = old_reward - float(old_discovery_reward)
         if (
             (not _is_repeated_block_without_refresh(res))
             and not (_reward_variant_is_strong_repeat_penalty() and _is_strong_repeat_without_refresh(res))
@@ -4910,7 +4913,7 @@ def _apply_batch_elite_bonuses(scored_results: List[Dict[str, Any]], group_conte
         res["batch_elite_tier"] = tier
         res["batch_elite_threshold_passed"] = threshold_passed
         total_reward, r_primary, r_tiebreak = _recompute_discovery_reward(res, graph_info)
-        res["reward"] = total_reward
+        res["reward"] = _clip(float(total_reward) + postprocess_delta, -2.0, 2.0)
         open_discovery = res.setdefault("open_discovery", {})
         open_discovery["r_batch_elite"] = bonus
         open_discovery["r_primary"] = r_primary
@@ -4918,7 +4921,7 @@ def _apply_batch_elite_bonuses(scored_results: List[Dict[str, Any]], group_conte
         open_discovery["batch_elite_rank"] = rank + 1
         open_discovery["batch_elite_tier"] = tier
         open_discovery["batch_elite_threshold_passed"] = threshold_passed
-        item["score"] = float(total_reward)
+        item["score"] = float(res["reward"])
         elite_summaries.append(
             f"#{rank + 1} target={reward_target_float:.4f} tier={tier} bonus={bonus:.3f} "
             f"struct={float(res.get('r_structure_group', 0.0) or 0.0) + float(res.get('r_structure_archive', 0.0) or 0.0):.3f}"

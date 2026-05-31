@@ -290,6 +290,62 @@ def forward(self, x, is_probing=False):
         self.assertLess(compactness_index, gate_index)
         self.assertLess(gate_index, raw_meta_index)
 
+    def test_batch_elite_preserves_existing_reward_postprocessing_delta(self):
+        namespace = {
+            "Any": object,
+            "Dict": dict,
+            "List": list,
+            "Tuple": tuple,
+            "STAGE1_STRUCTURE_EXPLORE": "stage1_structure_explore",
+            "STAGE2_FORMAL_EXPLORE": "stage2_formal_explore",
+            "current_stage_name": "stage2_formal_explore",
+            "BATCH_ELITE_SOFT_BONUSES": (0.02, 0.015, 0.01, 0.005, 0.0),
+            "BATCH_ELITE_IMPROVING_BONUSES": (0.04, 0.03, 0.02, 0.01, 0.0),
+            "GROUP_IMPROVEMENT_DELTA": 0.0015,
+            "_optional_float": lambda value: None if value is None else float(value),
+            "_clip": lambda value, lo, hi: max(lo, min(hi, float(value))),
+            "_is_executable_candidate": lambda res, graph_info: bool(graph_info and graph_info.parse_ok and res.get("built_ok") and res.get("forward_shape_ok")),
+            "_has_completed_formal_epoch": lambda res: int(res.get("epochs_completed", 0) or 0) >= 1,
+            "_result_reward_target_value": lambda res: res.get("reward_target_value"),
+            "_is_repeated_block_without_refresh": lambda res: False,
+            "_reward_variant_is_strong_repeat_penalty": lambda: False,
+            "_is_strong_repeat_without_refresh": lambda res: False,
+            "_apply_stage1_trainability_clamp": lambda res, reward, graph_info: reward,
+            "_apply_executability_clamp": lambda res, reward, graph_info: reward,
+            "_apply_trainability_clamp": lambda res, reward, graph_info: reward,
+            "_apply_target_structure_reward_gate": lambda res, reward: reward,
+            "code_logger": SimpleNamespace(log_to_file=lambda message: None),
+        }
+        exec(_function_source("ab/gpt/TuneRL.py", "_recompute_discovery_reward"), namespace)
+        exec(_function_source("ab/gpt/TuneRL.py", "_apply_batch_elite_bonuses"), namespace)
+        graph_info = SimpleNamespace(parse_ok=True)
+        result = {
+            "reward": 0.67,
+            "r_dense": 0.10,
+            "reward_target_value": 0.91,
+            "built_ok": True,
+            "forward_shape_ok": True,
+            "epochs_completed": 1,
+            "target_structure_match": True,
+            "formal_success_candidate": True,
+            "current_stage_name": "stage2_formal_explore",
+            "open_discovery": {},
+        }
+        scored_results = [{"result": result, "graph_info": graph_info, "score": result["reward"]}]
+        namespace["_apply_batch_elite_bonuses"](
+            scored_results,
+            {
+                "group_warmup": False,
+                "current_stage_name": "stage2_formal_explore",
+                "reward_batch_index": 7,
+            },
+        )
+
+        self.assertEqual(result["batch_elite_rank"], 1)
+        self.assertAlmostEqual(result["r_batch_elite"], 0.02)
+        self.assertGreater(result["reward"], 0.68)
+        self.assertAlmostEqual(scored_results[0]["score"], result["reward"])
+
     def test_loss_drop_is_not_a_reward_gate(self):
         gated_functions = [
             _function_source("ab/gpt/TuneRL.py", "_stage1_validity_reward"),
