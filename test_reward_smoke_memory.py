@@ -440,6 +440,52 @@ def forward(self, x, is_probing=False):
         )
         self.assertGreaterEqual(improved_cell, 0.26)
 
+    def test_stage23_positive_novelty_requires_quality_threshold(self):
+        namespace = {
+            "Optional": Optional,
+            "Dict": dict,
+            "STAGE23_POSITIVE_NOVELTY_ACC_THRESHOLD": 0.90,
+        }
+        exec(_function_source("ab/gpt/TuneRL.py", "_stage23_gate_positive_novelty_by_quality"), namespace)
+        gate = namespace["_stage23_gate_positive_novelty_by_quality"]
+
+        low_acc_components = gate(
+            0.875,
+            {
+                "r_structure_group": 0.168,
+                "r_structure_archive": 0.098,
+                "r_descriptor_diversity": 0.19,
+                "r_cnn_diversity": 0.24,
+                "r_block_diversity": -0.095,
+            },
+        )
+        self.assertEqual(low_acc_components["r_structure_group"], 0.0)
+        self.assertEqual(low_acc_components["r_structure_archive"], 0.0)
+        self.assertEqual(low_acc_components["r_descriptor_diversity"], 0.0)
+        self.assertEqual(low_acc_components["r_cnn_diversity"], 0.0)
+        self.assertEqual(low_acc_components["r_block_diversity"], -0.095)
+
+        high_acc_components = gate(
+            0.925,
+            {
+                "r_structure_group": 0.168,
+                "r_structure_archive": 0.098,
+                "r_descriptor_diversity": 0.19,
+                "r_cnn_diversity": 0.24,
+                "r_block_diversity": -0.095,
+            },
+        )
+        self.assertEqual(high_acc_components["r_structure_group"], 0.168)
+        self.assertEqual(high_acc_components["r_cnn_diversity"], 0.24)
+        self.assertEqual(high_acc_components["r_block_diversity"], -0.095)
+
+    def test_stage23_positive_novelty_gate_runs_before_reward_sum(self):
+        body = _function_source("ab/gpt/TuneRL.py", "base_discovery_reward_fn")
+
+        gate_index = body.index("_stage23_gate_positive_novelty_by_quality")
+        reward_sum_index = body.index("r_primary = (", gate_index)
+        self.assertLess(gate_index, reward_sum_index)
+
 
 if __name__ == "__main__":
     unittest.main()

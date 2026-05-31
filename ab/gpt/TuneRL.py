@@ -313,6 +313,7 @@ STAGE23_BLOCK_ARCHIVE_NOVEL_BONUS = 0.08
 STAGE23_BLOCK_ARCHIVE_REPEAT_MAX_PENALTY = -0.08
 STAGE23_BLOCK_ARCHIVE_REPEAT_WINDOW = 16
 STAGE23_REPEATED_BLOCK_REWARD_CAP = 2.0
+STAGE23_POSITIVE_NOVELTY_ACC_THRESHOLD = 0.90
 STAGE23_EARLY_LOCAL_COMPETITION_GENERATIONS = 240
 STAGE23_EARLY_CELL_REPEAT_REWARD_CAP = 0.0
 STAGE23_NEW_CELL_BONUS = 0.04
@@ -2771,6 +2772,18 @@ def _stage23_local_competition_reward(
     return _clip(reward_value, -2.0, 2.0)
 
 
+def _stage23_gate_positive_novelty_by_quality(
+    quality_acc_value: Optional[float],
+    components: Dict[str, float],
+) -> Dict[str, float]:
+    if quality_acc_value is not None and float(quality_acc_value) >= STAGE23_POSITIVE_NOVELTY_ACC_THRESHOLD:
+        return dict(components)
+    return {
+        key: min(float(value or 0.0), 0.0)
+        for key, value in components.items()
+    }
+
+
 def prompt_goal_satisfied(graph_info, tag: str) -> bool:
     if not graph_info or not graph_info.parse_ok:
         return False
@@ -4397,6 +4410,21 @@ def base_discovery_reward_fn(
             r_structure_group,
             r_structure_archive,
         )
+        gated_novelty_components = _stage23_gate_positive_novelty_by_quality(
+            quality_acc_value,
+            {
+                "r_structure_group": r_structure_group,
+                "r_structure_archive": r_structure_archive,
+                "r_descriptor_diversity": r_descriptor_diversity,
+                "r_cnn_diversity": r_cnn_diversity,
+                "r_block_diversity": r_block_diversity,
+            },
+        )
+        r_structure_group = gated_novelty_components["r_structure_group"]
+        r_structure_archive = gated_novelty_components["r_structure_archive"]
+        r_descriptor_diversity = gated_novelty_components["r_descriptor_diversity"]
+        r_cnn_diversity = gated_novelty_components["r_cnn_diversity"]
+        r_block_diversity = gated_novelty_components["r_block_diversity"]
         r_primary = (
             r_dense
             + r_formal_success_signal
