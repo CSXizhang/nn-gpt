@@ -316,6 +316,12 @@ def forward(self, x, is_probing=False):
             self.assertIn(parameter_name, sft_reward)
             self.assertIn(parameter_name, sft_raw_reward)
 
+    def test_tunerlsft_grpo_learning_rate_uses_runtime_env(self):
+        body = _function_source("ab/gpt/TuneRLSft.py", "_build_sft_grpo_config")
+
+        self.assertIn('"learning_rate": TuneRL.env_float("NNGPT_RL_LR", SFT_LR)', body)
+        self.assertNotIn('"learning_rate": SFT_LR', body)
+
     def test_sft_rl_reward_eval_uses_721_split(self):
         split_module = importlib.import_module("ab.gpt.util.DatasetSplit")
         self.assertEqual(split_module.normalize_split_protocol("7/2/1"), "721")

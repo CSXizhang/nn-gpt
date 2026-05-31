@@ -1774,7 +1774,7 @@ def _build_sft_grpo_config(
     signature_parameters = _sft_grpo_signature_parameters()
     config_kwargs: Dict[str, Any] = {
         "temperature": resolve_sft_temperature(),
-        "learning_rate": SFT_LR,
+        "learning_rate": TuneRL.env_float("NNGPT_RL_LR", SFT_LR),
         "max_prompt_length": runtime_settings["max_prompt_length"],
         "max_completion_length": runtime_settings["max_completion_length"],
         "per_device_train_batch_size": 1,
