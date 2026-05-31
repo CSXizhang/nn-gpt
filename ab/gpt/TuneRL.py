@@ -183,11 +183,12 @@ STRUCTURE_ARCHIVE_RARITY_LIGHT_BONUS = 0.01
 REPEAT_FAMILY_PENALTY = -0.05
 PLAIN_FUSE_PENALTY = -0.10
 PLAIN_DUAL_BACKBONE_FUSE_PENALTY = -0.28
-TARGET_STRUCTURE_DEAD_BLOCK_PENALTY = -0.25
-TARGET_STRUCTURE_DUAL_BACKBONE_PENALTY = -0.20
+TARGET_STRUCTURE_DEAD_BLOCK_PENALTY = -0.80
+TARGET_STRUCTURE_DUAL_BACKBONE_PENALTY = -0.60
 TARGET_STRUCTURE_PATH_PENALTY = -0.05
 TARGET_STRUCTURE_PARSE_PENALTY = -0.30
-TARGET_STRUCTURE_PENALTY_FLOOR = -0.45
+TARGET_STRUCTURE_PENALTY_FLOOR = -1.00
+TARGET_STRUCTURE_MATCH_BONUS = 0.20
 NO_PROGRESS_PENALTY = -0.06
 GOAL_REFRESH_BONUS = 0.30
 GOAL_MATCH_REWARD_SCALE = 0.12
@@ -4079,7 +4080,10 @@ def base_discovery_reward_fn(
         if has_formal_epoch and reward_target_value is not None:
             train_acc_value = float(train_acc or 0.0)
             reward_target_float = float(reward_target_value)
-            quality_diversity_eligible = bool(formal_success_candidate)
+            quality_diversity_eligible = bool(
+                formal_success_candidate
+                and pattern_detection.get("target_structure_match") is not False
+            )
             r_dense = stage_profile["dense_scale"] * _clip(
                 0.03 + 0.28 * reward_target_float + 0.04 * max(0.0, train_acc_value - 0.50),
                 0.02,
@@ -4087,6 +4091,8 @@ def base_discovery_reward_fn(
             )
             if formal_success_candidate:
                 r_formal_success_signal = FORMAL_SUCCESS_SIGNAL_BONUS
+                if pattern_detection.get("target_structure_match") is not False:
+                    r_formal_success_signal += TARGET_STRUCTURE_MATCH_BONUS
             if (not group_warmup) and (group_baseline_train_acc is not None):
                 prev_target_train_acc = float(group_baseline_train_acc) + GROUP_IMPROVEMENT_DELTA
             if (not group_warmup) and (best_closed_group_mean_train_acc is not None):

@@ -29,6 +29,13 @@ def _function_source(path: str, function_name: str) -> str:
     raise AssertionError(f"function not found: {path}:{function_name}")
 
 
+def _constant_float(path: str, name: str) -> float:
+    match = re.search(rf"^{re.escape(name)}\s*=\s*([-+]?\d+(?:\.\d+)?)", _source(path), re.MULTILINE)
+    if not match:
+        raise AssertionError(f"constant not found: {path}:{name}")
+    return float(match.group(1))
+
+
 class RewardSmokeMemoryTest(unittest.TestCase):
     def test_torchvision_weights_are_disabled_only_under_smoke_env(self):
         skeleton = SFTUtil.skeleton_code
@@ -114,11 +121,21 @@ def forward(self, x, is_probing=False):
             "List": list,
             "Tuple": tuple,
             "normalize_pattern_name": normalize_pattern_name,
-            "TARGET_STRUCTURE_DEAD_BLOCK_PENALTY": -0.25,
-            "TARGET_STRUCTURE_DUAL_BACKBONE_PENALTY": -0.20,
-            "TARGET_STRUCTURE_PATH_PENALTY": -0.15,
-            "TARGET_STRUCTURE_PARSE_PENALTY": -0.30,
-            "TARGET_STRUCTURE_PENALTY_FLOOR": -0.45,
+            "TARGET_STRUCTURE_DEAD_BLOCK_PENALTY": _constant_float(
+                "ab/gpt/TuneRL.py", "TARGET_STRUCTURE_DEAD_BLOCK_PENALTY"
+            ),
+            "TARGET_STRUCTURE_DUAL_BACKBONE_PENALTY": _constant_float(
+                "ab/gpt/TuneRL.py", "TARGET_STRUCTURE_DUAL_BACKBONE_PENALTY"
+            ),
+            "TARGET_STRUCTURE_PATH_PENALTY": _constant_float(
+                "ab/gpt/TuneRL.py", "TARGET_STRUCTURE_PATH_PENALTY"
+            ),
+            "TARGET_STRUCTURE_PARSE_PENALTY": _constant_float(
+                "ab/gpt/TuneRL.py", "TARGET_STRUCTURE_PARSE_PENALTY"
+            ),
+            "TARGET_STRUCTURE_PENALTY_FLOOR": _constant_float(
+                "ab/gpt/TuneRL.py", "TARGET_STRUCTURE_PENALTY_FLOOR"
+            ),
         }
         for function_name in (
             "_compact_graph_expr",
@@ -162,10 +179,34 @@ def forward(self, x, is_probing=False):
         self.assertIn("block_dead", dead_result["actual_structure_signature"])
         group, archive, penalty, suppressed = apply_adjustment(dead_result, 0.12, 0.05)
         self.assertEqual((group, archive), (0.0, 0.0))
-        self.assertAlmostEqual(penalty, -0.25)
+        self.assertAlmostEqual(penalty, -0.80)
         self.assertAlmostEqual(suppressed, 0.17)
-        self.assertAlmostEqual(apply_final_clamp(dead_result, 0.18, penalty), -0.25)
-        self.assertAlmostEqual(apply_final_clamp(dead_result, -0.30, -0.45), -0.45)
+        self.assertAlmostEqual(apply_final_clamp(dead_result, 0.18, penalty), -0.80)
+        self.assertAlmostEqual(apply_final_clamp(dead_result, -0.30, -1.00), -1.00)
+
+        single_backbone_live_block = SimpleNamespace(
+            pattern_name="A_to_Fractal_plus_B",
+            suggested_pattern_name="SingleBackbone_Fractal_789abc",
+            parse_ok=True,
+            family_id="SingleBackbone_Fractal",
+            descriptor_key="d3|m1|bb1|fr0|st0|pr0|fu1|fan1",
+            backbone_calls=1,
+            family_hash="d" * 40,
+            cnn_signature="e" * 40,
+            graph_expr="classifier(PoolFlat(Sequential[Block](Backbone[resnet50](Input))))",
+        )
+        single_backbone_result = detect_target_structure(
+            prompt_target_pattern="A_to_Fractal_plus_B",
+            graph_info=single_backbone_live_block,
+            block_contributes_to_forward=True,
+            block_signature="liveblock123456789",
+        )
+        self.assertFalse(single_backbone_result["target_structure_match"])
+        self.assertEqual(
+            single_backbone_result["target_structure_mismatch_reasons"],
+            ["target_dual_but_forward_uses_less_than_two_backbones"],
+        )
+        self.assertAlmostEqual(apply_adjustment(single_backbone_result, 0.0, 0.0)[2], -0.60)
 
         live_fractal_branch = SimpleNamespace(
             pattern_name="A_to_Fractal_plus_B",
@@ -194,6 +235,31 @@ def forward(self, x, is_probing=False):
         group, archive, penalty, suppressed = apply_adjustment(live_result, 0.12, 0.05)
         self.assertEqual((group, archive, penalty, suppressed), (0.12, 0.05, 0.0, 0.0))
         self.assertAlmostEqual(apply_final_clamp(live_result, 0.18, penalty), 0.18)
+
+    def test_formal_diversity_is_only_eligible_for_target_structure_match(self):
+        body = _function_source("ab/gpt/TuneRL.py", "base_discovery_reward_fn")
+
+        eligibility_index = body.index("quality_diversity_eligible = bool(")
+        target_match_index = body.index('pattern_detection.get("target_structure_match") is not False', eligibility_index)
+        first_diversity_index = body.index("r_descriptor_diversity +=", eligibility_index)
+
+        self.assertLess(eligibility_index, target_match_index)
+        self.assertLess(target_match_index, first_diversity_index)
+
+    def test_target_structure_match_adds_formal_success_anchor_signal(self):
+        body = _function_source("ab/gpt/TuneRL.py", "base_discovery_reward_fn")
+
+        self.assertIn("TARGET_STRUCTURE_MATCH_BONUS", body)
+        success_signal_index = body.index("r_formal_success_signal = FORMAL_SUCCESS_SIGNAL_BONUS")
+        anchor_index = body.index("TARGET_STRUCTURE_MATCH_BONUS", success_signal_index)
+        target_match_index = body.rindex(
+            'pattern_detection.get("target_structure_match") is not False',
+            success_signal_index,
+            anchor_index,
+        )
+
+        self.assertLess(success_signal_index, target_match_index)
+        self.assertLess(target_match_index, anchor_index)
 
     def test_target_structure_clamp_runs_after_warmup_override(self):
         body = _function_source("ab/gpt/TuneRL.py", "base_discovery_reward_fn")
