@@ -492,6 +492,17 @@ def forward(self, x, is_probing=False):
         reward_sum_index = body.index("r_primary = (", gate_index)
         self.assertLess(gate_index, reward_sum_index)
 
+    def test_stage2_progress_and_elite_bonuses_stay_tiebreak_sized(self):
+        source = _source("ab/gpt/TuneRL.py")
+
+        self.assertIn("BATCH_ELITE_SOFT_BONUSES = (0.02, 0.015, 0.01, 0.005, 0.0)", source)
+        self.assertIn("BATCH_ELITE_IMPROVING_BONUSES = (0.04, 0.03, 0.02, 0.01, 0.0)", source)
+        self.assertEqual(_constant_float("ab/gpt/TuneRL.py", "GOAL_REFRESH_BONUS"), 0.08)
+        self.assertEqual(_constant_float("ab/gpt/TuneRL.py", "STAGE2_PREV_GROUP_SCALE"), 0.20)
+        self.assertEqual(_constant_float("ab/gpt/TuneRL.py", "STAGE2_BEST_GROUP_SCALE"), 0.20)
+        self.assertEqual(_constant_float("ab/gpt/TuneRL.py", "STAGE2_BACKBONE_PREV_GROUP_SCALE"), 0.25)
+        self.assertEqual(_constant_float("ab/gpt/TuneRL.py", "STAGE2_BACKBONE_BEST_GROUP_SCALE"), 0.25)
+
 
 if __name__ == "__main__":
     unittest.main()
