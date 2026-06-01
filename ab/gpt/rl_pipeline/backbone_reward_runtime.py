@@ -64,6 +64,12 @@ PROMPT_TEMPLATE = SFTUtil.open_discovery_prompt_template
 PROMPT_BLOCK_SIGNATURE = "def drop_conv3x3_block(in_channels, out_channels, stride=1, padding=1, bias=False, dropout_prob=0.0):"
 PROMPT_INIT_SIGNATURE = "def __init__(self, in_shape: tuple, out_shape: tuple, prm: dict, device: torch.device) -> None:"
 PROMPT_FORWARD_SIGNATURE = "def forward(self, x: torch.Tensor, is_probing: bool = False) -> torch.Tensor:"
+TARGET_STRUCTURE_DEAD_BLOCK_PENALTY = -0.80
+TARGET_STRUCTURE_DUAL_BACKBONE_PENALTY = -0.60
+TARGET_STRUCTURE_PATH_PENALTY = -0.05
+TARGET_STRUCTURE_PARSE_PENALTY = -0.30
+TARGET_STRUCTURE_PENALTY_FLOOR = -1.00
+TARGET_STRUCTURE_MATCH_BONUS = 0.20
 STRUCTURE_MACRO_BONUS = 0.04
 STRUCTURE_MULTI_STAGE_BONUS = 0.03
 STRUCTURE_MOTIF_BONUS = 0.02
@@ -249,12 +255,6 @@ _TUNERL_DEPENDENCY_NAMES = (
     "STAGE23_NON_DOMINANT_DESCRIPTOR_BONUS",
     "STAGE23_REPEATED_BLOCK_REWARD_CAP",
     "STAGE2_FORMAL_EXPLORE",
-    "TARGET_STRUCTURE_DEAD_BLOCK_PENALTY",
-    "TARGET_STRUCTURE_DUAL_BACKBONE_PENALTY",
-    "TARGET_STRUCTURE_MATCH_BONUS",
-    "TARGET_STRUCTURE_PARSE_PENALTY",
-    "TARGET_STRUCTURE_PATH_PENALTY",
-    "TARGET_STRUCTURE_PENALTY_FLOOR",
     "_apply_executability_clamp",
     "_apply_stage1_trainability_clamp",
     "_apply_trainability_clamp",
