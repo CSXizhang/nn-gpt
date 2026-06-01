@@ -4,6 +4,7 @@ import ast
 import hashlib
 import inspect
 import math
+import os
 import re
 import textwrap
 import time
@@ -15,6 +16,7 @@ from datasets import Dataset
 from ab.gpt.rl_pipeline import stage_state as StageState
 from ab.gpt.rl_pipeline.completion import extract_completion_blocks_strict
 from ab.gpt.util.ArchDiscovery import ensure_pattern_name, extract_graph_info, normalize_pattern_name
+from ab.gpt.util.Reward import FORMAL_MULTI_HORIZON_REWARD_TARGET_METRIC
 import ab.gpt.util.SFTUtil as SFTUtil
 from ab.gpt.util.Util import extract_str
 import ab.nn.api as api
@@ -163,6 +165,20 @@ STAGE23_BLOCK_ARCHIVE_NOVEL_BONUS = 0.08
 STAGE23_BLOCK_ARCHIVE_REPEAT_MAX_PENALTY = -0.08
 STAGE23_BLOCK_ARCHIVE_REPEAT_WINDOW = 16
 STAGE23_REPEATED_BLOCK_REWARD_CAP = 2.0
+STAGE23_POSITIVE_NOVELTY_ACC_THRESHOLD = 0.90
+STAGE23_EARLY_LOCAL_COMPETITION_GENERATIONS = 240
+STAGE23_EARLY_CELL_REPEAT_REWARD_CAP = 0.0
+STAGE23_NEW_CELL_BONUS = 0.04
+STAGE23_CELL_IMPROVEMENT_DELTA = 0.003
+STAGE23_CELL_IMPROVEMENT_BONUS = 0.08
+STAGE23_DUPLICATE_LOW_ACC_THRESHOLD = 0.92
+STAGE23_DUPLICATE_LOW_ACC_REWARD_CAP = 0.03
+STAGE23_HIGH_ACC_BONUS_THRESHOLD = 0.92
+STAGE23_HIGH_ACC_BONUS = 0.08
+STAGE23_HIGH_ACC_STRONG_THRESHOLD = 0.925
+STAGE23_HIGH_ACC_STRONG_BONUS = 0.12
+STAGE23_HIGH_ACC_ELITE_THRESHOLD = 0.93
+STAGE23_HIGH_ACC_ELITE_BONUS = 0.18
 STAGE23_NON_DOMINANT_CNN_BONUS = 0.08
 STAGE23_DOMINANT_CNN_SOFT_SHARE = 0.45
 STAGE23_DOMINANT_CNN_STRONG_SHARE = 0.65
@@ -171,8 +187,17 @@ STAGE23_DOMINANT_CNN_REPEAT_STRONG_PENALTY = -0.06
 STAGE23_GLOBAL_CNN_REPEAT_PENALTY = -0.08
 STAGE23_GLOBAL_CNN_REPEAT_STRONG_PENALTY = -0.12
 STAGE23_DEAD_BLOCK_PENALTY = -0.04
+STATIC_STAGE_REWARD_TARGET_METRIC = "stage1_static_score"
+FORMAL_STAGE_REWARD_TARGET_METRIC = FORMAL_MULTI_HORIZON_REWARD_TARGET_METRIC
+REWARD_VARIANT_ENV = "NNGPT_RL_REWARD_VARIANT"
+REWARD_VARIANT_FULL = "full"
 REWARD_VARIANT_NO_STRUCTURAL_NOVELTY = "no_structural_novelty"
 REWARD_VARIANT_STRONG_REPEAT_PENALTY = "strong_repeat_penalty"
+REWARD_VARIANTS = {
+    REWARD_VARIANT_FULL,
+    REWARD_VARIANT_NO_STRUCTURAL_NOVELTY,
+    REWARD_VARIANT_STRONG_REPEAT_PENALTY,
+}
 STRUCTURE_MACRO_BONUS = 0.04
 STRUCTURE_MULTI_STAGE_BONUS = 0.03
 STRUCTURE_MOTIF_BONUS = 0.02
@@ -271,16 +296,8 @@ _TUNERL_DEPENDENCY_NAMES = (
     "_format_optional_metric",
     "_format_optional_signed_metric",
     "_format_target_metric",
-    "_is_repeated_block_without_refresh",
-    "_is_strong_repeat_without_refresh",
     "_record_current_group_trainable_sample",
     "_record_generation_event",
-    "_reward_variant_is_strong_repeat_penalty",
-    "_stage23_gate_positive_novelty_by_quality",
-    "_stage23_local_competition_reward",
-    "_stage_reward_target_metric",
-    "_stage_uses_formal_eval",
-    "_stage_uses_static_only",
     "_training_context_guidance",
     "best_closed_group_mean_reward_target_acc",
     "best_closed_group_mean_test_acc",
@@ -295,7 +312,6 @@ _TUNERL_DEPENDENCY_NAMES = (
     "new_nn_file",
     "new_out_file",
     "prev_closed_group_mean_reward_target_acc",
-    "resolve_reward_variant",
     "reward_eval_cfg_builder",
     "reward_run_epoch_dir",
     "summarize_stage_training_context",
@@ -881,6 +897,148 @@ def _apply_executability_clamp(res: Dict[str, Any], reward_value: float, graph_i
     if not res.get("forward_shape_ok"):
         return min(reward_value, -0.16)
     return reward_value
+
+
+def resolve_reward_variant() -> str:
+    raw_value = os.getenv(REWARD_VARIANT_ENV, REWARD_VARIANT_FULL).strip().lower().replace("-", "_")
+    if raw_value in {"", "default", "baseline"}:
+        return REWARD_VARIANT_FULL
+    if raw_value not in REWARD_VARIANTS:
+        raise ValueError(
+            f"Invalid {REWARD_VARIANT_ENV}={raw_value!r}; "
+            f"expected one of {sorted(REWARD_VARIANTS)}"
+        )
+    return raw_value
+
+
+def _reward_variant_is_strong_repeat_penalty() -> bool:
+    return resolve_reward_variant() == REWARD_VARIANT_STRONG_REPEAT_PENALTY
+
+
+def _stage_reward_target_metric(stage_name: str) -> str:
+    if str(stage_name) == STAGE1_STRUCTURE_EXPLORE:
+        return STATIC_STAGE_REWARD_TARGET_METRIC
+    return FORMAL_STAGE_REWARD_TARGET_METRIC
+
+
+def _stage_uses_formal_eval(stage_name: str) -> bool:
+    return str(stage_name) in {STAGE2_FORMAL_EXPLORE, STAGE3_FORMAL_OPTIMIZE}
+
+
+def _stage_uses_static_only(stage_name: str) -> bool:
+    return str(stage_name) == STAGE1_STRUCTURE_EXPLORE
+
+
+def _stage23_local_competition_reward(
+    total_reward: float,
+    *,
+    generation_total: int,
+    target_ok: bool,
+    has_formal_epoch: bool,
+    formal_success_candidate: bool,
+    quality_acc_value: Optional[float],
+    cell_archive_freq: int,
+    batch_same_cell_count: int,
+    cell_best_quality_acc: Optional[float],
+) -> float:
+    if (
+        not target_ok
+        or not has_formal_epoch
+        or not formal_success_candidate
+        or quality_acc_value is None
+    ):
+        return float(total_reward)
+
+    reward_value = float(total_reward)
+    quality_value = float(quality_acc_value)
+    cell_is_unique_new = bool(cell_archive_freq <= 0 and batch_same_cell_count <= 1)
+    cell_improved = bool(
+        cell_archive_freq > 0
+        and cell_best_quality_acc is not None
+        and quality_value >= float(cell_best_quality_acc) + STAGE23_CELL_IMPROVEMENT_DELTA
+    )
+
+    if cell_is_unique_new:
+        reward_value += STAGE23_NEW_CELL_BONUS
+    elif cell_improved:
+        reward_value += STAGE23_CELL_IMPROVEMENT_BONUS
+    elif int(generation_total or 0) < STAGE23_EARLY_LOCAL_COMPETITION_GENERATIONS:
+        reward_value = min(reward_value, STAGE23_EARLY_CELL_REPEAT_REWARD_CAP)
+    elif quality_value < STAGE23_DUPLICATE_LOW_ACC_THRESHOLD:
+        reward_value = min(reward_value, STAGE23_DUPLICATE_LOW_ACC_REWARD_CAP)
+
+    if quality_value >= STAGE23_HIGH_ACC_ELITE_THRESHOLD:
+        reward_value += STAGE23_HIGH_ACC_ELITE_BONUS
+    elif quality_value >= STAGE23_HIGH_ACC_STRONG_THRESHOLD:
+        reward_value += STAGE23_HIGH_ACC_STRONG_BONUS
+    elif quality_value >= STAGE23_HIGH_ACC_BONUS_THRESHOLD:
+        reward_value += STAGE23_HIGH_ACC_BONUS
+
+    return _clip(reward_value, -2.0, 2.0)
+
+
+def _stage23_gate_positive_novelty_by_quality(
+    quality_acc_value: Optional[float],
+    components: Dict[str, float],
+) -> Dict[str, float]:
+    if quality_acc_value is not None and float(quality_acc_value) >= STAGE23_POSITIVE_NOVELTY_ACC_THRESHOLD:
+        return dict(components)
+    return {
+        key: min(float(value or 0.0), 0.0)
+        for key, value in components.items()
+    }
+
+
+def _has_block_repeat_quality_refresh(res: Dict[str, Any]) -> bool:
+    if float(res.get("r_goal_best", 0.0) or 0.0) > 0.0:
+        return True
+    reward_target_value = _optional_float(res.get("reward_target_value"))
+    if reward_target_value is None:
+        return False
+    best_targets = (
+        _optional_float(res.get("backbone_best_target_reward_target_acc")),
+        _optional_float(res.get("best_target_reward_target_acc")),
+    )
+    return any(target is not None and reward_target_value >= target for target in best_targets)
+
+
+def _is_repeated_block_without_refresh(res: Dict[str, Any]) -> bool:
+    block_signature = str(res.get("block_signature") or "")
+    if not block_signature or block_signature == "incomplete_block":
+        return False
+    if _has_block_repeat_quality_refresh(res):
+        return False
+    archive_freq = int(res.get("archive_snapshot_block_freq", 0) or 0)
+    batch_count = int(res.get("batch_same_block_count", 0) or 0)
+    return archive_freq > 0 or batch_count > 1
+
+
+def _is_repeated_graph_without_refresh(res: Dict[str, Any]) -> bool:
+    if bool(res.get("repeated_graph_without_refresh")):
+        return True
+    graph_hash = str(res.get("graph_hash") or "")
+    if not graph_hash:
+        return False
+    if _has_block_repeat_quality_refresh(res):
+        return False
+    archive_freq = int(res.get("archive_snapshot_graph_freq", 0) or 0)
+    batch_count = int(res.get("batch_same_graph_count", 0) or 0)
+    return archive_freq > 0 or batch_count > 1
+
+
+def _is_strong_repeat_without_refresh(res: Dict[str, Any]) -> bool:
+    if not _has_completed_formal_epoch(res):
+        return False
+    if not bool(res.get("formal_success_candidate")):
+        return False
+    if _has_block_repeat_quality_refresh(res):
+        return False
+    return bool(
+        res.get("dominant_descriptor_repeat")
+        or res.get("dominant_cnn_repeat")
+        or _is_repeated_block_without_refresh(res)
+        or _is_repeated_graph_without_refresh(res)
+    )
 
 
 def _stage_reward_profile(stage_name: str) -> Dict[str, float]:
