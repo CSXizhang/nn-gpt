@@ -117,11 +117,11 @@ def _configure_eval_runtime() -> None:
 
 
 def _load_prompt_dataset(tokenizer: Any, budget: int):
-    import ab.gpt.TuneRLSft as TuneRLSft
+    import ab.gpt.TuneRL as TuneRL
     import ab.gpt.util.Reward as RewardUtil
 
     os.environ["NNGPT_SFT_DATASET_LIMIT"] = str(max(1, int(budget)))
-    dataset = TuneRLSft.load_rl_dataset_sft(tokenizer)
+    dataset = TuneRL.load_reward_dataset(tokenizer)
     RewardUtil.shutdown_eval_worker()
     if len(dataset) <= 0:
         raise RuntimeError("No prompts available for baseline generation")
@@ -557,7 +557,6 @@ def _full_code_eval_spec(
 ) -> tuple[dict[str, Any], dict[str, Any]] | None:
     import torch
     import ab.gpt.TuneRL as TuneRL
-    import ab.gpt.TuneRLSft as TuneRLSft
 
     code = str(candidate.get("candidate_code") or "")
     if candidate.get("generation_error") or not code:
@@ -588,7 +587,7 @@ def _full_code_eval_spec(
         "reward_batch_index": 0,
         "completion_index": index,
         "batch_last_item": batch_last_item,
-        "cfg": TuneRLSft.build_sft_reward_eval_cfg(
+        "cfg": TuneRL.reward_eval_cfg_builder()(
             stage_name=str(TuneRL.current_stage_name),
             in_shape=(1, 3, 224, 224),
             out_shape=(10,),
