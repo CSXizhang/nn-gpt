@@ -17,6 +17,16 @@ NUMERIC_PATHS = (
     ("api", ("r_descriptor_diversity",)),
     ("api", ("r_cnn_diversity",)),
     ("api", ("r_block_diversity",)),
+    ("api", ("r_prev_backbone_group",)),
+    ("api", ("r_best_backbone_group",)),
+    ("api", ("backbone_reward_target_gain",)),
+    ("api", ("archive_snapshot_backbone_freq",)),
+    ("api", ("archive_snapshot_cnn_freq",)),
+    ("api", ("archive_snapshot_block_freq",)),
+    ("api", ("archive_snapshot_backbone_cnn_freq",)),
+    ("api", ("archive_snapshot_backbone_block_freq",)),
+    ("api", ("batch_same_backbone_cnn_count",)),
+    ("api", ("batch_same_backbone_block_count",)),
     ("api", ("global_descriptor_archive_reward",)),
     ("api", ("global_cnn_archive_reward",)),
     ("api", ("block_archive_reward",)),
@@ -32,6 +42,16 @@ NUMERIC_PATHS = (
     ("open_discovery", ("r_descriptor_diversity",)),
     ("open_discovery", ("r_cnn_diversity",)),
     ("open_discovery", ("r_block_diversity",)),
+    ("open_discovery", ("r_prev_backbone_group",)),
+    ("open_discovery", ("r_best_backbone_group",)),
+    ("open_discovery", ("backbone_reward_target_gain",)),
+    ("open_discovery", ("archive_snapshot_backbone_freq",)),
+    ("open_discovery", ("archive_snapshot_cnn_freq",)),
+    ("open_discovery", ("archive_snapshot_block_freq",)),
+    ("open_discovery", ("archive_snapshot_backbone_cnn_freq",)),
+    ("open_discovery", ("archive_snapshot_backbone_block_freq",)),
+    ("open_discovery", ("batch_same_backbone_cnn_count",)),
+    ("open_discovery", ("batch_same_backbone_block_count",)),
     ("open_discovery", ("global_descriptor_archive_reward",)),
     ("open_discovery", ("global_cnn_archive_reward",)),
     ("open_discovery", ("block_archive_reward",)),
@@ -39,6 +59,26 @@ NUMERIC_PATHS = (
     ("open_discovery", ("r_no_progress_penalty",)),
     ("open_discovery", ("reward_target_value",)),
     ("open_discovery", ("formal_reward_target_value",)),
+)
+
+STRING_PATHS = (
+    ("api", ("backbone_signature",)),
+    ("api", ("cnn_signature",)),
+    ("api", ("block_signature",)),
+    ("api", ("backbone_block_pair_key",)),
+    ("api", ("reward_variant",)),
+    ("api", ("target_structure_match",)),
+    ("open_discovery", ("backbone_signature",)),
+    ("open_discovery", ("cnn_signature",)),
+    ("open_discovery", ("block_signature",)),
+    ("open_discovery", ("backbone_block_pair_key",)),
+    ("open_discovery", ("reward_variant",)),
+)
+
+LIST_PATHS = (
+    ("api", ("strong_repeat_penalty_reasons",)),
+    ("api", ("target_structure_mismatch_reasons",)),
+    ("open_discovery", ("strong_repeat_penalty_reasons",)),
 )
 
 BOOL_PATHS = (
@@ -115,6 +155,10 @@ def _same_float(left: Any, right: Any, tol: float) -> bool:
     return abs(left_float - right_float) <= tol
 
 
+def _same_json_value(left: Any, right: Any) -> bool:
+    return json.dumps(left, sort_keys=True, ensure_ascii=False) == json.dumps(right, sort_keys=True, ensure_ascii=False)
+
+
 def _compare_pair(index: int, left: Dict[str, Any], right: Dict[str, Any], tol: float) -> List[str]:
     mismatches: List[str] = []
     for label, path in NUMERIC_PATHS:
@@ -140,6 +184,30 @@ def _compare_pair(index: int, left: Dict[str, Any], right: Dict[str, Any], tol: 
         if bool(left_value) != bool(right_value):
             mismatches.append(
                 f"#{index} {label}.{'.'.join(path)} {bool(left_value)!r}!={bool(right_value)!r}"
+            )
+    for label, path in STRING_PATHS:
+        left_has, left_value = _get(left, label, path)
+        right_has, right_value = _get(right, label, path)
+        if not left_has and not right_has:
+            continue
+        if left_has != right_has:
+            mismatches.append(f"#{index} {label}.{'.'.join(path)} presence {left_has}!={right_has}")
+            continue
+        if str(left_value) != str(right_value):
+            mismatches.append(
+                f"#{index} {label}.{'.'.join(path)} {left_value!r}!={right_value!r}"
+            )
+    for label, path in LIST_PATHS:
+        left_has, left_value = _get(left, label, path)
+        right_has, right_value = _get(right, label, path)
+        if not left_has and not right_has:
+            continue
+        if left_has != right_has:
+            mismatches.append(f"#{index} {label}.{'.'.join(path)} presence {left_has}!={right_has}")
+            continue
+        if not _same_json_value(left_value, right_value):
+            mismatches.append(
+                f"#{index} {label}.{'.'.join(path)} {left_value!r}!={right_value!r}"
             )
     return mismatches
 

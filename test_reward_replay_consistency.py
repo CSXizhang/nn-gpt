@@ -6,7 +6,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from scripts.compare_reward_full_noop import BOOL_PATHS, NUMERIC_PATHS, _compare_pair
+from scripts.compare_reward_full_noop import BOOL_PATHS, LIST_PATHS, NUMERIC_PATHS, STRING_PATHS, _compare_pair
 
 
 ROOT = Path(__file__).resolve().parent
@@ -52,6 +52,16 @@ class RewardReplayConsistencyTest(unittest.TestCase):
             ("r_tiebreak",),
             ("r_cnn_diversity",),
             ("r_block_diversity",),
+            ("r_prev_backbone_group",),
+            ("r_best_backbone_group",),
+            ("backbone_reward_target_gain",),
+            ("archive_snapshot_backbone_freq",),
+            ("archive_snapshot_cnn_freq",),
+            ("archive_snapshot_block_freq",),
+            ("archive_snapshot_backbone_cnn_freq",),
+            ("archive_snapshot_backbone_block_freq",),
+            ("batch_same_backbone_cnn_count",),
+            ("batch_same_backbone_block_count",),
             ("reward_target_value",),
             ("formal_reward_target_value",),
         ):
@@ -62,6 +72,21 @@ class RewardReplayConsistencyTest(unittest.TestCase):
             ("xml_incomplete_length_cap",),
         ):
             self.assertIn(key, bools)
+        strings = {path for label, path in STRING_PATHS if label in {"api", "open_discovery"}}
+        for key in (
+            ("backbone_signature",),
+            ("cnn_signature",),
+            ("block_signature",),
+            ("backbone_block_pair_key",),
+            ("reward_variant",),
+        ):
+            self.assertIn(key, strings)
+        lists = {path for label, path in LIST_PATHS if label in {"api", "open_discovery"}}
+        for key in (
+            ("strong_repeat_penalty_reasons",),
+            ("target_structure_mismatch_reasons",),
+        ):
+            self.assertIn(key, lists)
 
     def _assert_replay_matches(self, inputs_path: Path, golden_path: Path) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:

@@ -2302,6 +2302,33 @@ class BackboneRewardTask:
     def finalize_scored_results(self, scored_results) -> None:
         BackboneRewardRuntime.finalize_scored_results(scored_results)
 
+    def capture_runtime_state(self) -> Dict[str, Any]:
+        return BackboneRewardRuntime.capture_runtime_state()
+
+    def restore_runtime_state(self, state: Optional[Dict[str, Any]]) -> None:
+        BackboneRewardRuntime.restore_runtime_state(state)
+
+    def reset_runtime_state(self) -> None:
+        BackboneRewardRuntime.reset_runtime_state()
+
+    def group_context_fields(self) -> Dict[str, Any]:
+        return BackboneRewardRuntime.group_context_fields()
+
+    def update_group_metrics(self, results) -> None:
+        BackboneRewardRuntime.update_group_metrics(results)
+
+    def close_group_payload(self) -> Dict[str, Any]:
+        return BackboneRewardRuntime.close_group_payload()
+
+    def reset_current_group_state(self) -> None:
+        BackboneRewardRuntime.reset_current_group_state()
+
+    def reset_stage_comparison_state(self) -> None:
+        BackboneRewardRuntime.reset_stage_comparison_state()
+
+    def archive_snapshot_family_counts(self) -> Dict[str, int]:
+        return BackboneRewardRuntime.archive_snapshot_family_counts()
+
     def run_log_dir(self) -> str:
         return resolve_sft_log_dir()
 

@@ -428,11 +428,15 @@ def forward(self, x, is_probing=False):
         score_source = _source("scripts/score_reward_records.py")
 
         self.assertIn("TuneRL.reward_entries_from_records(", score_source)
+        self.assertIn("TuneRL.default_reward_replay_group_context()", score_source)
         for token in (
             "TuneRL.extract_reward_completion_blocks(",
             "TuneRL._extract_backbone_model_names(",
             "TuneRL.extract_graph_info(",
             "TuneRL.build_backbone_signature(",
+            '"dominant_backbone_signature"',
+            '"dominant_cnn_signature"',
+            '"dominant_backbone_cnn_pair"',
         ):
             self.assertNotIn(token, score_source)
 
@@ -509,6 +513,44 @@ def forward(self, x, is_probing=False):
             "def _result_backbone_signature(",
             "def _print_discovery_metrics(",
             "[Discovery Metrics]",
+        ):
+            self.assertNotIn(token, tunerl_source)
+
+    def test_stage_state_does_not_encode_backbone_reward_semantics(self):
+        stage_state_source = _source("ab/gpt/rl_pipeline/stage_state.py")
+
+        for token in (
+            "backbone",
+            "cnn",
+            "block",
+            "descriptor",
+            "archive_counts",
+            "signature_counts",
+            "current_group_reward_target_sum_by_backbone",
+        ):
+            self.assertNotIn(token, stage_state_source)
+        self.assertIn("reward_task_group_context_fields()", stage_state_source)
+        self.assertIn("reward_task_close_group_payload()", stage_state_source)
+        self.assertIn("reward_task_reset_current_group_state()", stage_state_source)
+
+    def test_tunerl_reward_state_uses_task_hooks(self):
+        tunerl_source = _source("ab/gpt/TuneRL.py")
+        capture_body = _function_source("ab/gpt/TuneRL.py", "capture_reward_runtime_state")
+        restore_body = _function_source("ab/gpt/TuneRL.py", "restore_reward_runtime_state")
+        reset_body = _function_source("ab/gpt/TuneRL.py", "reset_reward_runtime_state")
+        update_body = _function_source("ab/gpt/TuneRL.py", "update_current_group_metrics")
+
+        self.assertIn("reward_task_capture_runtime_state()", capture_body)
+        self.assertIn("reward_task_restore_runtime_state(state)", restore_body)
+        self.assertIn("reward_task_reset_runtime_state()", reset_body)
+        self.assertIn("reward_task_update_group_metrics(results)", update_body)
+        for token in (
+            "backbone_signature_archive_counts =",
+            "cnn_signature_archive_counts =",
+            "block_signature_archive_counts =",
+            "backbone_cnn_pair_archive_counts =",
+            "current_group_reward_target_sum_by_backbone =",
+            "prev_closed_group_mean_reward_target_by_backbone:",
         ):
             self.assertNotIn(token, tunerl_source)
 

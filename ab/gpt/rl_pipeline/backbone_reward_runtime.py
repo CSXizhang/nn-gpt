@@ -6,12 +6,99 @@ import inspect
 import re
 import textwrap
 import time
-from typing import Any, Dict, List, Tuple
+from collections import Counter
+from typing import Any, Dict, List, Optional, Set, Tuple
 
 import torch
+from ab.gpt.rl_pipeline import stage_state as StageState
 from ab.gpt.rl_pipeline.completion import extract_completion_blocks_strict
 from ab.gpt.util.ArchDiscovery import extract_graph_info
 import ab.gpt.util.SFTUtil as SFTUtil
+
+
+graph_archive_counts = Counter()
+family_archive_counts = Counter()
+family_hash_archive_counts = Counter()
+descriptor_archive_counts = Counter()
+backbone_signature_archive_counts = Counter()
+cnn_signature_archive_counts = Counter()
+block_signature_archive_counts = Counter()
+backbone_cnn_pair_archive_counts = Counter()
+backbone_block_pair_archive_counts = Counter()
+family_metric_best: Dict[str, float] = {}
+motif_name_counts = Counter()
+saved_graph_counts = Counter()
+saved_family_hash_counts = Counter()
+saved_backbone_signature_counts = Counter()
+saved_cnn_signature_counts = Counter()
+saved_backbone_cnn_pair_counts = Counter()
+saved_backbone_block_pair_counts = Counter()
+goal_graph_archive_counts: Dict[str, Counter] = {}
+goal_family_hash_archive_counts: Dict[str, Counter] = {}
+saved_goal_family_hash_counts: Dict[str, Counter] = {}
+train_graph_hashes: Set[str] = set()
+train_family_hashes: Set[str] = set()
+train_descriptor_keys: Set[str] = set()
+current_group_reward_target_sum_by_backbone: Dict[str, float] = {}
+current_group_reward_target_count_by_backbone = Counter()
+prev_closed_group_mean_reward_target_by_backbone: Dict[str, float] = {}
+best_closed_group_mean_reward_target_by_backbone: Dict[str, float] = {}
+saved_best_reward_target_by_backbone_cnn: Dict[str, float] = {}
+best_quality_acc_by_backbone_block: Dict[str, float] = {}
+dominant_family_hash: Optional[str] = None
+dominant_family_share: float = 0.0
+dominant_descriptor_key: Optional[str] = None
+dominant_descriptor_share: float = 0.0
+dominant_backbone_signature: Optional[str] = None
+dominant_backbone_share: float = 0.0
+dominant_cnn_signature: Optional[str] = None
+dominant_cnn_share: float = 0.0
+dominant_backbone_cnn_pair: Optional[str] = None
+dominant_backbone_cnn_share: float = 0.0
+discovery_family_hashes_seen: Set[str] = set()
+
+_TASK_STATE_NAMES = {
+    "graph_archive_counts",
+    "family_archive_counts",
+    "family_hash_archive_counts",
+    "descriptor_archive_counts",
+    "backbone_signature_archive_counts",
+    "cnn_signature_archive_counts",
+    "block_signature_archive_counts",
+    "backbone_cnn_pair_archive_counts",
+    "backbone_block_pair_archive_counts",
+    "family_metric_best",
+    "motif_name_counts",
+    "saved_graph_counts",
+    "saved_family_hash_counts",
+    "saved_backbone_signature_counts",
+    "saved_cnn_signature_counts",
+    "saved_backbone_cnn_pair_counts",
+    "saved_backbone_block_pair_counts",
+    "goal_graph_archive_counts",
+    "goal_family_hash_archive_counts",
+    "saved_goal_family_hash_counts",
+    "train_graph_hashes",
+    "train_family_hashes",
+    "train_descriptor_keys",
+    "current_group_reward_target_sum_by_backbone",
+    "current_group_reward_target_count_by_backbone",
+    "prev_closed_group_mean_reward_target_by_backbone",
+    "best_closed_group_mean_reward_target_by_backbone",
+    "saved_best_reward_target_by_backbone_cnn",
+    "best_quality_acc_by_backbone_block",
+    "dominant_family_hash",
+    "dominant_family_share",
+    "dominant_descriptor_key",
+    "dominant_descriptor_share",
+    "dominant_backbone_signature",
+    "dominant_backbone_share",
+    "dominant_cnn_signature",
+    "dominant_cnn_share",
+    "dominant_backbone_cnn_pair",
+    "dominant_backbone_cnn_share",
+    "discovery_family_hashes_seen",
+}
 
 
 def _tunerl():
@@ -50,6 +137,16 @@ _SYNC_PROTECTED_NAMES = {
     "_entry_backbone_signature",
     "_entry_cnn_signature",
     "_entry_block_signature",
+    "capture_runtime_state",
+    "restore_runtime_state",
+    "reset_runtime_state",
+    "group_context_fields",
+    "update_group_metrics",
+    "close_group_payload",
+    "reset_current_group_state",
+    "reset_stage_comparison_state",
+    "archive_snapshot_family_counts",
+    *_TASK_STATE_NAMES,
 }
 
 
@@ -65,6 +162,264 @@ def _sync_tunerl_globals():
 
 def extract_seed_context(kwargs: Dict[str, Any], expected_count: int):
     return _tunerl().require_sample_accuracy_baselines(kwargs, expected_count)
+
+
+def _counter_payload(counter: Counter) -> Dict[str, int]:
+    return StageState.counter_payload(counter)
+
+
+def _nested_counter_payload(mapping: Dict[str, Counter]) -> Dict[str, Dict[str, int]]:
+    return StageState.nested_counter_payload(mapping)
+
+
+def capture_runtime_state() -> Dict[str, Any]:
+    return {
+        "graph_archive_counts": _counter_payload(graph_archive_counts),
+        "family_archive_counts": _counter_payload(family_archive_counts),
+        "family_hash_archive_counts": _counter_payload(family_hash_archive_counts),
+        "descriptor_archive_counts": _counter_payload(descriptor_archive_counts),
+        "backbone_signature_archive_counts": _counter_payload(backbone_signature_archive_counts),
+        "cnn_signature_archive_counts": _counter_payload(cnn_signature_archive_counts),
+        "block_signature_archive_counts": _counter_payload(block_signature_archive_counts),
+        "backbone_cnn_pair_archive_counts": _counter_payload(backbone_cnn_pair_archive_counts),
+        "backbone_block_pair_archive_counts": _counter_payload(backbone_block_pair_archive_counts),
+        "family_metric_best": {str(key): float(value) for key, value in family_metric_best.items()},
+        "motif_name_counts": _counter_payload(motif_name_counts),
+        "saved_graph_counts": _counter_payload(saved_graph_counts),
+        "saved_family_hash_counts": _counter_payload(saved_family_hash_counts),
+        "saved_backbone_signature_counts": _counter_payload(saved_backbone_signature_counts),
+        "saved_cnn_signature_counts": _counter_payload(saved_cnn_signature_counts),
+        "saved_backbone_cnn_pair_counts": _counter_payload(saved_backbone_cnn_pair_counts),
+        "saved_backbone_block_pair_counts": _counter_payload(saved_backbone_block_pair_counts),
+        "goal_graph_archive_counts": _nested_counter_payload(goal_graph_archive_counts),
+        "goal_family_hash_archive_counts": _nested_counter_payload(goal_family_hash_archive_counts),
+        "saved_goal_family_hash_counts": _nested_counter_payload(saved_goal_family_hash_counts),
+        "current_group_reward_target_sum_by_backbone": StageState.float_dict_payload(current_group_reward_target_sum_by_backbone),
+        "current_group_reward_target_count_by_backbone": _counter_payload(current_group_reward_target_count_by_backbone),
+        "prev_closed_group_mean_reward_target_by_backbone": StageState.float_dict_payload(prev_closed_group_mean_reward_target_by_backbone),
+        "best_closed_group_mean_reward_target_by_backbone": StageState.float_dict_payload(best_closed_group_mean_reward_target_by_backbone),
+        "saved_best_reward_target_by_backbone_cnn": StageState.float_dict_payload(saved_best_reward_target_by_backbone_cnn),
+        "best_quality_acc_by_backbone_block": StageState.float_dict_payload(best_quality_acc_by_backbone_block),
+        "dominant_family_hash": dominant_family_hash,
+        "dominant_family_share": dominant_family_share,
+        "dominant_descriptor_key": dominant_descriptor_key,
+        "dominant_descriptor_share": dominant_descriptor_share,
+        "dominant_backbone_signature": dominant_backbone_signature,
+        "dominant_backbone_share": dominant_backbone_share,
+        "dominant_cnn_signature": dominant_cnn_signature,
+        "dominant_cnn_share": dominant_cnn_share,
+        "dominant_backbone_cnn_pair": dominant_backbone_cnn_pair,
+        "dominant_backbone_cnn_share": dominant_backbone_cnn_share,
+        "discovery_family_hashes_seen": sorted(str(item) for item in discovery_family_hashes_seen),
+    }
+
+
+def restore_runtime_state(state: Optional[Dict[str, Any]]) -> None:
+    if not state:
+        return
+    global dominant_family_hash, dominant_family_share
+    global dominant_descriptor_key, dominant_descriptor_share
+    global dominant_backbone_signature, dominant_backbone_share
+    global dominant_cnn_signature, dominant_cnn_share
+    global dominant_backbone_cnn_pair, dominant_backbone_cnn_share
+
+    StageState.restore_counter(graph_archive_counts, state.get("graph_archive_counts"))
+    StageState.restore_counter(family_archive_counts, state.get("family_archive_counts"))
+    StageState.restore_counter(family_hash_archive_counts, state.get("family_hash_archive_counts"))
+    StageState.restore_counter(descriptor_archive_counts, state.get("descriptor_archive_counts"))
+    StageState.restore_counter(backbone_signature_archive_counts, state.get("backbone_signature_archive_counts"))
+    StageState.restore_counter(cnn_signature_archive_counts, state.get("cnn_signature_archive_counts"))
+    StageState.restore_counter(block_signature_archive_counts, state.get("block_signature_archive_counts"))
+    StageState.restore_counter(backbone_cnn_pair_archive_counts, state.get("backbone_cnn_pair_archive_counts"))
+    StageState.restore_counter(backbone_block_pair_archive_counts, state.get("backbone_block_pair_archive_counts"))
+    family_metric_best.clear()
+    family_metric_best.update({str(key): float(value) for key, value in (state.get("family_metric_best") or {}).items()})
+    StageState.restore_counter(motif_name_counts, state.get("motif_name_counts"))
+    StageState.restore_counter(saved_graph_counts, state.get("saved_graph_counts"))
+    StageState.restore_counter(saved_family_hash_counts, state.get("saved_family_hash_counts"))
+    StageState.restore_counter(saved_backbone_signature_counts, state.get("saved_backbone_signature_counts"))
+    StageState.restore_counter(saved_cnn_signature_counts, state.get("saved_cnn_signature_counts"))
+    StageState.restore_counter(saved_backbone_cnn_pair_counts, state.get("saved_backbone_cnn_pair_counts"))
+    StageState.restore_counter(saved_backbone_block_pair_counts, state.get("saved_backbone_block_pair_counts"))
+    StageState.restore_nested_counters(goal_graph_archive_counts, state.get("goal_graph_archive_counts"))
+    StageState.restore_nested_counters(goal_family_hash_archive_counts, state.get("goal_family_hash_archive_counts"))
+    StageState.restore_nested_counters(saved_goal_family_hash_counts, state.get("saved_goal_family_hash_counts"))
+    StageState.restore_float_dict(current_group_reward_target_sum_by_backbone, state.get("current_group_reward_target_sum_by_backbone"))
+    StageState.restore_counter(current_group_reward_target_count_by_backbone, state.get("current_group_reward_target_count_by_backbone"))
+    StageState.restore_float_dict(prev_closed_group_mean_reward_target_by_backbone, state.get("prev_closed_group_mean_reward_target_by_backbone"))
+    StageState.restore_float_dict(best_closed_group_mean_reward_target_by_backbone, state.get("best_closed_group_mean_reward_target_by_backbone"))
+    StageState.restore_float_dict(saved_best_reward_target_by_backbone_cnn, state.get("saved_best_reward_target_by_backbone_cnn"))
+    StageState.restore_float_dict(best_quality_acc_by_backbone_block, state.get("best_quality_acc_by_backbone_block"))
+
+    dominant_family_hash = state.get("dominant_family_hash")
+    dominant_family_share = float(state.get("dominant_family_share", 0.0) or 0.0)
+    dominant_descriptor_key = state.get("dominant_descriptor_key")
+    dominant_descriptor_share = float(state.get("dominant_descriptor_share", 0.0) or 0.0)
+    dominant_backbone_signature = state.get("dominant_backbone_signature")
+    dominant_backbone_share = float(state.get("dominant_backbone_share", 0.0) or 0.0)
+    dominant_cnn_signature = state.get("dominant_cnn_signature")
+    dominant_cnn_share = float(state.get("dominant_cnn_share", 0.0) or 0.0)
+    dominant_backbone_cnn_pair = state.get("dominant_backbone_cnn_pair")
+    dominant_backbone_cnn_share = float(state.get("dominant_backbone_cnn_share", 0.0) or 0.0)
+    discovery_family_hashes_seen.clear()
+    discovery_family_hashes_seen.update(str(item) for item in (state.get("discovery_family_hashes_seen") or []))
+
+
+def reset_runtime_state() -> None:
+    global dominant_family_hash, dominant_family_share
+    global dominant_descriptor_key, dominant_descriptor_share
+    global dominant_backbone_signature, dominant_backbone_share
+    global dominant_cnn_signature, dominant_cnn_share
+    global dominant_backbone_cnn_pair, dominant_backbone_cnn_share
+
+    for item in (
+        graph_archive_counts,
+        family_archive_counts,
+        family_hash_archive_counts,
+        descriptor_archive_counts,
+        backbone_signature_archive_counts,
+        cnn_signature_archive_counts,
+        block_signature_archive_counts,
+        backbone_cnn_pair_archive_counts,
+        backbone_block_pair_archive_counts,
+        family_metric_best,
+        motif_name_counts,
+        saved_graph_counts,
+        saved_family_hash_counts,
+        saved_backbone_signature_counts,
+        saved_cnn_signature_counts,
+        saved_backbone_cnn_pair_counts,
+        saved_backbone_block_pair_counts,
+        goal_graph_archive_counts,
+        goal_family_hash_archive_counts,
+        saved_goal_family_hash_counts,
+        current_group_reward_target_sum_by_backbone,
+        current_group_reward_target_count_by_backbone,
+        prev_closed_group_mean_reward_target_by_backbone,
+        best_closed_group_mean_reward_target_by_backbone,
+        saved_best_reward_target_by_backbone_cnn,
+        best_quality_acc_by_backbone_block,
+        discovery_family_hashes_seen,
+    ):
+        item.clear()
+
+    dominant_family_hash = None
+    dominant_family_share = 0.0
+    dominant_descriptor_key = None
+    dominant_descriptor_share = 0.0
+    dominant_backbone_signature = None
+    dominant_backbone_share = 0.0
+    dominant_cnn_signature = None
+    dominant_cnn_share = 0.0
+    dominant_backbone_cnn_pair = None
+    dominant_backbone_cnn_share = 0.0
+
+
+def group_context_fields() -> Dict[str, Any]:
+    return {
+        "dominant_family_hash": dominant_family_hash,
+        "dominant_family_share": dominant_family_share,
+        "dominant_descriptor_key": dominant_descriptor_key,
+        "dominant_descriptor_share": dominant_descriptor_share,
+        "dominant_backbone_signature": dominant_backbone_signature,
+        "dominant_backbone_share": dominant_backbone_share,
+        "dominant_cnn_signature": dominant_cnn_signature,
+        "dominant_cnn_share": dominant_cnn_share,
+        "dominant_backbone_cnn_pair": dominant_backbone_cnn_pair,
+        "dominant_backbone_cnn_share": dominant_backbone_cnn_share,
+    }
+
+
+def update_group_metrics(results: List[Dict[str, Any]]) -> None:
+    TuneRL = _tunerl()
+    for res in results:
+        reward_target_value = TuneRL._result_reward_target_value(res)
+        backbone_signature = _result_backbone_signature(res)
+        if reward_target_value is not None and backbone_signature:
+            current_group_reward_target_sum_by_backbone[backbone_signature] = (
+                float(current_group_reward_target_sum_by_backbone.get(backbone_signature, 0.0))
+                + float(reward_target_value)
+            )
+            current_group_reward_target_count_by_backbone[backbone_signature] += 1
+
+
+def close_group_payload() -> Dict[str, Any]:
+    global dominant_family_hash, dominant_family_share
+    global dominant_descriptor_key, dominant_descriptor_share
+    global dominant_backbone_signature, dominant_backbone_share
+    global dominant_cnn_signature, dominant_cnn_share
+    global dominant_backbone_cnn_pair, dominant_backbone_cnn_share
+
+    closed_mean_reward_target_by_backbone = {
+        str(backbone_signature): float(current_group_reward_target_sum_by_backbone.get(backbone_signature, 0.0)) / float(count)
+        for backbone_signature, count in current_group_reward_target_count_by_backbone.items()
+        if int(count) > 0
+    }
+    prev_closed_group_mean_reward_target_by_backbone.clear()
+    prev_closed_group_mean_reward_target_by_backbone.update(closed_mean_reward_target_by_backbone)
+    for backbone_signature, backbone_mean in closed_mean_reward_target_by_backbone.items():
+        best_closed_group_mean_reward_target_by_backbone[backbone_signature] = max(
+            float(backbone_mean),
+            float(best_closed_group_mean_reward_target_by_backbone.get(backbone_signature, float("-inf"))),
+        )
+
+    total_valid = sum(family_hash_archive_counts.values())
+    if total_valid > 0:
+        dominant_family_hash, dominant_count = family_hash_archive_counts.most_common(1)[0]
+        dominant_family_share = dominant_count / total_valid
+    else:
+        dominant_family_hash = None
+        dominant_family_share = 0.0
+    descriptor_total = sum(descriptor_archive_counts.values())
+    if descriptor_total > 0:
+        dominant_descriptor_key, dominant_descriptor_count = descriptor_archive_counts.most_common(1)[0]
+        dominant_descriptor_share = dominant_descriptor_count / descriptor_total
+    else:
+        dominant_descriptor_key = None
+        dominant_descriptor_share = 0.0
+    backbone_total = sum(backbone_signature_archive_counts.values())
+    if backbone_total > 0:
+        dominant_backbone_signature, dominant_backbone_count = backbone_signature_archive_counts.most_common(1)[0]
+        dominant_backbone_share = dominant_backbone_count / backbone_total
+    else:
+        dominant_backbone_signature = None
+        dominant_backbone_share = 0.0
+    cnn_total = sum(cnn_signature_archive_counts.values())
+    if cnn_total > 0:
+        dominant_cnn_signature, dominant_cnn_count = cnn_signature_archive_counts.most_common(1)[0]
+        dominant_cnn_share = dominant_cnn_count / cnn_total
+    else:
+        dominant_cnn_signature = None
+        dominant_cnn_share = 0.0
+    backbone_cnn_total = sum(backbone_cnn_pair_archive_counts.values())
+    if backbone_cnn_total > 0:
+        dominant_backbone_cnn_pair, dominant_backbone_cnn_count = backbone_cnn_pair_archive_counts.most_common(1)[0]
+        dominant_backbone_cnn_share = dominant_backbone_cnn_count / backbone_cnn_total
+    else:
+        dominant_backbone_cnn_pair = None
+        dominant_backbone_cnn_share = 0.0
+
+    return {
+        **group_context_fields(),
+        "closed_mean_reward_target_by_backbone": StageState.float_dict_payload(closed_mean_reward_target_by_backbone),
+        "prev_closed_group_mean_reward_target_by_backbone": StageState.float_dict_payload(prev_closed_group_mean_reward_target_by_backbone),
+        "best_closed_group_mean_reward_target_by_backbone": StageState.float_dict_payload(best_closed_group_mean_reward_target_by_backbone),
+        "unique_descriptor_count": len(descriptor_archive_counts),
+    }
+
+
+def reset_current_group_state() -> None:
+    current_group_reward_target_sum_by_backbone.clear()
+    current_group_reward_target_count_by_backbone.clear()
+
+
+def reset_stage_comparison_state() -> None:
+    prev_closed_group_mean_reward_target_by_backbone.clear()
+    best_closed_group_mean_reward_target_by_backbone.clear()
+
+
+def archive_snapshot_family_counts() -> Dict[str, int]:
+    return dict(family_hash_archive_counts)
 
 
 def _base_discovery_reward_fn(
@@ -1384,14 +1739,14 @@ def score_entries(
     archive_snapshot_family_counts: Dict[str, int],
 ):
     TuneRL = _tunerl()
-    archive_snapshot_descriptor_counts = dict(TuneRL.descriptor_archive_counts)
-    archive_snapshot_backbone_signature_counts = dict(TuneRL.backbone_signature_archive_counts)
-    archive_snapshot_cnn_signature_counts = dict(TuneRL.cnn_signature_archive_counts)
-    archive_snapshot_graph_counts = dict(TuneRL.graph_archive_counts)
-    archive_snapshot_block_signature_counts = dict(TuneRL.block_signature_archive_counts)
-    archive_snapshot_backbone_cnn_pair_counts = dict(TuneRL.backbone_cnn_pair_archive_counts)
-    archive_snapshot_backbone_block_pair_counts = dict(TuneRL.backbone_block_pair_archive_counts)
-    archive_snapshot_backbone_block_best_quality = dict(TuneRL.best_quality_acc_by_backbone_block)
+    archive_snapshot_descriptor_counts = dict(descriptor_archive_counts)
+    archive_snapshot_backbone_signature_counts = dict(backbone_signature_archive_counts)
+    archive_snapshot_cnn_signature_counts = dict(cnn_signature_archive_counts)
+    archive_snapshot_graph_counts = dict(graph_archive_counts)
+    archive_snapshot_block_signature_counts = dict(block_signature_archive_counts)
+    archive_snapshot_backbone_cnn_pair_counts = dict(backbone_cnn_pair_archive_counts)
+    archive_snapshot_backbone_block_pair_counts = dict(backbone_block_pair_archive_counts)
+    archive_snapshot_backbone_block_best_quality = dict(best_quality_acc_by_backbone_block)
     batch_graph_hashes = [
         entry["graph_info"].graph_hash if entry.get("graph_info") and entry["graph_info"].parse_ok else "incomplete"
         for entry in entries

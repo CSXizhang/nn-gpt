@@ -65,33 +65,7 @@ def main() -> None:
     if args.limit is not None:
         rows = rows[: int(args.limit)]
     entries = TuneRL.reward_entries_from_records(rows)
-    group_context = {
-        "group_baseline_train_acc": None,
-        "group_baseline_reward_target_acc": None,
-        "group_baseline_test_acc": None,
-        "best_closed_group_mean_train_acc": None,
-        "best_closed_group_mean_reward_target_acc": None,
-        "best_closed_group_mean_test_acc": None,
-        "best_closed_group_id": None,
-        "dominant_family_hash": None,
-        "dominant_family_share": 0.0,
-        "dominant_descriptor_key": None,
-        "dominant_descriptor_share": 0.0,
-        "dominant_backbone_signature": None,
-        "dominant_backbone_share": 0.0,
-        "dominant_cnn_signature": None,
-        "dominant_cnn_share": 0.0,
-        "dominant_backbone_cnn_pair": None,
-        "dominant_backbone_cnn_share": 0.0,
-        "reward_batch_index": 0,
-        "reward_group_id": 0,
-        "group_warmup": False,
-        "current_stage_name": TuneRL.current_stage_name,
-        "current_stage_index": TuneRL.RL_STAGE_TO_INDEX.get(TuneRL.current_stage_name, 0),
-        "generation_total": 0,
-        "stage_group_count": 0,
-        "recovery_active": False,
-    }
+    group_context = TuneRL.default_reward_replay_group_context()
     scored = TuneRL.score_reward_entries(
         entries,
         group_context=group_context,

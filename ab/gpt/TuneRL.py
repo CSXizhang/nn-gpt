@@ -107,37 +107,7 @@ import ab.gpt.util.training_runtime as TrainingRuntime
 from typing import Tuple, Any, List, Dict, Optional, Set
 from collections import Counter, deque
 
-# Open-architecture archives are keyed by canonical graph structure, not prompt labels.
-graph_archive_counts = Counter()
-family_archive_counts = Counter()
-family_hash_archive_counts = Counter()
-descriptor_archive_counts = Counter()
-backbone_signature_archive_counts = Counter()
-cnn_signature_archive_counts = Counter()
-block_signature_archive_counts = Counter()
-backbone_cnn_pair_archive_counts = Counter()
-backbone_block_pair_archive_counts = Counter()
-family_metric_best: Dict[str, float] = {}
-motif_name_counts = Counter()
-saved_graph_counts = Counter()
-saved_family_hash_counts = Counter()
-saved_backbone_signature_counts = Counter()
-saved_cnn_signature_counts = Counter()
-saved_backbone_cnn_pair_counts = Counter()
-saved_backbone_block_pair_counts = Counter()
-goal_graph_archive_counts: Dict[str, Counter] = {}
-goal_family_hash_archive_counts: Dict[str, Counter] = {}
-saved_goal_family_hash_counts: Dict[str, Counter] = {}
-train_graph_hashes: Set[str] = set()
-train_family_hashes: Set[str] = set()
-train_descriptor_keys: Set[str] = set()
 train_reference_stats: Dict[str, int] = {}
-current_group_reward_target_sum_by_backbone: Dict[str, float] = {}
-current_group_reward_target_count_by_backbone = Counter()
-prev_closed_group_mean_reward_target_by_backbone: Dict[str, float] = {}
-best_closed_group_mean_reward_target_by_backbone: Dict[str, float] = {}
-saved_best_reward_target_by_backbone_cnn: Dict[str, float] = {}
-best_quality_acc_by_backbone_block: Dict[str, float] = {}
 
 
 # ===== Configuration Options =====
@@ -427,16 +397,6 @@ prev_closed_group_mean_test_acc: Optional[float] = None
 best_closed_group_mean_test_acc: Optional[float] = None
 best_closed_group_id: Optional[int] = None
 best_reward_target_by_goal: Dict[str, float] = {}
-dominant_family_hash: Optional[str] = None
-dominant_family_share: float = 0.0
-dominant_descriptor_key: Optional[str] = None
-dominant_descriptor_share: float = 0.0
-dominant_backbone_signature: Optional[str] = None
-dominant_backbone_share: float = 0.0
-dominant_cnn_signature: Optional[str] = None
-dominant_cnn_share: float = 0.0
-dominant_backbone_cnn_pair: Optional[str] = None
-dominant_backbone_cnn_share: float = 0.0
 prev_group_feedback: List["GroupFeedbackSummary"] = []
 best_group_feedback: List["GroupFeedbackSummary"] = []
 current_group_top_feedback: List["GroupFeedbackSummary"] = []
@@ -449,7 +409,6 @@ stage_entry_reward_batches: Dict[str, int] = {}
 generation_history: List[Dict[str, Any]] = []
 closed_group_history: List[Dict[str, Any]] = []
 stage_event_history: List[Dict[str, Any]] = []
-discovery_family_hashes_seen: Set[str] = set()
 recovery_active = False
 recovery_start_generation_total = 0
 recovery_start_discovery_family_count = 0
@@ -514,13 +473,15 @@ def _current_generation_total() -> int:
 
 
 def capture_reward_runtime_state() -> Dict[str, Any]:
-    return StageState.capture_reward_runtime_state(
+    state = StageState.capture_reward_runtime_state(
         globals(),
         max_stage_sample_history=MAX_STAGE_SAMPLE_HISTORY,
         max_stage_group_history=MAX_STAGE_GROUP_HISTORY,
         feedback_summary_payload=_feedback_summary_payload,
         current_group_top_feedback_payload=_current_group_top_feedback_payload,
     )
+    state.update(reward_task_capture_runtime_state())
+    return state
 
 
 def restore_reward_runtime_state(state: Optional[Dict[str, Any]]) -> None:
@@ -532,6 +493,7 @@ def restore_reward_runtime_state(state: Optional[Dict[str, Any]]) -> None:
         stage1_structure_explore=STAGE1_STRUCTURE_EXPLORE,
         feedback_summary_cls=GroupFeedbackSummary,
     )
+    reward_task_restore_runtime_state(state)
 
 def _distributed_initialized() -> bool:
     return bool(torch.distributed.is_available() and torch.distributed.is_initialized())
@@ -1086,14 +1048,7 @@ def get_prompt_feedback_state() -> Dict[str, Any]:
         "prev_closed_group_mean_test_acc": prev_closed_group_mean_test_acc,
         "best_closed_group_mean_test_acc": best_closed_group_mean_test_acc,
         "best_closed_group_id": best_closed_group_id,
-        "dominant_family_hash": dominant_family_hash,
-        "dominant_family_share": dominant_family_share,
-        "dominant_backbone_signature": dominant_backbone_signature,
-        "dominant_backbone_share": dominant_backbone_share,
-        "dominant_cnn_signature": dominant_cnn_signature,
-        "dominant_cnn_share": dominant_cnn_share,
-        "dominant_backbone_cnn_pair": dominant_backbone_cnn_pair,
-        "dominant_backbone_cnn_share": dominant_backbone_cnn_share,
+        **reward_task_group_context_fields(),
         "prev_group_feedback": _feedback_summary_payload(prev_group_feedback),
         "best_group_feedback": _feedback_summary_payload(best_group_feedback),
         "training_context": training_context,
@@ -1219,9 +1174,31 @@ def reset_reward_runtime_state() -> None:
         stage1_structure_explore=STAGE1_STRUCTURE_EXPLORE,
         reset_current_group_feedback_state=_reset_current_group_feedback_state,
     )
+    reward_task_reset_runtime_state()
 
 def current_reward_group_context() -> Dict[str, Any]:
     return StageState.current_reward_group_context(sys.modules[__name__])
+
+
+def default_reward_replay_group_context() -> Dict[str, Any]:
+    return {
+        "group_baseline_train_acc": None,
+        "group_baseline_reward_target_acc": None,
+        "group_baseline_test_acc": None,
+        "best_closed_group_mean_train_acc": None,
+        "best_closed_group_mean_reward_target_acc": None,
+        "best_closed_group_mean_test_acc": None,
+        "best_closed_group_id": None,
+        **reward_task_group_context_fields(),
+        "reward_batch_index": 0,
+        "reward_group_id": 0,
+        "group_warmup": False,
+        "current_stage_name": current_stage_name,
+        "current_stage_index": RL_STAGE_TO_INDEX.get(current_stage_name, 0),
+        "generation_total": 0,
+        "stage_group_count": 0,
+        "recovery_active": False,
+    }
 
 
 def _read_process_rss_gib() -> Optional[float]:
@@ -1614,6 +1591,7 @@ def log_memory_snapshot(
             f"other_used_gib={_format_mem_value(snapshot['other_used_gib'])}"
         )
 def update_current_group_metrics(results: List[Dict[str, Any]]) -> None:
+    reward_task_update_group_metrics(results)
     for res in results:
         reward_target_value = _result_reward_target_value(res)
         _increment_optional_metric(
@@ -1621,13 +1599,6 @@ def update_current_group_metrics(results: List[Dict[str, Any]]) -> None:
             "current_group_reward_target_count",
             reward_target_value,
         )
-        backbone_signature = _backbone_reward_runtime()._result_backbone_signature(res)
-        if reward_target_value is not None and backbone_signature:
-            current_group_reward_target_sum_by_backbone[backbone_signature] = (
-                float(current_group_reward_target_sum_by_backbone.get(backbone_signature, 0.0))
-                + float(reward_target_value)
-            )
-            current_group_reward_target_count_by_backbone[backbone_signature] += 1
         _increment_optional_metric(
             "current_group_frozen_train_acc_sum",
             "current_group_frozen_train_acc_count",
@@ -1666,8 +1637,7 @@ def _reset_stage_comparison_state() -> None:
     prev_closed_group_mean_test_acc = None
     best_closed_group_mean_test_acc = None
     best_closed_group_id = None
-    prev_closed_group_mean_reward_target_by_backbone.clear()
-    best_closed_group_mean_reward_target_by_backbone.clear()
+    reward_task_reset_stage_comparison_state()
     best_reward_target_by_goal.clear()
     prev_group_feedback.clear()
     best_group_feedback.clear()
@@ -2422,9 +2392,10 @@ def _extract_seed_candidates_from_row(row: Any) -> List[str]:
 
 
 def bootstrap_trainset_reference_library(data) -> None:
-    train_graph_hashes.clear()
-    train_family_hashes.clear()
-    train_descriptor_keys.clear()
+    reward_runtime = _backbone_reward_runtime()
+    reward_runtime.train_graph_hashes.clear()
+    reward_runtime.train_family_hashes.clear()
+    reward_runtime.train_descriptor_keys.clear()
 
     stats = {
         "rows_seen": 0,
@@ -2450,9 +2421,9 @@ def bootstrap_trainset_reference_library(data) -> None:
             )
             if not graph_info.parse_ok:
                 continue
-            train_graph_hashes.add(graph_info.graph_hash)
-            train_family_hashes.add(graph_info.family_hash)
-            train_descriptor_keys.add(graph_info.descriptor_key)
+            reward_runtime.train_graph_hashes.add(graph_info.graph_hash)
+            reward_runtime.train_family_hashes.add(graph_info.family_hash)
+            reward_runtime.train_descriptor_keys.add(graph_info.descriptor_key)
             parsed_ok = True
             break
 
@@ -2466,8 +2437,8 @@ def bootstrap_trainset_reference_library(data) -> None:
     print(
         "[Trainset Reference] "
         f"rows={stats['rows_seen']}, parsed={stats['rows_parsed']}, skipped={stats['rows_skipped']}, "
-        f"graph_hashes={len(train_graph_hashes)}, family_hashes={len(train_family_hashes)}, "
-        f"descriptor_keys={len(train_descriptor_keys)}"
+        f"graph_hashes={len(reward_runtime.train_graph_hashes)}, family_hashes={len(reward_runtime.train_family_hashes)}, "
+        f"descriptor_keys={len(reward_runtime.train_descriptor_keys)}"
     )
 
 
@@ -3313,10 +3284,13 @@ def _structure_progress_components(
         r_structure_group += STRUCTURE_BATCH_DIVERSITY_BONUS
     elif batch_same_family_count == 2:
         r_structure_group += STRUCTURE_BATCH_DIVERSITY_BONUS * 0.5
+    task_context = reward_task_group_context_fields()
+    current_dominant_family_hash = task_context.get("dominant_family_hash")
+    current_dominant_family_share = task_context.get("dominant_family_share")
     if (
-        dominant_family_hash
-        and graph_info.family_hash != dominant_family_hash
-        and float(dominant_family_share or 0.0) >= 0.20
+        current_dominant_family_hash
+        and graph_info.family_hash != current_dominant_family_hash
+        and float(current_dominant_family_share or 0.0) >= 0.20
     ):
         r_structure_group += STRUCTURE_NON_DOMINANT_FAMILY_BONUS
     if shallow_one_shot:
@@ -3521,6 +3495,42 @@ def describe_reward_code_sections(*, block_code: str, init_code: str, forward_co
         init_code=init_code,
         forward_code=forward_code,
     )
+
+
+def reward_task_capture_runtime_state() -> Dict[str, Any]:
+    return _reward_task_callable("capture_runtime_state", _backbone_reward_runtime().capture_runtime_state)()
+
+
+def reward_task_restore_runtime_state(state: Optional[Dict[str, Any]]) -> None:
+    _reward_task_callable("restore_runtime_state", _backbone_reward_runtime().restore_runtime_state)(state)
+
+
+def reward_task_reset_runtime_state() -> None:
+    _reward_task_callable("reset_runtime_state", _backbone_reward_runtime().reset_runtime_state)()
+
+
+def reward_task_group_context_fields() -> Dict[str, Any]:
+    return _reward_task_callable("group_context_fields", _backbone_reward_runtime().group_context_fields)()
+
+
+def reward_task_update_group_metrics(results: List[Dict[str, Any]]) -> None:
+    _reward_task_callable("update_group_metrics", _backbone_reward_runtime().update_group_metrics)(results)
+
+
+def reward_task_close_group_payload() -> Dict[str, Any]:
+    return _reward_task_callable("close_group_payload", _backbone_reward_runtime().close_group_payload)()
+
+
+def reward_task_reset_current_group_state() -> None:
+    _reward_task_callable("reset_current_group_state", _backbone_reward_runtime().reset_current_group_state)()
+
+
+def reward_task_reset_stage_comparison_state() -> None:
+    _reward_task_callable("reset_stage_comparison_state", _backbone_reward_runtime().reset_stage_comparison_state)()
+
+
+def reward_task_archive_snapshot_family_counts() -> Dict[str, int]:
+    return _reward_task_callable("archive_snapshot_family_counts", _backbone_reward_runtime().archive_snapshot_family_counts)()
 
 
 def _attach_group_context(
@@ -3847,7 +3857,7 @@ def compute_reward(prompts, completions, **kwargs):
             group_context=group_context,
             precompute_eval=precompute_eval,
         )
-        archive_snapshot_family_counts = dict(family_hash_archive_counts)
+        archive_snapshot_family_counts = reward_task_archive_snapshot_family_counts()
 
         if not distributed_mode:
             scored_results = score_reward_entries(
