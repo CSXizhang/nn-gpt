@@ -98,6 +98,7 @@ SFT_VAL_METRIC_BASELINE = 0.10
 # os.environ["TRANSFORMERS_CACHE"] = SFT_TRANSFORMERS_CACHE
 
 import ab.gpt.TuneRL as TuneRL
+import ab.gpt.rl_pipeline.backbone_reward_runtime as BackboneRewardRuntime
 from ab.gpt.rl_pipeline.completion import (
     BLOCK_SIGNATURE,
     FORWARD_SIGNATURE,
@@ -237,7 +238,7 @@ def raw_reward_fn(
     completion_index: int | None = None,
     batch_last_item: bool = False,
 ):
-    res = TuneRL.base_discovery_reward_fn(
+    res = BackboneRewardRuntime.base_discovery_reward_fn(
         completion,
         seed_accuracy_baseline=seed_accuracy_baseline,
         precomputed_eval_result=precomputed_eval_result,
@@ -2250,7 +2251,7 @@ class BackboneRewardTask:
         return load_rl_dataset_sft(tokenizer)
 
     def extract_seed_context(self, kwargs: dict, expected_count: int):
-        return TuneRL.require_sample_accuracy_baselines(kwargs, expected_count)
+        return BackboneRewardRuntime.extract_seed_context(kwargs, expected_count)
 
     def prepare_entries(
         self,
@@ -2261,16 +2262,16 @@ class BackboneRewardTask:
         group_context: Dict[str, Any],
         precompute_eval: bool,
     ):
-        return TuneRL._prepare_local_reward_entries(
+        return BackboneRewardRuntime.prepare_entries(
             prompts,
             completions,
-            seed_accuracy_baselines=seed_contexts,
+            seed_contexts=seed_contexts,
             group_context=group_context,
             precompute_eval=precompute_eval,
         )
 
     def precompute_entries(self, entries, *, group_context: Dict[str, Any]) -> None:
-        TuneRL._precompute_eval_results(entries, group_context=group_context)
+        BackboneRewardRuntime.precompute_entries(entries, group_context=group_context)
 
     def score_entries(
         self,
@@ -2279,27 +2280,27 @@ class BackboneRewardTask:
         group_context: Dict[str, Any],
         archive_snapshot_family_counts: Dict[str, int],
     ):
-        return TuneRL._score_reward_entries(
+        return BackboneRewardRuntime.score_entries(
             entries,
             group_context=group_context,
             archive_snapshot_family_counts=archive_snapshot_family_counts,
         )
 
     def entries_from_records(self, records):
-        return TuneRL._entries_from_records(records)
+        return BackboneRewardRuntime.entries_from_records(records)
 
     def describe_code_sections(self, *, block_code: str, init_code: str, forward_code: str):
-        return TuneRL._describe_reward_code_sections(
+        return BackboneRewardRuntime.describe_code_sections(
             block_code=block_code,
             init_code=init_code,
             forward_code=forward_code,
         )
 
     def apply_batch_elite_bonuses(self, scored_results, group_context: Dict[str, Any]) -> None:
-        TuneRL._apply_batch_elite_bonuses(scored_results, group_context)
+        BackboneRewardRuntime.apply_batch_elite_bonuses(scored_results, group_context)
 
     def finalize_scored_results(self, scored_results) -> None:
-        TuneRL._finalize_scored_results(scored_results)
+        BackboneRewardRuntime.finalize_scored_results(scored_results)
 
     def run_log_dir(self) -> str:
         return resolve_sft_log_dir()

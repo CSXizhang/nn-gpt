@@ -446,6 +446,46 @@ def forward(self, x, is_probing=False):
         ):
             self.assertNotIn(token, baseline_source)
 
+    def test_backbone_reward_task_does_not_call_tunerl_private_reward_impls(self):
+        sft_source = _source("ab/gpt/TuneRLSft.py")
+
+        self.assertIn("BackboneRewardRuntime.prepare_entries(", sft_source)
+        self.assertIn("BackboneRewardRuntime.base_discovery_reward_fn(", sft_source)
+        for token in (
+            "TuneRL.base_discovery_reward_fn(",
+            "TuneRL._prepare_local_reward_entries(",
+            "TuneRL._precompute_eval_results(",
+            "TuneRL._score_reward_entries(",
+            "TuneRL._entries_from_records(",
+            "TuneRL._describe_reward_code_sections(",
+            "TuneRL._apply_batch_elite_bonuses(",
+            "TuneRL._finalize_scored_results(",
+        ):
+            self.assertNotIn(token, sft_source)
+
+    def test_backbone_reward_runtime_owns_entry_construction(self):
+        runtime_source = _source("ab/gpt/rl_pipeline/backbone_reward_runtime.py")
+
+        for token in (
+            "extract_completion_blocks_strict(",
+            "extract_graph_info(",
+            "_extract_backbone_model_names(",
+            "_build_backbone_signature(",
+        ):
+            self.assertIn(token, runtime_source)
+        for token in (
+            "TuneRL._prepare_local_reward_entries(",
+            "TuneRL._precompute_eval_results(",
+            "TuneRL._score_reward_entries(",
+            "TuneRL._entries_from_records(",
+            "TuneRL._describe_reward_code_sections(",
+            "TuneRL.extract_reward_completion_blocks(",
+            "TuneRL._extract_backbone_model_names(",
+            "TuneRL.extract_graph_info(",
+            "TuneRL.build_backbone_signature(",
+        ):
+            self.assertNotIn(token, runtime_source)
+
     def test_tunerlsft_grpo_learning_rate_uses_runtime_env(self):
         body = _function_source("ab/gpt/TuneRLSft.py", "_build_sft_grpo_config")
 
