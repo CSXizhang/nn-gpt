@@ -111,13 +111,9 @@ def _configure_sft_env(args: argparse.Namespace) -> None:
 def _configure_eval_runtime() -> None:
     import ab.gpt.TuneRL as TuneRL
     import ab.gpt.TuneRLSft as TuneRLSft
-    from ab.gpt.rl_pipeline.completion import clear_extraction_meta_cache, extract_completion_blocks_strict
 
     TuneRL.current_stage_name = TuneRL.STAGE2_FORMAL_EXPLORE
-    TuneRL.extract_completion_blocks = extract_completion_blocks_strict
-    TuneRL.clear_extraction_meta_cache = clear_extraction_meta_cache
-    TuneRL.evaluate_code_and_reward = TuneRLSft.evaluate_code_and_reward_cifar
-    setattr(TuneRL.evaluate_code_and_reward, "_nngpt_eval_cfg_builder", TuneRLSft.build_sft_reward_eval_cfg)
+    TuneRLSft.configure_sft_runtime()
 
 
 def _load_prompt_dataset(tokenizer: Any, budget: int):
@@ -693,7 +689,7 @@ def _evaluate_full_code_candidate(
     index: int,
     total: int,
 ) -> tuple[float, dict[str, Any], str]:
-    import ab.gpt.util.Reward as RewardUtil
+    import ab.gpt.TuneRL as TuneRL
 
     prompt = str(candidate.get("prompt") or "")
     if candidate.get("generation_error"):
@@ -704,13 +700,13 @@ def _evaluate_full_code_candidate(
         result = _failure_result(candidate, "missing candidate_code")
         return -2.0, result, prompt
     spec, meta = spec_meta
-    result = RewardUtil.evaluate_code_and_reward_batch([spec])[0]
+    result = TuneRL.evaluate_reward_code_batch([spec])[0]
     api_result = _augment_full_code_result(candidate, result, meta)
     return float(api_result.get("reward", -2.0) or -2.0), api_result, prompt
 
 
 def _evaluate_candidate(candidate: dict[str, Any], *, index: int, total: int) -> tuple[float, dict[str, Any], str]:
-    import ab.gpt.TuneRLSft as TuneRLSft
+    import ab.gpt.TuneRL as TuneRL
 
     if _candidate_source_format(candidate) == "full_code":
         return _evaluate_full_code_candidate(candidate, index=index, total=total)
@@ -724,7 +720,7 @@ def _evaluate_candidate(candidate: dict[str, Any], *, index: int, total: int) ->
         result = _failure_result(candidate, "missing raw_completion")
         return -2.0, result, prompt
 
-    result = TuneRLSft.sft_reward_fn(
+    result = TuneRL.reward_task_reward_fn(
         completion,
         seed_accuracy_baseline=float(candidate.get("seed_accuracy_baseline") or 0.10),
         reward_batch_index=0,
@@ -758,7 +754,7 @@ def _build_batch_reward_entry(candidate: dict[str, Any], *, index: int) -> dict[
     if candidate.get("generation_error") or not completion:
         return None
 
-    block_code, init_code, forward_code = TuneRL.extract_completion_blocks(completion)
+    block_code, init_code, forward_code = TuneRL.extract_reward_completion_blocks(completion)
     backbone_model_names = TuneRL._extract_backbone_model_names(init_code)
     graph_info = None
     if block_code and init_code and forward_code and "self.pattern" not in forward_code:
@@ -824,7 +820,7 @@ def _evaluate_candidate_batch(
         )
     if direct_specs:
         direct_specs[-1]["batch_last_item"] = True
-        direct_results = RewardUtil.evaluate_code_and_reward_batch(direct_specs)
+        direct_results = TuneRL.evaluate_reward_code_batch(direct_specs)
         for (offset, entry), eval_result in zip(direct_entries, direct_results):
             entry["precomputed_eval_result"] = eval_result
 
@@ -856,7 +852,7 @@ def _evaluate_candidate_batch(
             results.append((-2.0, api_result, prompt))
             continue
 
-        api_result = TuneRLSft.sft_reward_fn(
+        api_result = TuneRL.reward_task_reward_fn(
             completion,
             seed_accuracy_baseline=float(candidate.get("seed_accuracy_baseline") or 0.10),
             precomputed_eval_result=(

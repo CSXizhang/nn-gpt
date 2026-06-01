@@ -73,6 +73,7 @@ from ab.gpt.util.generation_dtype import align_generation_head_dtype
 import ab.gpt.rl_pipeline.trainer_runtime as TrainerRuntime
 import ab.gpt.rl_pipeline.stage_state as StageState
 import ab.gpt.rl_pipeline.reward_payload as RewardPayload
+from ab.gpt.rl_pipeline.reward_task import RewardTask
 import ab.gpt.util.SFTUtil as SFTUtil
 from ab.gpt.util.ArchDiscovery import (
     ensure_pattern_name,
@@ -141,8 +142,10 @@ best_quality_acc_by_backbone_block: Dict[str, float] = {}
 
 # ===== Configuration Options =====
 base_model = "ABrain/NNGPT-Backbone-deepseek-coder-6.7b-instruct" # 使用新的 Backbone 模型
+tokenizer_source = base_model
 LOAD_EXISTING_MODEL = False  # Model is already merged
 SAVED_MODEL_PATH = "rl_backbone_model" 
+active_reward_task: Optional[RewardTask] = None
 B_index = 0
 GROUP_BATCH_SIZE = 20
 GROUP_IMPROVEMENT_DELTA = 0.003
@@ -150,6 +153,45 @@ BEST_GROUP_REFRESH_DELTA = 0.0015
 GOAL_REFRESH_DELTA = 0.0015
 NON_IMPROVING_REWARD_CAP = 0.04
 FORMAL_REWARD_TRANSFORM = "norm_128_flip"
+
+
+def register_reward_task(task: Optional[RewardTask]) -> None:
+    global active_reward_task
+    active_reward_task = task
+
+
+def current_reward_task() -> Optional[RewardTask]:
+    return active_reward_task
+
+
+def _reward_task_callable(name: str, default):
+    task = current_reward_task()
+    method = getattr(task, name, None) if task is not None else None
+    return method if callable(method) else default
+
+
+def reward_model_source() -> str:
+    task = current_reward_task()
+    value = getattr(task, "model_source", None) if task is not None else None
+    return str(value or base_model)
+
+
+def reward_tokenizer_source() -> str:
+    task = current_reward_task()
+    value = getattr(task, "tokenizer_source", None) if task is not None else None
+    return str(value or tokenizer_source or reward_model_source())
+
+
+def reward_load_existing_model() -> bool:
+    task = current_reward_task()
+    value = getattr(task, "load_existing_model", None) if task is not None else None
+    return bool(LOAD_EXISTING_MODEL if value is None else value)
+
+
+def reward_saved_model_path() -> str:
+    task = current_reward_task()
+    value = getattr(task, "saved_model_path", None) if task is not None else None
+    return str(value or SAVED_MODEL_PATH)
 
 
 def _formal_reward_resize(default: int = 128) -> int:
@@ -435,6 +477,10 @@ _signal_checkpoint_in_progress = False
 def clear_extraction_meta_cache() -> None:
     return
 
+
+def clear_reward_extraction_meta_cache() -> None:
+    _reward_task_callable("clear_extraction_meta_cache", clear_extraction_meta_cache)()
+
 SHALLOW_COLLAPSE_FAMILIES = {
     "ParallelTriple_Shallow",
     "DualBackboneFuse_Shallow",
@@ -567,7 +613,7 @@ def _result_block_signature(res: Dict[str, Any], completion: str = "") -> str:
     signature = str(res.get("block_signature") or "").strip()
     if signature:
         return signature
-    block_code, init_code, forward_code = extract_completion_blocks(str(completion or ""))
+    block_code, init_code, forward_code = extract_reward_completion_blocks(str(completion or ""))
     if not _block_contributes_to_forward(init_code, forward_code):
         return "incomplete_block"
     return _block_signature_from_code(block_code)
@@ -1020,7 +1066,7 @@ def _feedback_stats_short(open_discovery: Dict[str, Any]) -> str:
 
 
 def _group_feedback_paths() -> Tuple[Path, Path, Path]:
-    log_dir = Path(run_log_dir())
+    log_dir = Path(reward_run_log_dir())
     log_dir.mkdir(parents=True, exist_ok=True)
     return (
         log_dir / "group_progress.jsonl",
@@ -2032,6 +2078,18 @@ def run_model_out() -> str:
     return os.getenv("NNGPT_RL_MODEL_OUT", SAVED_MODEL_PATH)
 
 
+def reward_run_epoch_dir(*args):
+    return _reward_task_callable("run_epoch_dir", run_epoch_dir)(*args)
+
+
+def reward_run_log_dir() -> str:
+    return str(_reward_task_callable("run_log_dir", run_log_dir)())
+
+
+def reward_run_model_out() -> str:
+    return str(_reward_task_callable("run_model_out", run_model_out)())
+
+
 def _resolve_resume_checkpoint_dir() -> Optional[Path]:
     explicit_dir = os.getenv("NNGPT_RL_RESUME_CHECKPOINT_DIR", "").strip()
     resume_stage = os.getenv("NNGPT_RL_RESUME_STAGE", "").strip()
@@ -2439,7 +2497,7 @@ def _extract_seed_init_forward_from_text(text: str) -> Tuple[str, str]:
     if not candidate:
         return "", ""
 
-    _, init_code, forward_code = extract_completion_blocks(candidate)
+    _, init_code, forward_code = extract_reward_completion_blocks(candidate)
     if init_code and forward_code:
         return init_code, forward_code
 
@@ -2839,6 +2897,10 @@ def extract_completion_blocks(completion: str) -> Tuple[str, str, str]:
     return block_code, init_code, forward_code
 
 
+def extract_reward_completion_blocks(completion: str) -> Tuple[str, str, str]:
+    return _reward_task_callable("extract_completion_blocks", extract_completion_blocks)(completion)
+
+
 def render_completion_xml(block_code: str, init_code: str, forward_code: str) -> str:
     return "\n".join(
         [
@@ -2871,7 +2933,7 @@ def _entry_backbone_model_names(entry: Dict[str, Any]) -> List[str]:
     backbone_names = list(entry.get("backbone_model_names") or [])
     if backbone_names:
         return backbone_names
-    _, init_code, _ = extract_completion_blocks(str(entry.get("completion") or ""))
+    _, init_code, _ = extract_reward_completion_blocks(str(entry.get("completion") or ""))
     return _extract_backbone_model_names(init_code)
 
 
@@ -2898,7 +2960,7 @@ def _entry_block_signature(entry: Dict[str, Any]) -> str:
     signature = str(entry.get("block_signature") or "").strip()
     if signature:
         return signature
-    block_code, init_code, forward_code = extract_completion_blocks(str(entry.get("completion") or ""))
+    block_code, init_code, forward_code = extract_reward_completion_blocks(str(entry.get("completion") or ""))
     if not _block_contributes_to_forward(init_code, forward_code):
         return "incomplete_block"
     return _block_signature_from_code(block_code)
@@ -2910,7 +2972,7 @@ def reconstruct_code(
     pattern_name_override: str = "",
 ) -> str:
     """Rebuild a runnable Python module from the XML blocks."""
-    block_code, init_code, forward_code = extract_completion_blocks(completion)
+    block_code, init_code, forward_code = extract_reward_completion_blocks(completion)
     if not block_code or not init_code or not forward_code:
         return ""
 
@@ -3529,6 +3591,34 @@ def _invoke_eval_cfg_builder(eval_cfg_builder, **kwargs) -> EvalConfig:
     return eval_cfg_builder(**supported_kwargs)
 
 
+def reward_eval_cfg_builder():
+    return _reward_task_callable("build_eval_cfg", build_stage_eval_cfg)
+
+
+def evaluate_reward_code(*args, **kwargs):
+    return _reward_task_callable("evaluate_code_and_reward", evaluate_code_and_reward)(*args, **kwargs)
+
+
+def evaluate_reward_code_batch(specs):
+    return _reward_task_callable("evaluate_code_and_reward_batch", evaluate_code_and_reward_batch)(specs)
+
+
+def reward_task_reward_fn(*args, **kwargs):
+    return _reward_task_callable("reward_fn", reward_fn)(*args, **kwargs)
+
+
+def load_reward_dataset(tokenizer):
+    return _reward_task_callable("load_rl_dataset", load_rl_dataset)(tokenizer)
+
+
+def apply_reward_batch_elite_bonuses(scored_results: List[Dict[str, Any]], group_context: Dict[str, Any]) -> None:
+    _reward_task_callable("apply_batch_elite_bonuses", _apply_batch_elite_bonuses)(scored_results, group_context)
+
+
+def finalize_reward_scored_results(scored_results: List[Dict[str, Any]]) -> None:
+    _reward_task_callable("finalize_scored_results", _finalize_scored_results)(scored_results)
+
+
 def _attach_group_context(
     res: Dict[str, Any],
     *,
@@ -3586,7 +3676,7 @@ def base_discovery_reward_fn(
         'transform': FORMAL_REWARD_TRANSFORM,
         'epoch': 1,
     }
-    block_code, init_code, forward_code = extract_completion_blocks(completion)
+    block_code, init_code, forward_code = extract_reward_completion_blocks(completion)
     block_contributes_to_forward = _block_contributes_to_forward(init_code, forward_code)
     block_signature = (
         _block_signature_from_code(block_code)
@@ -3639,19 +3729,21 @@ def base_discovery_reward_fn(
         res = dict(precomputed_eval_result)
     else:
         formal_input_shape = _formal_reward_input_shape()
-        res = evaluate_code_and_reward(
+        eval_device = "cuda" if torch.cuda.is_available() else "cpu"
+        res = evaluate_reward_code(
             final_code,
             in_shape=formal_input_shape,
             out_shape=(10,),
             prm=prm,
-            device="cuda" if torch.cuda.is_available() else "cpu",
+            device=eval_device,
             seed_accuracy_baseline=seed_accuracy_baseline,
-            cfg=build_stage_eval_cfg(
+            cfg=_invoke_eval_cfg_builder(
+                reward_eval_cfg_builder(),
                 stage_name=stage_name,
                 in_shape=formal_input_shape,
                 out_shape=(10,),
                 prm=prm,
-                device="cuda" if torch.cuda.is_available() else "cpu",
+                device=eval_device,
             ),
             reward_batch_index=reward_batch_index,
             completion_index=completion_index,
@@ -5028,7 +5120,7 @@ def _prepare_local_reward_entries(
     batch_prompt_target_patterns = [extract_prompt_target_pattern(prompt) for prompt in prompts]
 
     for i, completion in enumerate(completions):
-        _, init_code, forward_code = extract_completion_blocks(completion)
+        _, init_code, forward_code = extract_reward_completion_blocks(completion)
         backbone_model_names = _extract_backbone_model_names(init_code)
         if init_code and forward_code:
             graph_info = extract_graph_info(
@@ -5118,7 +5210,7 @@ def _build_batched_eval_specs(
     *,
     group_context: Dict[str, Any],
 ) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
-    eval_cfg_builder = getattr(evaluate_code_and_reward, "_nngpt_eval_cfg_builder", build_stage_eval_cfg)
+    eval_cfg_builder = reward_eval_cfg_builder()
     batched_eval_entries: List[Dict[str, Any]] = []
     batched_eval_specs: List[Dict[str, Any]] = []
 
@@ -5128,7 +5220,7 @@ def _build_batched_eval_specs(
 
         completion = str(entry.get("completion", ""))
         graph_info = entry.get("graph_info")
-        block_code, init_code, forward_code = extract_completion_blocks(completion)
+        block_code, init_code, forward_code = extract_reward_completion_blocks(completion)
         if not block_code or not init_code or not forward_code:
             continue
         if "self.pattern" in forward_code or graph_info is None:
@@ -5202,7 +5294,7 @@ def _precompute_eval_results(
     )
     if torch.cuda.is_available():
         torch.cuda.empty_cache()
-    batched_eval_results = evaluate_code_and_reward_batch(batched_eval_specs)
+    batched_eval_results = evaluate_reward_code_batch(batched_eval_specs)
     if torch.cuda.is_available():
         torch.cuda.empty_cache()
     ended_at = time.time()
@@ -5342,7 +5434,7 @@ def _score_reward_entries(
         completion_index = int(entry.get("global_index", index))
         code_logger.log_to_file("=" * 50)
         try:
-            res = reward_fn(
+            res = reward_task_reward_fn(
                 entry["completion"],
                 seed_accuracy_baseline=entry["seed_accuracy_baseline"],
                 precomputed_eval_result=entry.get("precomputed_eval_result"),
@@ -5409,10 +5501,23 @@ def _score_reward_entries(
             }
         )
 
-    _apply_batch_elite_bonuses(scored_results, group_context)
+    apply_reward_batch_elite_bonuses(scored_results, group_context)
     for item in scored_results:
         item["score"] = float(item["result"].get("reward", item.get("score", -1.0)))
     return scored_results
+
+
+def score_reward_entries(
+    entries: List[Dict[str, Any]],
+    *,
+    group_context: Dict[str, Any],
+    archive_snapshot_family_counts: Dict[str, int],
+) -> List[Dict[str, Any]]:
+    return _score_reward_entries(
+        entries,
+        group_context=group_context,
+        archive_snapshot_family_counts=archive_snapshot_family_counts,
+    )
 
 
 def _finalize_scored_results(scored_results: List[Dict[str, Any]]) -> None:
@@ -5509,12 +5614,12 @@ def _finalize_scored_results(scored_results: List[Dict[str, Any]]) -> None:
 
         if should_save:
             pattern_override = "" if graph_info.has_custom_pattern_name else res.get("suggested_pattern_name", "")
-            block_code, init_code, forward_code = extract_completion_blocks(completion)
+            block_code, init_code, forward_code = extract_reward_completion_blocks(completion)
             if pattern_override:
                 init_code = ensure_pattern_name(init_code, pattern_override)
             final_code = reconstruct_code(completion, pattern_name_override=pattern_override)
             normalized_completion = render_completion_xml(block_code, init_code, forward_code)
-            out_path = run_epoch_dir(0)
+            out_path = reward_run_epoch_dir(0)
             model_dir = synth_dir(out_path) / f"B{B_index}"
             model_dir.mkdir(exist_ok=True, parents=True)
 
@@ -5657,7 +5762,7 @@ def _print_discovery_metrics() -> None:
 
 
 def compute_reward(prompts, completions, **kwargs):
-    clear_extraction_meta_cache()
+    clear_reward_extraction_meta_cache()
     seed_accuracy_baselines = require_sample_accuracy_baselines(kwargs, len(completions))
     group_context = current_reward_group_context()
 
@@ -5689,7 +5794,7 @@ def compute_reward(prompts, completions, **kwargs):
         archive_snapshot_family_counts = dict(family_hash_archive_counts)
 
         if not distributed_mode:
-            scored_results = _score_reward_entries(
+            scored_results = score_reward_entries(
                 local_entries,
                 group_context=group_context,
                 archive_snapshot_family_counts=archive_snapshot_family_counts,
@@ -5697,7 +5802,7 @@ def compute_reward(prompts, completions, **kwargs):
             rewards = [-1.0] * len(completions)
             for item in scored_results:
                 rewards[int(item["local_index"])] = float(item["score"])
-            _finalize_scored_results(scored_results)
+            finalize_reward_scored_results(scored_results)
             _print_discovery_metrics()
             return rewards
 
@@ -5754,12 +5859,12 @@ def compute_reward(prompts, completions, **kwargs):
                 f"reward_batch_index={group_context.get('reward_batch_index')} "
                 f"entries={len(merged_precomputed_entries)}"
             )
-            scored_results = _score_reward_entries(
+            scored_results = score_reward_entries(
                 merged_precomputed_entries,
                 group_context=group_context,
                 archive_snapshot_family_counts=archive_snapshot_family_counts,
             )
-            _finalize_scored_results(scored_results)
+            finalize_reward_scored_results(scored_results)
             _print_discovery_metrics()
             print(
                 "[Reward Score] end "
@@ -5796,7 +5901,7 @@ def compute_reward(prompts, completions, **kwargs):
         restore_reward_runtime_state(synced_payload.get("reward_state"))
         return list(synced_payload["rewards_by_rank"].get(rank, [-1.0] * len(completions)))
     finally:
-        clear_extraction_meta_cache()
+        clear_reward_extraction_meta_cache()
 
 PROMPT_TEMPLATE = SFTUtil.open_discovery_prompt_template
 PROMPT_BLOCK_SIGNATURE = "def drop_conv3x3_block(in_channels, out_channels, stride=1, padding=1, bias=False, dropout_prob=0.0):"
@@ -5859,11 +5964,81 @@ def load_rl_dataset(tokenizer):
     rl_dataset = Dataset.from_list(prompts)
     return rl_dataset.shuffle(seed=42)
 
+
+class OpenDiscoveryRewardTask:
+    name = "open_discovery"
+
+    @property
+    def model_source(self) -> str:
+        return base_model
+
+    @property
+    def tokenizer_source(self) -> str:
+        return tokenizer_source
+
+    @property
+    def load_existing_model(self) -> bool:
+        return LOAD_EXISTING_MODEL
+
+    @property
+    def saved_model_path(self) -> str:
+        return SAVED_MODEL_PATH
+
+    @property
+    def prompt_template(self) -> str:
+        return PROMPT_TEMPLATE
+
+    def extract_completion_blocks(self, completion: str) -> Tuple[str, str, str]:
+        return extract_completion_blocks(completion)
+
+    def clear_extraction_meta_cache(self) -> None:
+        clear_extraction_meta_cache()
+
+    def evaluate_code_and_reward(self, *args, **kwargs):
+        return evaluate_code_and_reward(*args, **kwargs)
+
+    def evaluate_code_and_reward_batch(self, specs):
+        return evaluate_code_and_reward_batch(specs)
+
+    def build_eval_cfg(self, *args, **kwargs):
+        return build_stage_eval_cfg(*args, **kwargs)
+
+    def reward_fn(self, *args, **kwargs):
+        return reward_fn(*args, **kwargs)
+
+    def load_rl_dataset(self, tokenizer):
+        return load_rl_dataset(tokenizer)
+
+    def apply_batch_elite_bonuses(self, scored_results: List[Dict[str, Any]], group_context: Dict[str, Any]) -> None:
+        _apply_batch_elite_bonuses(scored_results, group_context)
+
+    def finalize_scored_results(self, scored_results: List[Dict[str, Any]]) -> None:
+        _finalize_scored_results(scored_results)
+
+    def run_log_dir(self) -> str:
+        return run_log_dir()
+
+    def run_model_out(self) -> str:
+        return run_model_out()
+
+    def run_epoch_dir(self, *args):
+        return run_epoch_dir(*args)
+
+
+def ensure_default_reward_task() -> None:
+    if current_reward_task() is None:
+        register_reward_task(OpenDiscoveryRewardTask())
+
+
+ensure_default_reward_task()
+
+
 def main():
     global active_rl_model
     global active_rl_tokenizer
     global current_stage_name
 
+    ensure_default_reward_task()
     torch.cuda.empty_cache()
     resume_checkpoint_dir = _resolve_resume_checkpoint_dir()
     resume_manifest = None
@@ -5912,8 +6087,13 @@ def main():
         torch.cuda.set_device(local_rank)
     train_device = f"cuda:{local_rank}" if torch.cuda.is_available() else "cpu"
     hf_deepspeed_config = _maybe_init_hf_deepspeed_config(deepspeed_config_path) if use_deepspeed else None
+    model_source = reward_model_source()
+    tok_source = reward_tokenizer_source()
+    adapter_path = reward_saved_model_path()
 
-    print(f"Using RL base model: {base_model}")
+    print(f"Using RL base model: {model_source}")
+    if tok_source != model_source:
+        print(f"Using RL tokenizer: {tok_source}")
     print(
         "[RL] Distributed Runtime: "
         f"rank={rank} local_rank={local_rank} raw_local_rank={raw_local_rank} world_size={world_size}"
@@ -5942,29 +6122,29 @@ def main():
             f"valid_generation_values={runtime_settings['valid_generation_values']} "
             f"world_size={world_size}"
         )
-    tokenizer = TrainerRuntime.load_tokenizer(base_model)
+    tokenizer = TrainerRuntime.load_tokenizer(tok_source)
 
     # Load RL dataset (limit for training speed)
-    rl_dataset = load_rl_dataset(tokenizer)
+    rl_dataset = load_reward_dataset(tokenizer)
     dataset_limit = runtime_settings["dataset_limit"]
     if len(rl_dataset) > dataset_limit:
         rl_dataset = rl_dataset.select(range(dataset_limit))
 
     model = TrainerRuntime.load_quantized_causal_lm(
-        model_source=base_model,
+        model_source=model_source,
         precision=precision,
         train_device=train_device,
         use_deepspeed=use_deepspeed,
     )
     _ = hf_deepspeed_config
 
-    if LOAD_EXISTING_MODEL and os.path.exists(SAVED_MODEL_PATH):
+    if reward_load_existing_model() and os.path.exists(adapter_path):
         model = TrainerRuntime.maybe_merge_initial_adapter(
             model,
             enabled=True,
-            adapter_path=SAVED_MODEL_PATH,
+            adapter_path=adapter_path,
             label="extra SFT",
-            load_message=f"Loading extra SFT adapter from {SAVED_MODEL_PATH}...",
+            load_message=f"Loading extra SFT adapter from {adapter_path}...",
         )
 
     model = prepare_model_for_kbit_training(model)
@@ -5996,7 +6176,6 @@ def main():
     model.print_trainable_parameters()
     active_rl_model = model
     active_rl_tokenizer = tokenizer
-    evaluate_code_and_reward._nngpt_eval_cfg_builder = build_stage_eval_cfg
     stage_entry_generation_totals.setdefault(current_stage_name, _current_generation_total())
     stage_entry_reward_batches.setdefault(current_stage_name, reward_batch_index)
     if resume_checkpoint_dir is None:
@@ -6049,7 +6228,7 @@ def main():
     finally:
         shutdown_eval_worker()
 
-    model_out = run_model_out()
+    model_out = reward_run_model_out()
     print(f"Saving model to {model_out}...")
     model.save_pretrained(model_out)
     _save_stage_checkpoint(
@@ -6071,15 +6250,15 @@ if __name__ == "__main__":
     from typing import Dict
 
     # Ensure directories exist
-    log_dir = run_log_dir()
+    log_dir = reward_run_log_dir()
     os.makedirs(log_dir, exist_ok=True)
     code_logger = SimpleCodeLogger(log_dir)
 
     # 清空旧模型目录
     if _resolve_resume_checkpoint_dir() is None:
-        print(f"Cleaning existing models in {run_epoch_dir()}...")
-        shutil.rmtree(run_epoch_dir(), ignore_errors=True)
+        print(f"Cleaning existing models in {reward_run_epoch_dir()}...")
+        shutil.rmtree(reward_run_epoch_dir(), ignore_errors=True)
     else:
-        print(f"Resuming run: keeping existing synthesized models under {run_epoch_dir()}")
+        print(f"Resuming run: keeping existing synthesized models under {reward_run_epoch_dir()}")
 
     main()
