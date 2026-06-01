@@ -53,8 +53,11 @@ class RewardSmokeMemoryTest(unittest.TestCase):
         self.assertRegex(tunerl_source, r'FORMAL_REWARD_TRANSFORM\s*=\s*"norm_128_flip"')
         self.assertIn("def _formal_reward_input_shape", tunerl_source)
 
-        for function_name in ("base_discovery_reward_fn", "_build_batched_eval_specs"):
-            body = _function_source("ab/gpt/TuneRL.py", function_name)
+        for path, function_name in (
+            ("ab/gpt/rl_pipeline/backbone_reward_runtime.py", "_base_discovery_reward_fn"),
+            ("ab/gpt/rl_pipeline/backbone_reward_runtime.py", "_build_batched_eval_specs"),
+        ):
+            body = _function_source(path, function_name)
             self.assertIn("_formal_reward_input_shape()", body)
             self.assertNotIn("(1, 3, 224, 224)", body)
 
@@ -237,7 +240,7 @@ def forward(self, x, is_probing=False):
         self.assertAlmostEqual(apply_final_clamp(live_result, 0.18, penalty), 0.18)
 
     def test_formal_diversity_is_only_eligible_for_target_structure_match(self):
-        body = _function_source("ab/gpt/TuneRL.py", "base_discovery_reward_fn")
+        body = _function_source("ab/gpt/rl_pipeline/backbone_reward_runtime.py", "_base_discovery_reward_fn")
 
         eligibility_index = body.index("quality_diversity_eligible = bool(")
         target_match_index = body.index('pattern_detection.get("target_structure_match") is not False', eligibility_index)
@@ -247,7 +250,7 @@ def forward(self, x, is_probing=False):
         self.assertLess(target_match_index, first_diversity_index)
 
     def test_target_structure_match_adds_formal_success_anchor_signal(self):
-        body = _function_source("ab/gpt/TuneRL.py", "base_discovery_reward_fn")
+        body = _function_source("ab/gpt/rl_pipeline/backbone_reward_runtime.py", "_base_discovery_reward_fn")
 
         self.assertIn("TARGET_STRUCTURE_MATCH_BONUS", body)
         success_signal_index = body.index("r_formal_success_signal = FORMAL_SUCCESS_SIGNAL_BONUS")
@@ -262,7 +265,7 @@ def forward(self, x, is_probing=False):
         self.assertLess(target_match_index, anchor_index)
 
     def test_target_structure_clamp_runs_after_warmup_override(self):
-        body = _function_source("ab/gpt/TuneRL.py", "base_discovery_reward_fn")
+        body = _function_source("ab/gpt/rl_pipeline/backbone_reward_runtime.py", "_base_discovery_reward_fn")
 
         warmup_index = body.index("warmup_dense_reward = _compute_warmup_dense_reward")
         clamp_index = body.index("_apply_target_structure_final_clamp", warmup_index)
@@ -396,9 +399,10 @@ def forward(self, x, is_probing=False):
             self.assertNotIn("RewardUtil.evaluate_code_and_reward_batch(", script_source)
         self.assertNotIn("TuneRL._score_reward_entries(", score_source)
 
-        base_reward = _function_source("ab/gpt/TuneRL.py", "base_discovery_reward_fn")
+        base_reward = _function_source("ab/gpt/rl_pipeline/backbone_reward_runtime.py", "_base_discovery_reward_fn")
         self.assertIn("evaluate_reward_code(", base_reward)
         self.assertIn("reward_eval_cfg_builder()", base_reward)
+        self.assertNotIn("def base_discovery_reward_fn", _source("ab/gpt/TuneRL.py"))
 
     def test_tunerl_compute_reward_delegates_task_boundary(self):
         body = _function_source("ab/gpt/TuneRL.py", "compute_reward")
@@ -467,16 +471,22 @@ def forward(self, x, is_probing=False):
         runtime_source = _source("ab/gpt/rl_pipeline/backbone_reward_runtime.py")
 
         for token in (
+            "def _base_discovery_reward_fn(",
             "extract_completion_blocks_strict(",
             "extract_graph_info(",
             "_extract_backbone_model_names(",
             "_build_backbone_signature(",
+            "def _apply_batch_elite_bonuses(",
+            "def _finalize_scored_results(",
         ):
             self.assertIn(token, runtime_source)
         for token in (
             "TuneRL._prepare_local_reward_entries(",
             "TuneRL._precompute_eval_results(",
             "TuneRL._score_reward_entries(",
+            "_tunerl().base_discovery_reward_fn(",
+            "_tunerl()._apply_batch_elite_bonuses(",
+            "_tunerl()._finalize_scored_results(",
             "TuneRL._entries_from_records(",
             "TuneRL._describe_reward_code_sections(",
             "TuneRL.extract_reward_completion_blocks(",
@@ -656,7 +666,7 @@ def forward(self, x, is_probing=False):
         self.assertEqual(high_acc_components["r_block_diversity"], -0.095)
 
     def test_stage23_positive_novelty_gate_runs_before_reward_sum(self):
-        body = _function_source("ab/gpt/TuneRL.py", "base_discovery_reward_fn")
+        body = _function_source("ab/gpt/rl_pipeline/backbone_reward_runtime.py", "_base_discovery_reward_fn")
 
         gate_index = body.index("_stage23_gate_positive_novelty_by_quality")
         reward_sum_index = body.index("r_primary = (", gate_index)
