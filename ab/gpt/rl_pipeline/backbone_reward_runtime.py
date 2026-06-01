@@ -13,7 +13,7 @@ import torch
 from datasets import Dataset
 from ab.gpt.rl_pipeline import stage_state as StageState
 from ab.gpt.rl_pipeline.completion import extract_completion_blocks_strict
-from ab.gpt.util.ArchDiscovery import ensure_pattern_name, extract_graph_info
+from ab.gpt.util.ArchDiscovery import ensure_pattern_name, extract_graph_info, normalize_pattern_name
 import ab.gpt.util.SFTUtil as SFTUtil
 from ab.gpt.util.Util import extract_str
 import ab.nn.api as api
@@ -209,14 +209,16 @@ _TUNERL_DEPENDENCY_NAMES = (
     "STAGE23_NON_DOMINANT_DESCRIPTOR_BONUS",
     "STAGE23_REPEATED_BLOCK_REWARD_CAP",
     "STAGE2_FORMAL_EXPLORE",
+    "TARGET_STRUCTURE_DEAD_BLOCK_PENALTY",
+    "TARGET_STRUCTURE_DUAL_BACKBONE_PENALTY",
     "TARGET_STRUCTURE_MATCH_BONUS",
+    "TARGET_STRUCTURE_PARSE_PENALTY",
+    "TARGET_STRUCTURE_PATH_PENALTY",
+    "TARGET_STRUCTURE_PENALTY_FLOOR",
     "TRAINSET_NOVEL_FAMILY_BONUS",
     "TRAINSET_NOVEL_GRAPH_BONUS",
     "_apply_executability_clamp",
     "_apply_stage1_trainability_clamp",
-    "_apply_target_structure_final_clamp",
-    "_apply_target_structure_reward_adjustment",
-    "_apply_target_structure_reward_gate",
     "_apply_trainability_clamp",
     "_clip",
     "_compute_build_partial_reward",
@@ -261,17 +263,11 @@ _TUNERL_DEPENDENCY_NAMES = (
     "code_logger",
     "create_file",
     "current_stage_name",
-    "detect_target_structure",
     "evaluate_reward_code",
     "get_goal_counter",
-    "is_multi_stage_architecture",
-    "is_shallow_one_shot_fuse",
     "new_nn_file",
     "new_out_file",
-    "normalize_pattern_name",
-    "passes_macro_structure_gate",
     "prev_closed_group_mean_reward_target_acc",
-    "primary_goal_key",
     "resolve_reward_variant",
     "reward_eval_cfg_builder",
     "reward_run_epoch_dir",
@@ -309,6 +305,242 @@ def extract_completion_blocks(completion: str) -> Tuple[str, str, str]:
 
 def extract_reward_completion_blocks(completion: str) -> Tuple[str, str, str]:
     return _tunerl()._reward_task_callable("extract_completion_blocks", extract_completion_blocks)(completion)
+
+
+def has_structural_motif(graph_info) -> bool:
+    return bool(graph_info and (graph_info.project_calls or graph_info.stem_calls or graph_info.fractal_calls))
+
+
+def is_multi_stage_architecture(graph_info) -> bool:
+    return bool(graph_info and (graph_info.depth >= 5 or graph_info.merges >= 2 or graph_info.fractal_calls >= 2))
+
+
+def passes_macro_structure_gate(graph_info) -> bool:
+    if not graph_info or not graph_info.parse_ok or graph_info.is_plain_parallel_triple:
+        return False
+    if graph_info.project_calls or graph_info.stem_calls:
+        return True
+    return is_multi_stage_architecture(graph_info)
+
+
+def is_shallow_one_shot_fuse(graph_info) -> bool:
+    return bool(
+        graph_info
+        and graph_info.parse_ok
+        and not graph_info.is_plain_parallel_triple
+        and graph_info.fuse_calls >= 1
+        and graph_info.merges <= 1
+        and graph_info.depth <= 4
+        and graph_info.project_calls == 0
+        and graph_info.stem_calls == 0
+    )
+
+
+def _compact_graph_expr(graph_expr: str) -> str:
+    return re.sub(r"\s+", "", str(graph_expr or ""))
+
+
+def _graph_has_block_before_backbone(graph_expr: str) -> bool:
+    compact = _compact_graph_expr(graph_expr)
+    return bool(
+        re.search(
+            r"Backbone\[[^\]]+\]\(_feature_to_input_image\((?:Sequential\[Block\]|Block|Fractal)",
+            compact,
+        )
+    )
+
+
+def _graph_has_backbone_before_block(graph_expr: str) -> bool:
+    compact = _compact_graph_expr(graph_expr)
+    return bool(
+        re.search(
+            r"(?:Sequential\[Block\]|Block|Fractal)\(_feature_to_input_image\(Backbone\[[^\]]+\]",
+            compact,
+        )
+    )
+
+
+def build_actual_structure_signature(
+    graph_info,
+    *,
+    block_contributes_to_forward: bool,
+    block_signature: str = "",
+) -> str:
+    if graph_info is None or not getattr(graph_info, "parse_ok", False):
+        return "incomplete|block_unknown|bb0|d0|incomplete"
+    block_state = "block_live" if block_contributes_to_forward else "block_dead"
+    block_key = str(block_signature or "").strip() if block_contributes_to_forward else "incomplete_block"
+    if not block_key:
+        block_key = "unknown_block"
+    return "|".join(
+        [
+            str(getattr(graph_info, "family_id", "") or "UnknownFamily"),
+            str(getattr(graph_info, "descriptor_key", "") or "unknown_descriptor"),
+            f"bb{int(getattr(graph_info, 'backbone_calls', 0) or 0)}",
+            block_state,
+            str(getattr(graph_info, "family_hash", "") or "unknown_family_hash")[:12],
+            str(getattr(graph_info, "cnn_signature", "") or "unknown_cnn")[:12],
+            str(block_key)[:12],
+        ]
+    )
+
+
+def detect_target_structure(
+    *,
+    prompt_target_pattern: str,
+    graph_info,
+    block_contributes_to_forward: bool,
+    block_signature: str = "",
+) -> Dict[str, Any]:
+    prompt_target_pattern = str(prompt_target_pattern or "").strip()
+    normalized_target = normalize_pattern_name(prompt_target_pattern) if prompt_target_pattern else ""
+    declared_pattern = str(getattr(graph_info, "pattern_name", "") or "") if graph_info is not None else ""
+    actual_pattern = str(getattr(graph_info, "suggested_pattern_name", "") or "") if graph_info is not None else ""
+    actual_signature = build_actual_structure_signature(
+        graph_info,
+        block_contributes_to_forward=bool(block_contributes_to_forward),
+        block_signature=block_signature,
+    )
+    result = {
+        "prompt_target_pattern": prompt_target_pattern,
+        "normalized_prompt_target_pattern": normalized_target,
+        "declared_pattern": declared_pattern,
+        "actual_pattern": actual_pattern,
+        "declared_pattern_matches_prompt": (
+            bool(normalized_target)
+            and normalize_pattern_name(declared_pattern) == normalized_target
+        ),
+        "actual_structure_signature": actual_signature,
+        "target_structure_key": f"{normalized_target or 'open'}::{actual_signature}",
+        "target_structure_match": True,
+        "target_structure_mismatch_reasons": [],
+        "actual_backbone_calls": int(getattr(graph_info, "backbone_calls", 0) or 0) if graph_info is not None else 0,
+        "actual_block_live": bool(block_contributes_to_forward),
+        "actual_block_before_backbone": False,
+        "actual_backbone_before_block": False,
+    }
+    if not normalized_target:
+        return result
+    if graph_info is None or not getattr(graph_info, "parse_ok", False):
+        result["target_structure_match"] = False
+        result["target_structure_mismatch_reasons"] = ["graph_parse_failed"]
+        return result
+
+    graph_expr = str(getattr(graph_info, "graph_expr", "") or "")
+    block_before_backbone = _graph_has_block_before_backbone(graph_expr)
+    backbone_before_block = _graph_has_backbone_before_block(graph_expr)
+    result["actual_block_before_backbone"] = block_before_backbone
+    result["actual_backbone_before_block"] = backbone_before_block
+
+    reasons: List[str] = []
+    target_needs_block = "Fractal" in normalized_target
+    target_needs_dual_backbone = (
+        "DualBackbone" in normalized_target
+        or "_to_B" in normalized_target
+        or "_plus_B" in normalized_target
+        or normalized_target.endswith("_plus_A")
+    )
+    if target_needs_block and not block_contributes_to_forward:
+        reasons.append("target_fractal_but_block_dead")
+    if target_needs_dual_backbone and int(getattr(graph_info, "backbone_calls", 0) or 0) < 2:
+        reasons.append("target_dual_but_forward_uses_less_than_two_backbones")
+    result["target_structure_match"] = not reasons
+    result["target_structure_mismatch_reasons"] = reasons
+    return result
+
+
+def _target_structure_penalty(reasons: List[str]) -> float:
+    reason_set = set(str(reason) for reason in (reasons or []))
+    penalty = 0.0
+    if "graph_parse_failed" in reason_set:
+        penalty += TARGET_STRUCTURE_PARSE_PENALTY
+    if "target_fractal_but_block_dead" in reason_set:
+        penalty += TARGET_STRUCTURE_DEAD_BLOCK_PENALTY
+    if "target_dual_but_forward_uses_less_than_two_backbones" in reason_set:
+        penalty += TARGET_STRUCTURE_DUAL_BACKBONE_PENALTY
+    if any(
+        reason in reason_set
+        for reason in (
+            "fractal_not_before_backbone",
+            "missing_backbone_to_fractal_path",
+            "missing_fractal_to_backbone_path",
+            "missing_backbone_to_fractal_branch",
+        )
+    ):
+        penalty += TARGET_STRUCTURE_PATH_PENALTY
+    return max(TARGET_STRUCTURE_PENALTY_FLOOR, penalty)
+
+
+def _apply_target_structure_reward_adjustment(
+    pattern_detection: Dict[str, Any],
+    r_structure_group: float,
+    r_structure_archive: float,
+) -> Tuple[float, float, float, float]:
+    if bool(pattern_detection.get("target_structure_match", True)):
+        return r_structure_group, r_structure_archive, 0.0, 0.0
+    suppressed_positive = max(0.0, float(r_structure_group or 0.0)) + max(
+        0.0,
+        float(r_structure_archive or 0.0),
+    )
+    return (
+        min(0.0, float(r_structure_group or 0.0)),
+        min(0.0, float(r_structure_archive or 0.0)),
+        _target_structure_penalty(
+            list(pattern_detection.get("target_structure_mismatch_reasons") or [])
+        ),
+        suppressed_positive,
+    )
+
+
+def _apply_target_structure_final_clamp(
+    pattern_detection: Dict[str, Any],
+    reward_value: float,
+    r_target_structure_penalty: float,
+) -> float:
+    if bool(pattern_detection.get("target_structure_match", True)):
+        return reward_value
+    penalty = float(r_target_structure_penalty or 0.0)
+    if penalty == 0.0:
+        penalty = _target_structure_penalty(
+            list(pattern_detection.get("target_structure_mismatch_reasons") or [])
+        )
+    return min(float(reward_value), penalty, 0.0)
+
+
+def _apply_target_structure_reward_gate(res: Dict[str, Any], reward_value: float) -> float:
+    return _apply_target_structure_final_clamp(
+        res,
+        reward_value,
+        float(res.get("r_target_structure_penalty", 0.0) or 0.0),
+    )
+
+
+def prompt_goal_satisfied(graph_info, tag: str) -> bool:
+    if not graph_info or not graph_info.parse_ok:
+        return False
+    if tag == "stem":
+        return graph_info.stem_calls > 0
+    if tag == "project":
+        return graph_info.project_calls > 0
+    if tag == "multi_stage":
+        return is_multi_stage_architecture(graph_info)
+    if tag == "fractal_deep":
+        return graph_info.fractal_calls >= 2 or (graph_info.fractal_calls >= 1 and graph_info.depth >= 5)
+    if tag == "branch_reuse":
+        return graph_info.merges >= 2 or (graph_info.project_calls > 0 and graph_info.fuse_calls >= 2)
+    if tag == "single_backbone":
+        return graph_info.backbone_calls == 1
+    if tag == "wide_fuse":
+        return graph_info.max_fan_in >= 3 and graph_info.fuse_calls >= 1
+    return False
+
+
+def primary_goal_key(prompt_goal_tags: List[str], prompt_target_pattern: str = "") -> str:
+    tags = [str(tag).strip() for tag in (prompt_goal_tags or []) if str(tag).strip()]
+    if tags:
+        return "__".join(tags)
+    normalized_target = normalize_pattern_name(prompt_target_pattern) if prompt_target_pattern else ""
+    return normalized_target or "open"
 
 
 def render_completion_xml(block_code: str, init_code: str, forward_code: str) -> str:
@@ -2760,7 +2992,7 @@ def _entry_from_record(record: Dict[str, Any], *, index: int) -> Dict[str, Any]:
         "cnn_signature": section_info.get("cnn_signature"),
         "prompt_goal_tags": prompt_goal_tags,
         "prompt_target_pattern": prompt_target_pattern,
-        "goal_key": TuneRL.primary_goal_key(prompt_goal_tags, prompt_target_pattern),
+        "goal_key": primary_goal_key(prompt_goal_tags, prompt_target_pattern),
         "seed_accuracy_baseline": _record_seed_accuracy(record),
         "precomputed_eval_result": dict(_record_api_result(record)),
     }
