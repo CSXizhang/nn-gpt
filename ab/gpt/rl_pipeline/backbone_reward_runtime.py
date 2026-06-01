@@ -291,11 +291,6 @@ def _tunerl():
 _TUNERL_DEPENDENCY_NAMES = (
     "B_index",
     "_current_generation_total",
-    "_coerce_accuracy_baseline",
-    "_discovery_failure_result",
-    "_format_optional_metric",
-    "_format_optional_signed_metric",
-    "_format_target_metric",
     "_record_current_group_trainable_sample",
     "_record_generation_event",
     "_training_context_guidance",
@@ -608,6 +603,42 @@ def _result_reward_target_value(res: Dict[str, Any]) -> Optional[float]:
     return _optional_float(res.get("frozen_test_acc", res.get("val_metric")))
 
 
+def _format_optional_metric(value: Optional[float]) -> str:
+    if value is None:
+        return "n/a"
+    return f"{float(value):.4f}"
+
+
+def _format_optional_signed_metric(value: Optional[float]) -> str:
+    if value is None:
+        return "n/a"
+    return f"{float(value):+.4f}"
+
+
+def _format_target_metric(base_value: Optional[float], delta: float) -> str:
+    if base_value is None:
+        return "n/a"
+    return f"{float(base_value) + float(delta):.4f}"
+
+
+def _coerce_accuracy_baseline(value: Any, *, context: str) -> float:
+    if value is None:
+        raise ValueError(f"{context}: missing required sample accuracy baseline")
+    if isinstance(value, bool):
+        raise ValueError(f"{context}: accuracy baseline must be numeric, got bool")
+    try:
+        baseline = float(value)
+    except (TypeError, ValueError) as exc:
+        raise ValueError(f"{context}: accuracy baseline must be numeric, got {value!r}") from exc
+    if baseline != baseline or baseline in {float("inf"), float("-inf")}:
+        raise ValueError(f"{context}: accuracy baseline must be finite, got {value!r}")
+    return baseline
+
+
+def _current_stage_index() -> int:
+    return RL_STAGE_TO_INDEX.get(current_stage_name, 0)
+
+
 def _truncate_text(text: str, max_chars: int) -> str:
     text = (text or "").strip()
     if len(text) <= max_chars:
@@ -849,6 +880,133 @@ def _goal_tag_match_stats(graph_info, prompt_goal_tags: Optional[List[str]]) -> 
     total_count = len(tags)
     hit_rate = float(hit_count) / float(total_count) if total_count > 0 else 0.0
     return hit_count, total_count, hit_rate
+
+
+def _discovery_failure_result(
+    reward: float,
+    error: str,
+    *,
+    seed_accuracy_baseline: float,
+    backbone_model_names: Optional[List[str]] = None,
+) -> Dict[str, Any]:
+    return {
+        "reward": reward,
+        "built_ok": False,
+        "forward_ok": False,
+        "forward_shape_ok": False,
+        "trained_step_ok": False,
+        "backward_ok": False,
+        "loss_start": None,
+        "loss_end": None,
+        "loss_drop": None,
+        "loss_drop_ok": False,
+        "best_epoch_loss": None,
+        "avg_epoch_loss": None,
+        "epochs_completed": 0,
+        "epoch_loss_series": [],
+        "training_context_metric_name": "best_epoch_loss",
+        "training_context_metric_value": None,
+        "test_acc": None,
+        "train_acc": None,
+        "frozen_train_acc": None,
+        "frozen_test_acc": None,
+        "unfrozen_train_acc": None,
+        "unfrozen_test_acc": None,
+        "frozen_eval": None,
+        "unfrozen_eval": None,
+        "seed_accuracy_baseline": seed_accuracy_baseline,
+        "seed_train_acc_gap": None,
+        "seed_train_acc_improved": False,
+        "accuracy_baseline": seed_accuracy_baseline,
+        "train_acc_gain": None,
+        "train_acc_improved": False,
+        "group_baseline_train_acc": None,
+        "group_train_acc_gain": None,
+        "group_train_acc_improved": False,
+        "group_baseline_reward_target_acc": None,
+        "group_reward_target_gain": None,
+        "group_reward_target_improved": False,
+        "reward_batch_index": None,
+        "reward_group_id": None,
+        "group_warmup": False,
+        "val_metric": None,
+        "latency_ms": None,
+        "params_m": None,
+        "timed_out": False,
+        "estimated_total_seconds": None,
+        "eval_limit_seconds": None,
+        "warmup_dense_reward": None,
+        "backbone_model_names": list(backbone_model_names or []),
+        "reward_target_metric": _stage_reward_target_metric(current_stage_name),
+        "reward_target_value": None,
+        "best_closed_group_mean_reward_target_acc": best_closed_group_mean_reward_target_acc,
+        "best_closed_group_mean_train_acc": best_closed_group_mean_train_acc,
+        "best_closed_group_mean_test_acc": best_closed_group_mean_test_acc,
+        "best_reward_target_for_goal": None,
+        "r_dense": 0.0,
+        "r_prev_group": 0.0,
+        "r_best_group": 0.0,
+        "r_goal_best": 0.0,
+        "r_goal_match": 0.0,
+        "r_trainset_novelty": 0.0,
+        "r_generalization": 0.0,
+        "r_structure_group": 0.0,
+        "r_structure_archive": 0.0,
+        "r_descriptor_diversity": 0.0,
+        "r_block_diversity": 0.0,
+        "r_batch_elite": 0.0,
+        "r_repeat_family": 0.0,
+        "r_plain_fuse_penalty": 0.0,
+        "r_template_penalty": 0.0,
+        "r_history_context": 0.0,
+        "r_no_progress_penalty": 0.0,
+        "batch_elite_rank": None,
+        "batch_elite_tier": "none",
+        "batch_elite_threshold_passed": False,
+        "goal_tag_hit_count": 0,
+        "goal_tag_total_count": 0,
+        "goal_tag_hit_rate": 0.0,
+        "prev_target_reward_target_acc": None,
+        "best_target_reward_target_acc": None,
+        "open_discovery": {
+            "r_primary": 0.0,
+            "r_tiebreak": 0.0,
+            "r_trainset_novelty": 0.0,
+            "r_dense": 0.0,
+            "r_prev_group": 0.0,
+            "r_best_group": 0.0,
+            "r_goal_best": 0.0,
+            "r_goal_match": 0.0,
+            "r_generalization": 0.0,
+            "r_structure_group": 0.0,
+            "r_structure_archive": 0.0,
+            "r_descriptor_diversity": 0.0,
+            "r_block_diversity": 0.0,
+            "r_batch_elite": 0.0,
+            "r_repeat_family": 0.0,
+            "r_plain_fuse_penalty": 0.0,
+            "r_template_penalty": 0.0,
+            "r_history_context": 0.0,
+            "r_no_progress_penalty": 0.0,
+            "batch_elite_rank": None,
+            "batch_elite_tier": "none",
+            "batch_elite_threshold_passed": False,
+            "novel_vs_trainset_family": False,
+            "novel_vs_trainset_graph": False,
+            "archive_snapshot_family_freq": 0,
+            "batch_same_family_count": 0,
+            "reward_target_metric": _stage_reward_target_metric(current_stage_name),
+            "reward_target_value": None,
+            "goal_tag_hit_count": 0,
+            "goal_tag_total_count": 0,
+            "goal_tag_hit_rate": 0.0,
+        },
+        "error": error,
+        "current_stage_name": current_stage_name,
+        "current_stage_index": _current_stage_index(),
+        "stage_uses_formal_eval": _stage_uses_formal_eval(current_stage_name),
+        "stage_uses_static_only": _stage_uses_static_only(current_stage_name),
+    }
 
 
 def _apply_trainability_clamp(res: Dict[str, Any], reward_value: float, graph_info) -> float:
