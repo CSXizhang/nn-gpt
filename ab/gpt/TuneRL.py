@@ -75,11 +75,9 @@ import ab.gpt.rl_pipeline.reward_payload as RewardPayload
 from ab.gpt.rl_pipeline.reward_task import RewardTask
 import ab.gpt.util.SFTUtil as SFTUtil
 from ab.gpt.util.ArchDiscovery import (
-    ensure_pattern_name,
     extract_graph_info,
     normalize_pattern_name,
 )
-from ab.gpt.util.Util import extract_str
 from ab.gpt.util.Const import conf_train_dir, conf_test_dir, epoch_dir, new_nn_file, synth_dir, new_out_file
 from ab.nn.util.Util import create_file
 from ab.gpt.util.Reward import (
@@ -2656,20 +2654,11 @@ def get_goal_counter(store: Dict[str, Counter], goal_key: str) -> Counter:
 
 
 def clean_block(text: str) -> str:
-    """Remove common LLM artifacts like markdown code blocks."""
-    if not text: return ""
-    text = text.strip()
-    # Remove ```python ... ```
-    text = re.sub(r'^```python\s*', '', text)
-    text = re.sub(r'\s*```$', '', text)
-    return text.strip()
+    return _backbone_reward_runtime().clean_block(text)
+
 
 def extract_completion_blocks(completion: str) -> Tuple[str, str, str]:
-    """Extract the three XML code blocks and normalize their formatting."""
-    block_code = clean_block(extract_str(completion, '<block>', '</block>'))
-    init_code = clean_block(extract_str(completion, '<init>', '</init>'))
-    forward_code = clean_block(extract_str(completion, '<forward>', '</forward>'))
-    return block_code, init_code, forward_code
+    return _backbone_reward_runtime().extract_completion_blocks(completion)
 
 
 def extract_reward_completion_blocks(completion: str) -> Tuple[str, str, str]:
@@ -2677,19 +2666,7 @@ def extract_reward_completion_blocks(completion: str) -> Tuple[str, str, str]:
 
 
 def render_completion_xml(block_code: str, init_code: str, forward_code: str) -> str:
-    return "\n".join(
-        [
-            "<block>",
-            textwrap.dedent(block_code).strip(),
-            "</block>",
-            "<init>",
-            textwrap.dedent(init_code).strip(),
-            "</init>",
-            "<forward>",
-            textwrap.dedent(forward_code).strip(),
-            "</forward>",
-        ]
-    )
+    return _backbone_reward_runtime().render_completion_xml(block_code, init_code, forward_code)
 
 
 def reconstruct_code(
@@ -2697,24 +2674,10 @@ def reconstruct_code(
     *,
     pattern_name_override: str = "",
 ) -> str:
-    """Rebuild a runnable Python module from the XML blocks."""
-    block_code, init_code, forward_code = extract_reward_completion_blocks(completion)
-    if not block_code or not init_code or not forward_code:
-        return ""
-
-    if pattern_name_override:
-        init_code = ensure_pattern_name(init_code, pattern_name_override)
-
-    code = SFTUtil.skeleton_code
-    sig_block = "def drop_conv3x3_block(in_channels, out_channels, stride=1, padding=1, bias=False, dropout_prob=0.0):"
-    code = code.replace(sig_block, textwrap.dedent(block_code))
-
-    sig_init = "    def __init__(self, in_shape: tuple, out_shape: tuple, prm: dict, device: torch.device) -> None:"
-    code = code.replace(sig_init, textwrap.indent(textwrap.dedent(init_code), "    "))
-
-    sig_forward = "    def forward(self, x: torch.Tensor, is_probing: bool = False) -> torch.Tensor:"
-    code = code.replace(sig_forward, textwrap.indent(textwrap.dedent(forward_code), "    "))
-    return code
+    return _backbone_reward_runtime().reconstruct_code(
+        completion,
+        pattern_name_override=pattern_name_override,
+    )
 
 
 def _compute_build_partial_reward(res: Dict[str, Any]) -> float:
@@ -3907,7 +3870,7 @@ class OpenDiscoveryRewardTask:
         return _backbone_reward_runtime().PROMPT_TEMPLATE
 
     def extract_completion_blocks(self, completion: str) -> Tuple[str, str, str]:
-        return extract_completion_blocks(completion)
+        return _backbone_reward_runtime().extract_completion_blocks(completion)
 
     def clear_extraction_meta_cache(self) -> None:
         clear_extraction_meta_cache()

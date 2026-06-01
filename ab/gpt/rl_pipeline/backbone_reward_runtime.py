@@ -13,8 +13,9 @@ import torch
 from datasets import Dataset
 from ab.gpt.rl_pipeline import stage_state as StageState
 from ab.gpt.rl_pipeline.completion import extract_completion_blocks_strict
-from ab.gpt.util.ArchDiscovery import extract_graph_info
+from ab.gpt.util.ArchDiscovery import ensure_pattern_name, extract_graph_info
 import ab.gpt.util.SFTUtil as SFTUtil
+from ab.gpt.util.Util import extract_str
 import ab.nn.api as api
 
 
@@ -261,9 +262,7 @@ _TUNERL_DEPENDENCY_NAMES = (
     "create_file",
     "current_stage_name",
     "detect_target_structure",
-    "ensure_pattern_name",
     "evaluate_reward_code",
-    "extract_reward_completion_blocks",
     "get_goal_counter",
     "is_multi_stage_architecture",
     "is_shallow_one_shot_fuse",
@@ -273,8 +272,6 @@ _TUNERL_DEPENDENCY_NAMES = (
     "passes_macro_structure_gate",
     "prev_closed_group_mean_reward_target_acc",
     "primary_goal_key",
-    "reconstruct_code",
-    "render_completion_xml",
     "resolve_reward_variant",
     "reward_eval_cfg_builder",
     "reward_run_epoch_dir",
@@ -292,6 +289,66 @@ def _bind_tunerl_dependencies():
 
 def extract_seed_context(kwargs: Dict[str, Any], expected_count: int):
     return _tunerl().require_sample_accuracy_baselines(kwargs, expected_count)
+
+
+def clean_block(text: str) -> str:
+    if not text:
+        return ""
+    text = text.strip()
+    text = re.sub(r"^```python\s*", "", text)
+    text = re.sub(r"\s*```$", "", text)
+    return text.strip()
+
+
+def extract_completion_blocks(completion: str) -> Tuple[str, str, str]:
+    block_code = clean_block(extract_str(completion, "<block>", "</block>"))
+    init_code = clean_block(extract_str(completion, "<init>", "</init>"))
+    forward_code = clean_block(extract_str(completion, "<forward>", "</forward>"))
+    return block_code, init_code, forward_code
+
+
+def extract_reward_completion_blocks(completion: str) -> Tuple[str, str, str]:
+    return _tunerl()._reward_task_callable("extract_completion_blocks", extract_completion_blocks)(completion)
+
+
+def render_completion_xml(block_code: str, init_code: str, forward_code: str) -> str:
+    return "\n".join(
+        [
+            "<block>",
+            textwrap.dedent(block_code).strip(),
+            "</block>",
+            "<init>",
+            textwrap.dedent(init_code).strip(),
+            "</init>",
+            "<forward>",
+            textwrap.dedent(forward_code).strip(),
+            "</forward>",
+        ]
+    )
+
+
+def reconstruct_code(
+    completion: str,
+    *,
+    pattern_name_override: str = "",
+) -> str:
+    block_code, init_code, forward_code = extract_reward_completion_blocks(completion)
+    if not block_code or not init_code or not forward_code:
+        return ""
+
+    if pattern_name_override:
+        init_code = ensure_pattern_name(init_code, pattern_name_override)
+
+    code = SFTUtil.skeleton_code
+    sig_block = "def drop_conv3x3_block(in_channels, out_channels, stride=1, padding=1, bias=False, dropout_prob=0.0):"
+    code = code.replace(sig_block, textwrap.dedent(block_code))
+
+    sig_init = "    def __init__(self, in_shape: tuple, out_shape: tuple, prm: dict, device: torch.device) -> None:"
+    code = code.replace(sig_init, textwrap.indent(textwrap.dedent(init_code), "    "))
+
+    sig_forward = "    def forward(self, x: torch.Tensor, is_probing: bool = False) -> torch.Tensor:"
+    code = code.replace(sig_forward, textwrap.indent(textwrap.dedent(forward_code), "    "))
+    return code
 
 
 def load_rl_dataset(tokenizer):
@@ -2800,7 +2857,7 @@ def _build_batched_eval_specs(entries, *, group_context: Dict[str, Any]):
             continue
 
         pattern_override = graph_info.suggested_pattern_name if not graph_info.has_custom_pattern_name else ""
-        final_code = TuneRL.reconstruct_code(completion, pattern_name_override=pattern_override)
+        final_code = reconstruct_code(completion, pattern_name_override=pattern_override)
         if not final_code:
             continue
 

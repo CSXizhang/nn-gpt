@@ -588,6 +588,24 @@ def forward(self, x, is_probing=False):
             self.assertNotIn(token, tunerl_source)
             self.assertIn(token, runtime_source)
 
+    def test_completion_codec_is_task_owned(self):
+        runtime_source = _source("ab/gpt/rl_pipeline/backbone_reward_runtime.py")
+        for function_name in (
+            "clean_block",
+            "extract_completion_blocks",
+            "render_completion_xml",
+            "reconstruct_code",
+        ):
+            body = _function_source("ab/gpt/TuneRL.py", function_name)
+            self.assertIn("_backbone_reward_runtime().", body)
+        for token in (
+            'extract_str(completion, "<block>"',
+            "SFTUtil.skeleton_code",
+            "def drop_conv3x3_block(",
+            "ensure_pattern_name(init_code",
+        ):
+            self.assertIn(token, runtime_source)
+
     def test_tunerlsft_grpo_learning_rate_uses_runtime_env(self):
         body = _function_source("ab/gpt/TuneRLSft.py", "_build_sft_grpo_config")
 
