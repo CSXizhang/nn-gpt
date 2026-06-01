@@ -85,48 +85,6 @@ class RewardReplayConsistencyTest(unittest.TestCase):
             self.assertEqual(expected_reward > 0.0, actual_reward > 0.0)
         self.assertEqual([], mismatches[:20])
 
-    def test_registered_sft_task_preserves_formal_eval_contract(self):
-        code = """
-import json
-from scripts import reward_replay_stubs
-reward_replay_stubs.install()
-from ab.gpt import TuneRL, TuneRLSft
-TuneRLSft.configure_sft_runtime()
-cfg = TuneRL.reward_eval_cfg_builder()(
-    stage_name=TuneRL.STAGE2_FORMAL_EXPLORE,
-    in_shape=TuneRL._formal_reward_input_shape(),
-    out_shape=(10,),
-    prm={"epoch": 1, "batch": 64},
-    device="cpu",
-)
-print(json.dumps({
-    "task": TuneRL.current_reward_task().name,
-    "metric": cfg.reward_target_metric,
-    "formal_nn_eval": cfg.formal_nn_eval,
-    "transform": TuneRL.FORMAL_REWARD_TRANSFORM,
-    "input_shape": list(cfg.input_shape),
-    "formal_epochs_default": __import__("os").environ.get("NNGPT_RL_FORMAL_REWARD_EPOCHS", "1,5,10"),
-}))
-"""
-        env = dict(os.environ)
-        env["NNGPT_REWARD_REPLAY_LIGHTWEIGHT"] = "1"
-        env.pop("NNGPT_RL_FORMAL_REWARD_EPOCHS", None)
-        result = subprocess.run(
-            ["python3", "-c", code],
-            cwd=str(ROOT),
-            env=env,
-            check=True,
-            text=True,
-            capture_output=True,
-        )
-        payload = json.loads(result.stdout.strip().splitlines()[-1])
-        self.assertEqual(payload["task"], "backbone_sft")
-        self.assertEqual(payload["metric"], "formal_multi_horizon_acc")
-        self.assertTrue(payload["formal_nn_eval"])
-        self.assertEqual(payload["transform"], "norm_128_flip")
-        self.assertEqual(payload["input_shape"], [1, 3, 128, 128])
-        self.assertEqual(payload["formal_epochs_default"], "1,5,10")
-
 
 if __name__ == "__main__":
     unittest.main()

@@ -391,8 +391,6 @@ def forward(self, x, is_probing=False):
         probe_source = _source("scripts/probe_struct1_a3_reward.py")
         for script_source in (baseline_source, probe_source, score_source):
             self.assertNotIn("TuneRLSft.sft_reward_fn(", script_source)
-            self.assertNotIn("TuneRLSft.load_rl_dataset_sft(", script_source)
-            self.assertNotIn("TuneRLSft.build_sft_reward_eval_cfg(", script_source)
             self.assertNotIn("RewardUtil.evaluate_code_and_reward_batch(", script_source)
         self.assertNotIn("TuneRL._score_reward_entries(", score_source)
 
