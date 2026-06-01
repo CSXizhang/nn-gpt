@@ -574,6 +574,20 @@ def forward(self, x, is_probing=False):
             self.assertNotIn(token, tunerl_source)
             self.assertIn(token, runtime_source)
 
+    def test_default_open_discovery_dataset_prompt_is_task_owned(self):
+        tunerl_source = _source("ab/gpt/TuneRL.py")
+        runtime_source = _source("ab/gpt/rl_pipeline/backbone_reward_runtime.py")
+        load_body = _function_source("ab/gpt/TuneRL.py", "load_rl_dataset")
+
+        self.assertIn("_backbone_reward_runtime().load_rl_dataset(tokenizer)", load_body)
+        for token in (
+            "open_discovery_prompt_template",
+            "open_discovery_skeleton_code",
+            "available_backbones",
+        ):
+            self.assertNotIn(token, tunerl_source)
+            self.assertIn(token, runtime_source)
+
     def test_tunerlsft_grpo_learning_rate_uses_runtime_env(self):
         body = _function_source("ab/gpt/TuneRLSft.py", "_build_sft_grpo_config")
 

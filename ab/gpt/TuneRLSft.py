@@ -1672,7 +1672,7 @@ class DynamicSFTPromptDataset(TorchDataset):
         }
 
 
-def load_rl_dataset_sft(tokenizer) -> TuneRL.Dataset:
+def load_rl_dataset_sft(tokenizer):
     """Load SFT-aligned RL prompts while rendering feedback lazily at access time."""
     runtime_settings = resolve_sft_runtime_settings(RewardUtil.get_distributed_runtime_info())
     nn_prefixes = resolve_sft_rl_nn_prefixes()

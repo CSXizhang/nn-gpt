@@ -10,10 +10,12 @@ from collections import Counter
 from typing import Any, Dict, List, Optional, Set, Tuple
 
 import torch
+from datasets import Dataset
 from ab.gpt.rl_pipeline import stage_state as StageState
 from ab.gpt.rl_pipeline.completion import extract_completion_blocks_strict
 from ab.gpt.util.ArchDiscovery import extract_graph_info
 import ab.gpt.util.SFTUtil as SFTUtil
+import ab.nn.api as api
 
 
 graph_archive_counts = Counter()
@@ -56,6 +58,10 @@ dominant_cnn_share: float = 0.0
 dominant_backbone_cnn_pair: Optional[str] = None
 dominant_backbone_cnn_share: float = 0.0
 discovery_family_hashes_seen: Set[str] = set()
+PROMPT_TEMPLATE = SFTUtil.open_discovery_prompt_template
+PROMPT_BLOCK_SIGNATURE = "def drop_conv3x3_block(in_channels, out_channels, stride=1, padding=1, bias=False, dropout_prob=0.0):"
+PROMPT_INIT_SIGNATURE = "def __init__(self, in_shape: tuple, out_shape: tuple, prm: dict, device: torch.device) -> None:"
+PROMPT_FORWARD_SIGNATURE = "def forward(self, x: torch.Tensor, is_probing: bool = False) -> torch.Tensor:"
 
 _TASK_STATE_NAMES = {
     "graph_archive_counts",
@@ -215,6 +221,7 @@ _TUNERL_DEPENDENCY_NAMES = (
     "_compute_build_partial_reward",
     "_compute_warmup_dense_reward",
     "_current_generation_total",
+    "_coerce_accuracy_baseline",
     "_discovery_failure_result",
     "_format_optional_metric",
     "_format_optional_signed_metric",
@@ -285,6 +292,63 @@ def _bind_tunerl_dependencies():
 
 def extract_seed_context(kwargs: Dict[str, Any], expected_count: int):
     return _tunerl().require_sample_accuracy_baselines(kwargs, expected_count)
+
+
+def load_rl_dataset(tokenizer):
+    TuneRL = _bind_tunerl_dependencies()
+    data = api.data(task="img-classification", nn_prefixes=("rl-bb-test1",))
+    if data.empty:
+        raise RuntimeError("No 'rl-bb-test1' data found for RL; sync the dataset prefix before training.")
+
+    print(f"Loaded {len(data)} examples for RL")
+    TuneRL.bootstrap_trainset_reference_library(data)
+
+    prompts = []
+    legacy_patterns = ", ".join(SFTUtil.legacy_patterns)
+    goal_profiles = SFTUtil.open_discovery_goal_profiles
+
+    for _, row in data.iterrows():
+        accuracy = _coerce_accuracy_baseline(row.get("accuracy"), context="seed row accuracy")
+        for profile in goal_profiles:
+            target_pattern = SFTUtil.goal_profile_target_pattern(profile)
+            module_hints = (
+                "self.backbone_a",
+                "self.backbone_b",
+                *profile["module_hints"],
+            )
+            user_prompt = PROMPT_TEMPLATE.format(
+                accuracy=accuracy,
+                skeleton_code=SFTUtil.open_discovery_skeleton_code,
+                available_backbones=", ".join(SFTUtil.available_backbones),
+                legacy_patterns=legacy_patterns,
+                goal_name=profile["name"],
+                target_tags=", ".join(profile["tags"]),
+                target_pattern=target_pattern,
+                design_brief=profile["brief"],
+                tag_realization=profile.get("realization", profile["brief"]),
+                goal_tag_parser_cues=SFTUtil.goal_tag_parser_cues(profile["tags"]),
+                module_hints=", ".join(module_hints),
+                block_signature=PROMPT_BLOCK_SIGNATURE,
+                init_signature=PROMPT_INIT_SIGNATURE,
+                forward_signature=PROMPT_FORWARD_SIGNATURE,
+            )
+
+            messages = [{"role": "user", "content": user_prompt}]
+            prompt_str = tokenizer.apply_chat_template(
+                messages,
+                add_generation_prompt=True,
+                tokenize=False,
+            )
+
+            prompts.append({
+                "prompt": prompt_str,
+                "accuracy": accuracy,
+                "goal_name": profile["name"],
+                "target_tags": ", ".join(profile["tags"]),
+            })
+
+    rl_dataset = Dataset.from_list(prompts)
+    return rl_dataset.shuffle(seed=42)
 
 
 def _counter_payload(counter: Counter) -> Dict[str, int]:
