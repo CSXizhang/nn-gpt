@@ -11,6 +11,7 @@
 #SBATCH --error=/home/s471802/nn-gpt/slurm_logs/%x-%j.err
 
 set -euo pipefail
+trap 'status=$?; echo "[1PATTERN SFT ERROR] line=${LINENO} status=${status} command=${BASH_COMMAND}" >&2' ERR
 
 source /home/s471802/.venv/bin/activate
 cd /home/s471802/nn-gpt
@@ -20,7 +21,9 @@ cd /home/s471802/nn-gpt
 : "${NNGPT_1PATTERN_SFT_LLM_CONF:?set NNGPT_1PATTERN_SFT_LLM_CONF}"
 
 export PYTHONUNBUFFERED=1
+export PYTHONFAULTHANDLER=1
 export TOKENIZERS_PARALLELISM=false
+export NNGPT_FORCE_DIRECT_GENERATE="${NNGPT_FORCE_DIRECT_GENERATE:-1}"
 export PYTHONPATH="/home/s471802/nn-gpt:/home/s471802/nn-dataset:${PYTHONPATH:-}"
 export NNGPT_TUNEBACKBONE_EVAL_CUDA_VISIBLE_DEVICES="${NNGPT_TUNEBACKBONE_EVAL_CUDA_VISIBLE_DEVICES:-${CUDA_VISIBLE_DEVICES:-0,1,2,3}}"
 export NNGPT_NNEVAL_USE_ALL_VISIBLE_GPUS=1
@@ -61,6 +64,7 @@ cat > "${run_root}/run_config.json" <<EOF
   "sft_batch_size": ${sft_batch_size},
   "sft_gradient_accumulation": ${sft_gradient_accumulation},
   "formal_eval_epochs": 1,
+  "force_direct_generate": "${NNGPT_FORCE_DIRECT_GENERATE}",
   "dataset": "cifar-10",
   "pattern": "1-pattern",
   "gpus": "${SLURM_GPUS_ON_NODE:-4}",

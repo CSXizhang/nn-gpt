@@ -1,5 +1,7 @@
 # ab/gpt/util/Chatbot.py
 
+import os
+
 from transformers import PreTrainedTokenizer, PreTrainedModel, pipeline
 from ab.gpt.util.Util import extract_code, extract_hyperparam, extract_transform, extract_all_to_train
 import torch
@@ -68,7 +70,11 @@ class ChatBot:
         )
         
         # Only create pipeline for PyTorch models
-        if not self.is_onnx:
+        force_direct = os.getenv("NNGPT_FORCE_DIRECT_GENERATE", "").strip().lower() in {"1", "true", "yes", "on"}
+        if force_direct:
+            print("[INFO] NNGPT_FORCE_DIRECT_GENERATE set, using direct generation")
+            self.__pipeline = None
+        elif not self.is_onnx:
             try:
                 self.__pipeline = pipeline(
                     "text-generation",
