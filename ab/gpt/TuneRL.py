@@ -513,112 +513,6 @@ def _current_generation_total() -> int:
     return StageState.current_generation_total(sys.modules[__name__])
 
 
-def _normalize_backbone_signature_names(backbone_model_names: Optional[List[str]]) -> List[str]:
-    normalized = [
-        str(name).strip()
-        for name in list(backbone_model_names or [])
-        if str(name).strip()
-    ]
-    normalized.sort()
-    return normalized
-
-
-def build_backbone_signature(backbone_model_names: Optional[List[str]]) -> str:
-    normalized = _normalize_backbone_signature_names(backbone_model_names)
-    return " + ".join(normalized) if normalized else "unknown_backbone_pair"
-
-
-def _backbone_cnn_pair_key(backbone_signature: str, cnn_signature: str) -> str:
-    return f"{str(backbone_signature or 'unknown_backbone_pair')}::{str(cnn_signature or 'incomplete_cnn')}"
-
-
-def _backbone_block_pair_key(backbone_signature: str, block_signature: str) -> str:
-    return f"{str(backbone_signature or 'unknown_backbone_pair')}::{str(block_signature or 'incomplete_block')}"
-
-
-def _block_signature_from_code(block_code: str) -> str:
-    source = textwrap.dedent(str(block_code or "")).strip()
-    if not source:
-        return "incomplete_block"
-    try:
-        tree = ast.parse(source)
-        payload = ast.dump(tree, annotate_fields=True, include_attributes=False)
-    except Exception:
-        payload = "\n".join(line.strip() for line in source.splitlines() if line.strip())
-    return hashlib.sha1(payload.encode("utf-8")).hexdigest()
-
-
-def _block_contributes_to_forward(init_code: str, forward_code: str) -> bool:
-    init_source = str(init_code or "")
-    forward_source = str(forward_code or "")
-    block_tokens = ("drop_conv3x3_block", "FractalUnit", "FractalBlock")
-    if not any(token in init_source or token in forward_source for token in block_tokens):
-        return False
-    if "drop_conv3x3_block" in forward_source:
-        return True
-    if any(token in init_source for token in block_tokens) and "self.features" in init_source and "self.features" in forward_source:
-        return True
-
-    referenced_attrs = set(re.findall(r"self\.([A-Za-z_][A-Za-z0-9_]*)", forward_source))
-    for line in init_source.splitlines():
-        if not any(token in line for token in block_tokens):
-            continue
-        match = re.search(r"self\.([A-Za-z_][A-Za-z0-9_]*)", line)
-        if match and match.group(1) in referenced_attrs:
-            return True
-    return False
-
-
-def _is_plain_dual_backbone_concat(forward_code: str) -> bool:
-    source = str(forward_code or "")
-    if not ("self.backbone_a" in source and "self.backbone_b" in source):
-        return False
-    if "torch.cat" not in source or "adaptive_pool_flatten" not in source:
-        return False
-    structural_tokens = (
-        "_feature_to_input_image",
-        "self.features",
-        "self.stem",
-        "self.project",
-        "self.bridge",
-        "self.adapter",
-        "self.fuse",
-        "self.fractal",
-        "drop_conv3x3_block",
-    )
-    return not any(token in source for token in structural_tokens)
-
-
-def _result_backbone_signature(res: Dict[str, Any]) -> str:
-    signature = str(res.get("backbone_signature") or "").strip()
-    if signature:
-        return signature
-    return build_backbone_signature(res.get("backbone_model_names"))
-
-
-def _result_cnn_signature(res: Dict[str, Any], graph_info) -> str:
-    signature = str(res.get("cnn_signature") or "").strip()
-    if signature:
-        return signature
-    if graph_info is not None:
-        signature = str(getattr(graph_info, "cnn_signature", "") or "").strip()
-        if signature:
-            return signature
-    return "incomplete_cnn"
-
-
-def _result_block_signature(res: Dict[str, Any], completion: str = "") -> str:
-    if res and res.get("block_contributes_to_forward") is False:
-        return "incomplete_block"
-    signature = str(res.get("block_signature") or "").strip()
-    if signature:
-        return signature
-    block_code, init_code, forward_code = extract_reward_completion_blocks(str(completion or ""))
-    if not _block_contributes_to_forward(init_code, forward_code):
-        return "incomplete_block"
-    return _block_signature_from_code(block_code)
-
-
 def capture_reward_runtime_state() -> Dict[str, Any]:
     return StageState.capture_reward_runtime_state(
         globals(),
@@ -1117,7 +1011,7 @@ def _build_group_feedback_summary(
     unfrozen_train_acc = _optional_float(res.get("unfrozen_train_acc"))
     unfrozen_test_acc = _optional_float(res.get("unfrozen_test_acc"))
     backbone_names = list(res.get("backbone_model_names") or [])
-    backbone_signature = str(res.get("backbone_signature") or build_backbone_signature(backbone_names))
+    backbone_signature = str(res.get("backbone_signature") or _backbone_reward_runtime().build_backbone_signature(backbone_names))
     cnn_signature = str(res.get("cnn_signature") or getattr(graph_info, "cnn_signature", "") or "")
     cnn_expr_short = _truncate_text(str(res.get("cnn_expr") or getattr(graph_info, "cnn_expr", "") or ""), 96)
     open_discovery = dict(res.get("open_discovery") or {})
@@ -1727,7 +1621,7 @@ def update_current_group_metrics(results: List[Dict[str, Any]]) -> None:
             "current_group_reward_target_count",
             reward_target_value,
         )
-        backbone_signature = _result_backbone_signature(res)
+        backbone_signature = _backbone_reward_runtime()._result_backbone_signature(res)
         if reward_target_value is not None and backbone_signature:
             current_group_reward_target_sum_by_backbone[backbone_signature] = (
                 float(current_group_reward_target_sum_by_backbone.get(backbone_signature, 0.0))
@@ -2915,55 +2809,6 @@ def render_completion_xml(block_code: str, init_code: str, forward_code: str) ->
             "</forward>",
         ]
     )
-
-
-def _extract_backbone_model_names(init_code: str) -> List[str]:
-    matches: Dict[str, str] = {}
-    patterns = (
-        r"self\.(backbone_[ab])\s*=\s*TorchVision\(\s*model\s*=\s*['\"]([^'\"]+)['\"]",
-        r"self\.(backbone_[ab])\s*=\s*TorchVision\(\s*['\"]([^'\"]+)['\"]",
-    )
-    for pattern in patterns:
-        for match in re.finditer(pattern, init_code or ""):
-            matches.setdefault(match.group(1), match.group(2))
-    return [matches[name] for name in ("backbone_a", "backbone_b") if name in matches]
-
-
-def _entry_backbone_model_names(entry: Dict[str, Any]) -> List[str]:
-    backbone_names = list(entry.get("backbone_model_names") or [])
-    if backbone_names:
-        return backbone_names
-    _, init_code, _ = extract_reward_completion_blocks(str(entry.get("completion") or ""))
-    return _extract_backbone_model_names(init_code)
-
-
-def _entry_backbone_signature(entry: Dict[str, Any]) -> str:
-    signature = str(entry.get("backbone_signature") or "").strip()
-    if signature:
-        return signature
-    return build_backbone_signature(_entry_backbone_model_names(entry))
-
-
-def _entry_cnn_signature(entry: Dict[str, Any]) -> str:
-    signature = str(entry.get("cnn_signature") or "").strip()
-    if signature:
-        return signature
-    graph_info = entry.get("graph_info")
-    if graph_info is not None:
-        signature = str(getattr(graph_info, "cnn_signature", "") or "").strip()
-        if signature:
-            return signature
-    return "incomplete_cnn"
-
-
-def _entry_block_signature(entry: Dict[str, Any]) -> str:
-    signature = str(entry.get("block_signature") or "").strip()
-    if signature:
-        return signature
-    block_code, init_code, forward_code = extract_reward_completion_blocks(str(entry.get("completion") or ""))
-    if not _block_contributes_to_forward(init_code, forward_code):
-        return "incomplete_block"
-    return _block_signature_from_code(block_code)
 
 
 def reconstruct_code(

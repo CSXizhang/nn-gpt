@@ -1,6 +1,19 @@
 from typing import Any, Callable, Dict, Optional, Sequence
 
 
+def _backbone_signature_from_result(res: Dict[str, Any]) -> str:
+    signature = str(res.get("backbone_signature") or "").strip()
+    if signature:
+        return signature
+    names = [
+        str(name).strip()
+        for name in list(res.get("backbone_model_names") or [])
+        if str(name).strip()
+    ]
+    names.sort()
+    return " + ".join(names) if names else "unknown_backbone_pair"
+
+
 def base_eval_result(
     *,
     seed_accuracy_baseline: Optional[float] = None,
@@ -368,7 +381,7 @@ def attach_group_context(
             "backbone_best_target_reward_target_acc": None,
             "prev_target_train_acc": None,
             "best_target_train_acc": None,
-            "backbone_signature": rl.build_backbone_signature(res.get("backbone_model_names")),
+            "backbone_signature": _backbone_signature_from_result(res),
             "cnn_signature": str(res.get("cnn_signature") or ""),
             "cnn_expr": str(res.get("cnn_expr") or ""),
         },
@@ -438,7 +451,7 @@ def attach_group_context(
             "current_stage_index": group_context.get("current_stage_index", rl._current_stage_index()),
             "stage_uses_formal_eval": rl._stage_uses_formal_eval(group_context.get("current_stage_name", rl.current_stage_name)),
             "stage_uses_static_only": rl._stage_uses_static_only(group_context.get("current_stage_name", rl.current_stage_name)),
-            "backbone_signature": res.get("backbone_signature", rl.build_backbone_signature(res.get("backbone_model_names"))),
+            "backbone_signature": _backbone_signature_from_result(res),
             "cnn_signature": res.get("cnn_signature", ""),
             "cnn_expr": res.get("cnn_expr", ""),
         },

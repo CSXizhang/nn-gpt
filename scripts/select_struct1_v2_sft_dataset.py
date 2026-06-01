@@ -114,16 +114,15 @@ def _discover(args: argparse.Namespace) -> tuple[list[Candidate], dict[str, list
             skipped["missing_sections_or_pattern"].append(str(code_path))
             continue
         try:
-            graph_info = TuneRL.extract_graph_info(
-                init_code,
-                forward_code,
-                legacy_patterns=TuneRL.SFTUtil.legacy_patterns,
+            section_info = TuneRL.describe_reward_code_sections(
+                block_code=block_code,
+                init_code=init_code,
+                forward_code=forward_code,
             )
+            graph_info = section_info.get("graph_info")
             graph_hash = str(getattr(graph_info, "graph_hash", "") or "")
-            block_signature = TuneRL._block_signature_from_code(block_code)
-            backbone_signature = TuneRL.build_backbone_signature(
-                TuneRL._extract_backbone_model_names(init_code)
-            )
+            block_signature = str(section_info.get("block_signature") or "incomplete_block")
+            backbone_signature = str(section_info.get("backbone_signature") or "unknown_backbone_pair")
         except Exception as exc:
             skipped["graph_parse"].append(f"{code_path}: {exc}")
             continue

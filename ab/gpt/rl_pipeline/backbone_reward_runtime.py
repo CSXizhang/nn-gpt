@@ -34,6 +34,22 @@ _SYNC_PROTECTED_NAMES = {
     "_recompute_discovery_reward",
     "_apply_batch_elite_bonuses",
     "_finalize_scored_results",
+    "_normalize_backbone_signature_names",
+    "build_backbone_signature",
+    "_build_backbone_signature",
+    "_backbone_cnn_pair_key",
+    "_backbone_block_pair_key",
+    "_block_signature_from_code",
+    "_block_contributes_to_forward",
+    "_is_plain_dual_backbone_concat",
+    "_result_backbone_signature",
+    "_result_cnn_signature",
+    "_result_block_signature",
+    "_extract_backbone_model_names",
+    "_entry_backbone_model_names",
+    "_entry_backbone_signature",
+    "_entry_cnn_signature",
+    "_entry_block_signature",
 }
 
 
@@ -1392,7 +1408,7 @@ def score_entries(
     batch_cnn_signatures = [_entry_cnn_signature(entry) for entry in entries]
     batch_block_signatures = [_entry_block_signature(entry) for entry in entries]
     batch_backbone_block_signatures = [
-        TuneRL._backbone_block_pair_key(backbone_signature, block_signature)
+        _backbone_block_pair_key(backbone_signature, block_signature)
         for backbone_signature, block_signature in zip(batch_backbone_signatures, batch_block_signatures)
     ]
     scored_results = []
@@ -1857,14 +1873,31 @@ def _extract_backbone_model_names(init_code: str) -> list[str]:
     return [matches[name] for name in ("backbone_a", "backbone_b") if name in matches]
 
 
-def _build_backbone_signature(backbone_model_names: list[str] | None) -> str:
+def _normalize_backbone_signature_names(backbone_model_names: list[str] | None) -> list[str]:
     normalized = [
         str(name).strip()
         for name in list(backbone_model_names or [])
         if str(name).strip()
     ]
     normalized.sort()
+    return normalized
+
+
+def _build_backbone_signature(backbone_model_names: list[str] | None) -> str:
+    normalized = _normalize_backbone_signature_names(backbone_model_names)
     return " + ".join(normalized) if normalized else "unknown_backbone_pair"
+
+
+def build_backbone_signature(backbone_model_names: list[str] | None) -> str:
+    return _build_backbone_signature(backbone_model_names)
+
+
+def _backbone_cnn_pair_key(backbone_signature: str, cnn_signature: str) -> str:
+    return f"{str(backbone_signature or 'unknown_backbone_pair')}::{str(cnn_signature or 'incomplete_cnn')}"
+
+
+def _backbone_block_pair_key(backbone_signature: str, block_signature: str) -> str:
+    return f"{str(backbone_signature or 'unknown_backbone_pair')}::{str(block_signature or 'incomplete_block')}"
 
 
 def _block_signature_from_code(block_code: str) -> str:
@@ -1877,6 +1910,56 @@ def _block_signature_from_code(block_code: str) -> str:
     except Exception:
         payload = "\n".join(line.strip() for line in source.splitlines() if line.strip())
     return hashlib.sha1(payload.encode("utf-8")).hexdigest()
+
+
+def _is_plain_dual_backbone_concat(forward_code: str) -> bool:
+    source = str(forward_code or "")
+    if not ("self.backbone_a" in source and "self.backbone_b" in source):
+        return False
+    if "torch.cat" not in source or "adaptive_pool_flatten" not in source:
+        return False
+    structural_tokens = (
+        "_feature_to_input_image",
+        "self.features",
+        "self.stem",
+        "self.project",
+        "self.bridge",
+        "self.adapter",
+        "self.fuse",
+        "self.fractal",
+        "drop_conv3x3_block",
+    )
+    return not any(token in source for token in structural_tokens)
+
+
+def _result_backbone_signature(res: Dict[str, Any]) -> str:
+    signature = str(res.get("backbone_signature") or "").strip()
+    if signature:
+        return signature
+    return build_backbone_signature(res.get("backbone_model_names"))
+
+
+def _result_cnn_signature(res: Dict[str, Any], graph_info) -> str:
+    signature = str(res.get("cnn_signature") or "").strip()
+    if signature:
+        return signature
+    if graph_info is not None:
+        signature = str(getattr(graph_info, "cnn_signature", "") or "").strip()
+        if signature:
+            return signature
+    return "incomplete_cnn"
+
+
+def _result_block_signature(res: Dict[str, Any], completion: str = "") -> str:
+    if res and res.get("block_contributes_to_forward") is False:
+        return "incomplete_block"
+    signature = str(res.get("block_signature") or "").strip()
+    if signature:
+        return signature
+    block_code, init_code, forward_code = extract_completion_blocks_strict(str(completion or ""))
+    if not _block_contributes_to_forward(init_code, forward_code):
+        return "incomplete_block"
+    return _block_signature_from_code(block_code)
 
 
 def _record_completion(record: Dict[str, Any]) -> str:

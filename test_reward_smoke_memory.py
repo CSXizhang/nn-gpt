@@ -83,7 +83,7 @@ class RewardSmokeMemoryTest(unittest.TestCase):
         self.assertNotIn("pre_reward_samples", tunerl_source)
 
     def test_block_contribution_detects_fractal_unit_feature_path(self):
-        function_source = _function_source("ab/gpt/TuneRL.py", "_block_contributes_to_forward")
+        function_source = _function_source("ab/gpt/rl_pipeline/backbone_reward_runtime.py", "_block_contributes_to_forward")
         namespace = {"re": re}
         exec(function_source, namespace)
         contributes = namespace["_block_contributes_to_forward"]
@@ -502,6 +502,11 @@ def forward(self, x, is_probing=False):
             "def _score_reward_entries(",
             "def _finalize_scored_results(",
             "def _apply_batch_elite_bonuses(",
+            "def build_backbone_signature(",
+            "def _extract_backbone_model_names(",
+            "def _block_contributes_to_forward(",
+            "def _is_plain_dual_backbone_concat(",
+            "def _result_backbone_signature(",
         ):
             self.assertNotIn(token, tunerl_source)
 
