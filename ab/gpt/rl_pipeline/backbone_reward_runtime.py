@@ -107,56 +107,173 @@ def _tunerl():
     return TuneRL
 
 
-_SYNC_PROTECTED_NAMES = {
-    "_tunerl",
-    "_sync_tunerl_globals",
-    "base_discovery_reward_fn",
-    "prepare_entries",
-    "precompute_entries",
-    "score_entries",
-    "entries_from_records",
-    "describe_code_sections",
-    "apply_batch_elite_bonuses",
-    "finalize_scored_results",
-    "_recompute_discovery_reward",
-    "_apply_batch_elite_bonuses",
-    "_finalize_scored_results",
-    "_normalize_backbone_signature_names",
-    "build_backbone_signature",
-    "_build_backbone_signature",
-    "_backbone_cnn_pair_key",
-    "_backbone_block_pair_key",
-    "_block_signature_from_code",
-    "_block_contributes_to_forward",
-    "_is_plain_dual_backbone_concat",
-    "_result_backbone_signature",
-    "_result_cnn_signature",
-    "_result_block_signature",
-    "_extract_backbone_model_names",
-    "_entry_backbone_model_names",
-    "_entry_backbone_signature",
-    "_entry_cnn_signature",
-    "_entry_block_signature",
-    "capture_runtime_state",
-    "restore_runtime_state",
-    "reset_runtime_state",
-    "group_context_fields",
-    "update_group_metrics",
-    "close_group_payload",
-    "reset_current_group_state",
-    "reset_stage_comparison_state",
-    "archive_snapshot_family_counts",
-    *_TASK_STATE_NAMES,
-}
+_TUNERL_DEPENDENCY_NAMES = (
+    "BACKBONE_BASELINE_MIN_ARCHIVE_SAMPLES",
+    "BATCH_ELITE_IMPROVING_BONUSES",
+    "BATCH_ELITE_SOFT_BONUSES",
+    "BEST_GROUP_REFRESH_DELTA",
+    "B_index",
+    "FORMAL_REWARD_TRANSFORM",
+    "FORMAL_SUCCESS_SIGNAL_BONUS",
+    "GENERALIZATION_GAP_TOLERANCE",
+    "GENERALIZATION_PENALTY_CAP",
+    "GENERALIZATION_PENALTY_SCALE",
+    "GOAL_MATCH_REWARD_SCALE",
+    "GOAL_REFRESH_BONUS",
+    "GOAL_REFRESH_DELTA",
+    "GROUP_IMPROVEMENT_DELTA",
+    "NO_PROGRESS_PENALTY",
+    "PLAIN_DUAL_BACKBONE_FUSE_PENALTY",
+    "PLAIN_FUSE_PENALTY",
+    "REPEAT_FAMILY_PENALTY",
+    "REWARD_VARIANT_NO_STRUCTURAL_NOVELTY",
+    "REWARD_VARIANT_STRONG_REPEAT_PENALTY",
+    "RL_STAGE_TO_INDEX",
+    "SAVE_DUPLICATE_BACKBONE_CNN_DELTA",
+    "STAGE1_ARCHIVE_REPEAT_MAX_PENALTY",
+    "STAGE1_ARCHIVE_REPEAT_STEP_PENALTY",
+    "STAGE1_BATCH_REPEAT_MAX_PENALTY",
+    "STAGE1_BATCH_REPEAT_STEP_PENALTY",
+    "STAGE1_DESCRIPTOR_ARCHIVE_NOVEL_BONUS",
+    "STAGE1_DESCRIPTOR_ARCHIVE_REPEAT_MAX_PENALTY",
+    "STAGE1_DESCRIPTOR_ARCHIVE_REPEAT_STEP_PENALTY",
+    "STAGE1_DESCRIPTOR_BATCH_REPEAT_MAX_PENALTY",
+    "STAGE1_DESCRIPTOR_BATCH_REPEAT_STEP_PENALTY",
+    "STAGE1_DESCRIPTOR_BATCH_UNIQUE_BONUS",
+    "STAGE1_DISCOVERY_FAMILY_BONUS",
+    "STAGE1_DISCOVERY_GRAPH_BONUS",
+    "STAGE1_DISCOVERY_MIN_GOAL_HIT_RATE",
+    "STAGE1_DOMINANT_FAMILY_PENALTY",
+    "STAGE1_GOAL_MATCH_SCALE",
+    "STAGE1_GRAPH_BATCH_REPEAT_MAX_PENALTY",
+    "STAGE1_GRAPH_BATCH_REPEAT_STEP_PENALTY",
+    "STAGE1_GRAPH_BATCH_UNIQUE_BONUS",
+    "STAGE1_LOW_GOAL_HIT_PENALTY",
+    "STAGE1_LOW_GOAL_HIT_REWARD_CAP",
+    "STAGE1_NON_DISCOVERY_EXECUTABLE_PENALTY",
+    "STAGE1_OFF_TARGET_PLAIN_PARALLEL_REWARD_CAP",
+    "STAGE1_PLAIN_PARALLEL_PENALTY",
+    "STAGE1_PLAIN_PARALLEL_REWARD_CAP",
+    "STAGE1_PLAIN_PARALLEL_WARMUP_PENALTY",
+    "STAGE1_REPEATED_BLOCK_REWARD_CAP",
+    "STAGE1_STATIC_BASE_SCORE",
+    "STAGE1_STRUCTURE_ARCHIVE_SCALE",
+    "STAGE1_STRUCTURE_EXPLORE",
+    "STAGE1_STRUCTURE_GROUP_SCALE",
+    "STAGE1_ZERO_GOAL_HIT_PENALTY",
+    "STAGE1_ZERO_GOAL_HIT_REWARD_CAP",
+    "STAGE23_BLOCK_ARCHIVE_NOVEL_BONUS",
+    "STAGE23_BLOCK_ARCHIVE_REPEAT_MAX_PENALTY",
+    "STAGE23_BLOCK_ARCHIVE_REPEAT_WINDOW",
+    "STAGE23_BLOCK_BATCH_REPEAT_MAX_PENALTY",
+    "STAGE23_BLOCK_BATCH_REPEAT_STEP_PENALTY",
+    "STAGE23_BLOCK_BATCH_UNIQUE_BONUS",
+    "STAGE23_CNN_ARCHIVE_NOVEL_BONUS",
+    "STAGE23_CNN_ARCHIVE_REPEAT_MAX_PENALTY",
+    "STAGE23_CNN_ARCHIVE_REPEAT_STEP_PENALTY",
+    "STAGE23_CNN_BATCH_REPEAT_MAX_PENALTY",
+    "STAGE23_CNN_BATCH_REPEAT_STEP_PENALTY",
+    "STAGE23_CNN_BATCH_UNIQUE_BONUS",
+    "STAGE23_DEAD_BLOCK_PENALTY",
+    "STAGE23_DESCRIPTOR_ARCHIVE_NOVEL_BONUS",
+    "STAGE23_DESCRIPTOR_ARCHIVE_REPEAT_MAX_PENALTY",
+    "STAGE23_DESCRIPTOR_ARCHIVE_REPEAT_STEP_PENALTY",
+    "STAGE23_DESCRIPTOR_BATCH_REPEAT_MAX_PENALTY",
+    "STAGE23_DESCRIPTOR_BATCH_REPEAT_STEP_PENALTY",
+    "STAGE23_DESCRIPTOR_BATCH_UNIQUE_BONUS",
+    "STAGE23_DOMINANT_CNN_REPEAT_PENALTY",
+    "STAGE23_DOMINANT_CNN_REPEAT_STRONG_PENALTY",
+    "STAGE23_DOMINANT_CNN_SOFT_SHARE",
+    "STAGE23_DOMINANT_CNN_STRONG_SHARE",
+    "STAGE23_DOMINANT_DESCRIPTOR_REPEAT_PENALTY",
+    "STAGE23_DOMINANT_DESCRIPTOR_REPEAT_STRONG_PENALTY",
+    "STAGE23_DOMINANT_DESCRIPTOR_SOFT_SHARE",
+    "STAGE23_DOMINANT_DESCRIPTOR_STRONG_SHARE",
+    "STAGE23_GLOBAL_CNN_ARCHIVE_NOVEL_BONUS",
+    "STAGE23_GLOBAL_CNN_ARCHIVE_REPEAT_MAX_PENALTY",
+    "STAGE23_GLOBAL_CNN_ARCHIVE_REPEAT_WINDOW",
+    "STAGE23_GLOBAL_CNN_REPEAT_PENALTY",
+    "STAGE23_GLOBAL_CNN_REPEAT_STRONG_PENALTY",
+    "STAGE23_GLOBAL_DESCRIPTOR_ARCHIVE_NOVEL_BONUS",
+    "STAGE23_GLOBAL_DESCRIPTOR_ARCHIVE_REPEAT_MAX_PENALTY",
+    "STAGE23_GLOBAL_DESCRIPTOR_ARCHIVE_REPEAT_WINDOW",
+    "STAGE23_NON_DOMINANT_CNN_BONUS",
+    "STAGE23_NON_DOMINANT_DESCRIPTOR_BONUS",
+    "STAGE23_REPEATED_BLOCK_REWARD_CAP",
+    "STAGE2_FORMAL_EXPLORE",
+    "TARGET_STRUCTURE_MATCH_BONUS",
+    "TRAINSET_NOVEL_FAMILY_BONUS",
+    "TRAINSET_NOVEL_GRAPH_BONUS",
+    "_apply_executability_clamp",
+    "_apply_stage1_trainability_clamp",
+    "_apply_target_structure_final_clamp",
+    "_apply_target_structure_reward_adjustment",
+    "_apply_target_structure_reward_gate",
+    "_apply_trainability_clamp",
+    "_clip",
+    "_compute_build_partial_reward",
+    "_compute_warmup_dense_reward",
+    "_current_generation_total",
+    "_discovery_failure_result",
+    "_goal_tag_match_stats",
+    "_has_completed_formal_epoch",
+    "_history_context_reward",
+    "_is_executable_candidate",
+    "_is_minimal_backbone_classifier_template",
+    "_is_repeated_block_without_refresh",
+    "_is_strong_repeat_without_refresh",
+    "_is_trainable_candidate",
+    "_optional_float",
+    "_record_current_group_trainable_sample",
+    "_record_generation_event",
+    "_remove_positive_structural_novelty_components",
+    "_result_reward_target_value",
+    "_reward_variant_is_strong_repeat_penalty",
+    "_stage1_validity_reward",
+    "_stage1_validity_scale",
+    "_stage23_gate_positive_novelty_by_quality",
+    "_stage23_local_competition_reward",
+    "_stage_reward_profile",
+    "_stage_reward_target_metric",
+    "_stage_uses_formal_eval",
+    "_stage_uses_static_only",
+    "_structure_progress_components",
+    "_template_penalty",
+    "best_closed_group_mean_reward_target_acc",
+    "best_closed_group_mean_test_acc",
+    "best_closed_group_mean_train_acc",
+    "best_reward_target_by_goal",
+    "close_reward_group_if_needed",
+    "code_logger",
+    "create_file",
+    "current_stage_name",
+    "detect_target_structure",
+    "ensure_pattern_name",
+    "evaluate_reward_code",
+    "extract_reward_completion_blocks",
+    "get_goal_counter",
+    "is_multi_stage_architecture",
+    "is_shallow_one_shot_fuse",
+    "new_nn_file",
+    "new_out_file",
+    "normalize_pattern_name",
+    "passes_macro_structure_gate",
+    "prev_closed_group_mean_reward_target_acc",
+    "primary_goal_key",
+    "reconstruct_code",
+    "render_completion_xml",
+    "resolve_reward_variant",
+    "reward_eval_cfg_builder",
+    "reward_run_epoch_dir",
+    "summarize_stage_training_context",
+    "synth_dir",
+    "update_current_group_metrics",
+)
 
 
-def _sync_tunerl_globals():
+def _bind_tunerl_dependencies():
     TuneRL = _tunerl()
-    for name, value in vars(TuneRL).items():
-        if name.startswith("__") or name in _SYNC_PROTECTED_NAMES:
-            continue
-        globals()[name] = value
-    globals()["B_index"] = getattr(TuneRL, "B_index", 0)
+    globals().update({name: getattr(TuneRL, name) for name in _TUNERL_DEPENDENCY_NAMES})
     return TuneRL
 
 
@@ -1666,7 +1783,7 @@ def _base_discovery_reward_fn(
 
 
 def base_discovery_reward_fn(*args, **kwargs):
-    _sync_tunerl_globals()
+    _bind_tunerl_dependencies()
     return _base_discovery_reward_fn(*args, **kwargs)
 
 
@@ -2206,18 +2323,17 @@ def _finalize_scored_results(scored_results: List[Dict[str, Any]]) -> None:
 
 
 def apply_batch_elite_bonuses(scored_results, group_context: Dict[str, Any]) -> None:
-    _sync_tunerl_globals()
+    _bind_tunerl_dependencies()
     _apply_batch_elite_bonuses(scored_results, group_context)
 
 
 def finalize_scored_results(scored_results) -> None:
-    TuneRL = _sync_tunerl_globals()
+    TuneRL = _bind_tunerl_dependencies()
     _finalize_scored_results(scored_results)
     TuneRL.B_index = globals().get("B_index", getattr(TuneRL, "B_index", 0))
 
 
 def print_discovery_metrics() -> None:
-    _sync_tunerl_globals()
     total_valid = sum(family_hash_archive_counts.values())
     unique_count = len(graph_archive_counts)
     unique_families = len(family_archive_counts)
