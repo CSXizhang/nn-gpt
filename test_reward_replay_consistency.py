@@ -13,6 +13,8 @@ ROOT = Path(__file__).resolve().parent
 FIXTURE_DIR = ROOT / "test" / "fixtures" / "reward_replay"
 INPUTS_PATH = FIXTURE_DIR / "current_reward_inputs.jsonl"
 GOLDEN_PATH = FIXTURE_DIR / "current_reward_golden.jsonl"
+DATA_ARCHIVE_INPUTS_PATH = FIXTURE_DIR / "data_archive_reward_inputs.jsonl"
+DATA_ARCHIVE_GOLDEN_PATH = FIXTURE_DIR / "data_archive_reward_golden.jsonl"
 
 
 def _read_jsonl(path: Path):
@@ -34,6 +36,13 @@ class RewardReplayConsistencyTest(unittest.TestCase):
         self.assertGreaterEqual(len(inputs), 24)
         self.assertEqual(len(inputs), len(golden))
 
+        self.assertTrue(DATA_ARCHIVE_INPUTS_PATH.exists(), f"missing replay inputs: {DATA_ARCHIVE_INPUTS_PATH}")
+        self.assertTrue(DATA_ARCHIVE_GOLDEN_PATH.exists(), f"missing replay golden: {DATA_ARCHIVE_GOLDEN_PATH}")
+        archive_inputs = _read_jsonl(DATA_ARCHIVE_INPUTS_PATH)
+        archive_golden = _read_jsonl(DATA_ARCHIVE_GOLDEN_PATH)
+        self.assertGreaterEqual(len(archive_inputs), 80)
+        self.assertEqual(len(archive_inputs), len(archive_golden))
+
     def test_compare_paths_cover_reward_contract(self):
         numeric = {path for label, path in NUMERIC_PATHS if label in {"api", "open_discovery"}}
         bools = {path for label, path in BOOL_PATHS if label in {"api", "open_discovery"}}
@@ -54,7 +63,7 @@ class RewardReplayConsistencyTest(unittest.TestCase):
         ):
             self.assertIn(key, bools)
 
-    def test_current_reward_replay_matches_frozen_golden(self):
+    def _assert_replay_matches(self, inputs_path: Path, golden_path: Path) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             output = Path(tmpdir) / "rescored.jsonl"
             env = dict(os.environ)
@@ -64,7 +73,7 @@ class RewardReplayConsistencyTest(unittest.TestCase):
                     "python3",
                     str(ROOT / "scripts" / "score_reward_records.py"),
                     "--input",
-                    str(INPUTS_PATH),
+                    str(inputs_path),
                     "--output",
                     str(output),
                     "--reward-variant",
@@ -74,7 +83,7 @@ class RewardReplayConsistencyTest(unittest.TestCase):
                 env=env,
                 check=True,
             )
-            golden = _read_jsonl(GOLDEN_PATH)
+            golden = _read_jsonl(golden_path)
             rescored = _read_jsonl(output)
         self.assertEqual(len(golden), len(rescored))
         mismatches = []
@@ -84,6 +93,12 @@ class RewardReplayConsistencyTest(unittest.TestCase):
             actual_reward = float(actual.get("reward", math.nan))
             self.assertEqual(expected_reward > 0.0, actual_reward > 0.0)
         self.assertEqual([], mismatches[:20])
+
+    def test_current_reward_replay_matches_frozen_golden(self):
+        self._assert_replay_matches(INPUTS_PATH, GOLDEN_PATH)
+
+    def test_data_archive_reward_replay_matches_frozen_golden(self):
+        self._assert_replay_matches(DATA_ARCHIVE_INPUTS_PATH, DATA_ARCHIVE_GOLDEN_PATH)
 
     def test_registered_sft_task_preserves_formal_eval_contract(self):
         code = """
