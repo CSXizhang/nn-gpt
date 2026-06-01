@@ -593,34 +593,19 @@ def _broadcast_object(payload: Any, *, src: int = 0) -> Any:
 
 
 def has_structural_motif(graph_info) -> bool:
-    return bool(graph_info and (graph_info.project_calls or graph_info.stem_calls or graph_info.fractal_calls))
+    return _backbone_reward_runtime().has_structural_motif(graph_info)
 
 
 def is_multi_stage_architecture(graph_info) -> bool:
-    return bool(graph_info and (graph_info.depth >= 5 or graph_info.merges >= 2 or graph_info.fractal_calls >= 2))
+    return _backbone_reward_runtime().is_multi_stage_architecture(graph_info)
 
 
 def passes_macro_structure_gate(graph_info) -> bool:
-    if not graph_info or not graph_info.parse_ok or graph_info.is_plain_parallel_triple:
-        return False
-    if graph_info.project_calls or graph_info.stem_calls:
-        return True
-    return is_multi_stage_architecture(graph_info)
+    return _backbone_reward_runtime().passes_macro_structure_gate(graph_info)
 
 
 def is_shallow_one_shot_fuse(graph_info) -> bool:
-    return bool(
-        graph_info
-        and graph_info.parse_ok
-        and not graph_info.is_plain_parallel_triple
-        and graph_info.fuse_calls >= 1
-        and graph_info.merges <= 1
-        and graph_info.depth <= 4
-        and graph_info.project_calls == 0
-        and graph_info.stem_calls == 0
-        and graph_info.fractal_calls <= 1
-        and graph_info.backbone_calls >= 1
-    )
+    return _backbone_reward_runtime().is_shallow_one_shot_fuse(graph_info)
 
 
 def family_save_cap(graph_info) -> int:

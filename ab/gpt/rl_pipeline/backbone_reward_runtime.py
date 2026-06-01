@@ -333,6 +333,8 @@ def is_shallow_one_shot_fuse(graph_info) -> bool:
         and graph_info.depth <= 4
         and graph_info.project_calls == 0
         and graph_info.stem_calls == 0
+        and graph_info.fractal_calls <= 1
+        and graph_info.backbone_calls >= 1
     )
 
 
