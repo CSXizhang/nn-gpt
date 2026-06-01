@@ -3611,6 +3611,12 @@ def load_reward_dataset(tokenizer):
     return _reward_task_callable("load_rl_dataset", load_rl_dataset)(tokenizer)
 
 
+def _backbone_reward_runtime():
+    from ab.gpt.rl_pipeline import backbone_reward_runtime as BackboneRewardRuntime
+
+    return BackboneRewardRuntime
+
+
 def extract_reward_seed_context(kwargs: Dict[str, Any], expected_count: int):
     return _reward_task_callable("extract_seed_context", require_sample_accuracy_baselines)(kwargs, expected_count)
 
@@ -3633,33 +3639,39 @@ def prepare_reward_entries(
             group_context=group_context,
             precompute_eval=precompute_eval,
         )
-    return _prepare_local_reward_entries(
+    return _backbone_reward_runtime().prepare_entries(
         prompts,
         completions,
-        seed_accuracy_baselines=seed_contexts,
+        seed_contexts=seed_contexts,
         group_context=group_context,
         precompute_eval=precompute_eval,
     )
 
 
 def precompute_reward_entries(entries: List[Dict[str, Any]], *, group_context: Dict[str, Any]) -> None:
-    _reward_task_callable("precompute_entries", _precompute_eval_results)(entries, group_context=group_context)
+    _reward_task_callable("precompute_entries", _backbone_reward_runtime().precompute_entries)(
+        entries,
+        group_context=group_context,
+    )
 
 
 def apply_reward_batch_elite_bonuses(scored_results: List[Dict[str, Any]], group_context: Dict[str, Any]) -> None:
-    _reward_task_callable("apply_batch_elite_bonuses", _apply_batch_elite_bonuses)(scored_results, group_context)
+    _reward_task_callable("apply_batch_elite_bonuses", _backbone_reward_runtime().apply_batch_elite_bonuses)(
+        scored_results,
+        group_context,
+    )
 
 
 def finalize_reward_scored_results(scored_results: List[Dict[str, Any]]) -> None:
-    _reward_task_callable("finalize_scored_results", _finalize_scored_results)(scored_results)
+    _reward_task_callable("finalize_scored_results", _backbone_reward_runtime().finalize_scored_results)(scored_results)
 
 
 def reward_entries_from_records(records: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-    return _reward_task_callable("entries_from_records", _entries_from_records)(records)
+    return _reward_task_callable("entries_from_records", _backbone_reward_runtime().entries_from_records)(records)
 
 
 def describe_reward_code_sections(*, block_code: str, init_code: str, forward_code: str) -> Dict[str, Any]:
-    return _reward_task_callable("describe_code_sections", _describe_reward_code_sections)(
+    return _reward_task_callable("describe_code_sections", _backbone_reward_runtime().describe_code_sections)(
         block_code=block_code,
         init_code=init_code,
         forward_code=forward_code,
@@ -3747,90 +3759,6 @@ def reward_fn(
     )
 
 
-def _apply_batch_elite_bonuses(scored_results: List[Dict[str, Any]], group_context: Dict[str, Any]) -> None:
-    if group_context["group_warmup"] or str(group_context.get("current_stage_name")) == STAGE1_STRUCTURE_EXPLORE:
-        return
-
-    eligible: List[Tuple[float, Dict[str, Any]]] = []
-
-    for item in scored_results:
-        res = item["result"]
-        graph_info = item["graph_info"]
-        reward_target_value = _result_reward_target_value(res)
-        if not _is_executable_candidate(res, graph_info):
-            continue
-        if not _has_completed_formal_epoch(res):
-            continue
-        if reward_target_value is None:
-            continue
-        if res.get("target_structure_match") is False:
-            continue
-        if _is_repeated_block_without_refresh(res):
-            continue
-        improved = bool(res.get("group_reward_target_improved") or res.get("backbone_reward_target_improved"))
-        if (res.get("dominant_descriptor_repeat") or res.get("dominant_cnn_repeat")) and not improved:
-            continue
-        if res.get("plain_dual_backbone_concat") and not improved:
-            continue
-        if _reward_variant_is_strong_repeat_penalty() and _is_strong_repeat_without_refresh(res):
-            continue
-        eligible.append((float(reward_target_value), item))
-
-    eligible.sort(key=lambda pair: pair[0], reverse=True)
-    elite_summaries: List[str] = []
-    max_elites = min(len(BATCH_ELITE_SOFT_BONUSES), len(BATCH_ELITE_IMPROVING_BONUSES))
-    for rank, (reward_target_float, item) in enumerate(eligible[:max_elites]):
-        threshold_baseline = _optional_float(
-            item["result"].get("group_backbone_baseline_reward_target_acc", item["result"].get("group_baseline_reward_target_acc"))
-        )
-        threshold = (
-            float(threshold_baseline) + GROUP_IMPROVEMENT_DELTA
-            if threshold_baseline is not None
-            else None
-        )
-        threshold_passed = threshold is not None and reward_target_float >= threshold
-        tier = "improving" if threshold_passed else "soft"
-        bonus = (
-            BATCH_ELITE_IMPROVING_BONUSES[rank]
-            if threshold_passed
-            else BATCH_ELITE_SOFT_BONUSES[rank]
-        )
-        res = item["result"]
-        graph_info = item["graph_info"]
-        old_reward = float(res.get("reward", -2.0))
-        old_discovery_reward, _, _ = _recompute_discovery_reward(res, graph_info)
-        postprocess_delta = old_reward - float(old_discovery_reward)
-        if (
-            (not _is_repeated_block_without_refresh(res))
-            and not (_reward_variant_is_strong_repeat_penalty() and _is_strong_repeat_without_refresh(res))
-            and float(res.get("r_no_progress_penalty", 0.0) or 0.0) < 0.0
-        ):
-            res["r_no_progress_penalty"] = 0.0
-        res["r_batch_elite"] = bonus
-        res["batch_elite_rank"] = rank + 1
-        res["batch_elite_tier"] = tier
-        res["batch_elite_threshold_passed"] = threshold_passed
-        total_reward, r_primary, r_tiebreak = _recompute_discovery_reward(res, graph_info)
-        res["reward"] = _clip(float(total_reward) + postprocess_delta, -2.0, 2.0)
-        open_discovery = res.setdefault("open_discovery", {})
-        open_discovery["r_batch_elite"] = bonus
-        open_discovery["r_primary"] = r_primary
-        open_discovery["r_tiebreak"] = r_tiebreak
-        open_discovery["batch_elite_rank"] = rank + 1
-        open_discovery["batch_elite_tier"] = tier
-        open_discovery["batch_elite_threshold_passed"] = threshold_passed
-        item["score"] = float(res["reward"])
-        elite_summaries.append(
-            f"#{rank + 1} target={reward_target_float:.4f} tier={tier} bonus={bonus:.3f} "
-            f"struct={float(res.get('r_structure_group', 0.0) or 0.0) + float(res.get('r_structure_archive', 0.0) or 0.0):.3f}"
-        )
-    if elite_summaries:
-        code_logger.log_to_file(
-            f"[Reward Batch Elite] reward_batch_index={group_context['reward_batch_index']} "
-            + "; ".join(elite_summaries)
-        )
-
-
 def _is_repeated_block_without_refresh(res: Dict[str, Any]) -> bool:
     block_signature = str(res.get("block_signature") or "")
     if not block_signature or block_signature == "incomplete_block":
@@ -3911,63 +3839,6 @@ def _reward_failure_result(
     )
 
 
-def _prepare_local_reward_entries(
-    prompts,
-    completions,
-    *,
-    seed_accuracy_baselines: List[float],
-    group_context: Dict[str, Any],
-    precompute_eval: bool = True,
-) -> List[Dict[str, Any]]:
-    runtime_rank = _distributed_rank()
-    batch_graph_infos: List[Any] = []
-    batch_backbone_model_names: List[List[str]] = []
-    batch_prompt_goal_tags = [extract_prompt_goal_tags(prompt) for prompt in prompts]
-    batch_prompt_target_patterns = [extract_prompt_target_pattern(prompt) for prompt in prompts]
-
-    for i, completion in enumerate(completions):
-        _, init_code, forward_code = extract_reward_completion_blocks(completion)
-        backbone_model_names = _extract_backbone_model_names(init_code)
-        if init_code and forward_code:
-            graph_info = extract_graph_info(
-                init_code,
-                forward_code,
-                legacy_patterns=SFTUtil.legacy_patterns,
-            )
-        else:
-            graph_info = None
-        batch_graph_infos.append(graph_info)
-        batch_backbone_model_names.append(backbone_model_names)
-
-    local_entries: List[Dict[str, Any]] = []
-    for i, (prompt, completion) in enumerate(zip(prompts, completions)):
-        graph_info = batch_graph_infos[i]
-        local_entries.append(
-            {
-                "rank": runtime_rank,
-                "local_index": i,
-                "prompt": prompt,
-                "completion": completion,
-                "graph_info": graph_info,
-                "backbone_model_names": batch_backbone_model_names[i],
-                "backbone_signature": build_backbone_signature(batch_backbone_model_names[i]),
-                "cnn_signature": (
-                    str(getattr(graph_info, "cnn_signature", "") or "")
-                    if graph_info is not None
-                    else "incomplete_cnn"
-                ),
-                "prompt_goal_tags": batch_prompt_goal_tags[i],
-                "prompt_target_pattern": batch_prompt_target_patterns[i],
-                "goal_key": primary_goal_key(batch_prompt_goal_tags[i], batch_prompt_target_patterns[i]),
-                "seed_accuracy_baseline": seed_accuracy_baselines[i],
-                "precomputed_eval_result": None,
-            }
-        )
-    if precompute_eval:
-        _precompute_eval_results(local_entries, group_context=group_context)
-    return local_entries
-
-
 def _build_global_reward_entries(gathered_entries: List[List[Dict[str, Any]]]) -> List[Dict[str, Any]]:
     global_entries: List[Dict[str, Any]] = []
     for global_index, entry in enumerate(
@@ -4009,219 +3880,6 @@ def _merge_gathered_reward_entries(
             f"Distributed reward merge expected {expected_count} entries, but received {len(merged_entries)}"
         )
     return merged_entries
-
-
-def _record_completion(record: Dict[str, Any]) -> str:
-    return str(record.get("completion") or record.get("raw_completion") or "")
-
-
-def _record_api_result(record: Dict[str, Any]) -> Dict[str, Any]:
-    value = record.get("api_result")
-    return value if isinstance(value, dict) else {}
-
-
-def _record_seed_accuracy(record: Dict[str, Any]) -> float:
-    api_result = _record_api_result(record)
-    sources = (
-        record,
-        api_result,
-        record.get("candidate") if isinstance(record.get("candidate"), dict) else {},
-    )
-    for source in sources:
-        value = (
-            source.get("seed_accuracy_baseline")
-            if source.get("seed_accuracy_baseline") is not None
-            else source.get("accuracy_baseline")
-            if source.get("accuracy_baseline") is not None
-            else source.get("accuracy")
-        )
-        if value is not None:
-            return _coerce_accuracy_baseline(value, context="replay record accuracy")
-    return 0.10
-
-
-def _entry_from_record(record: Dict[str, Any], index: int) -> Dict[str, Any]:
-    completion = _record_completion(record)
-    block_code, init_code, forward_code = extract_reward_completion_blocks(completion)
-    backbone_model_names = _extract_backbone_model_names(init_code)
-    graph_info = None
-    if block_code and init_code and forward_code and "self.pattern" not in forward_code:
-        graph_info = extract_graph_info(
-            init_code,
-            forward_code,
-            legacy_patterns=SFTUtil.legacy_patterns,
-        )
-    backbone_signature = build_backbone_signature(backbone_model_names)
-    cnn_signature = (
-        str(getattr(graph_info, "cnn_signature", "") or "")
-        if graph_info is not None
-        else "incomplete_cnn"
-    )
-    prompt = str(record.get("prompt") or "")
-    prompt_goal_tags = extract_prompt_goal_tags(prompt)
-    prompt_target_pattern = extract_prompt_target_pattern(prompt)
-    return {
-        "rank": 0,
-        "local_index": index,
-        "global_index": index,
-        "completion": completion,
-        "prompt": prompt,
-        "graph_info": graph_info,
-        "backbone_model_names": backbone_model_names,
-        "backbone_signature": backbone_signature,
-        "cnn_signature": cnn_signature,
-        "prompt_goal_tags": prompt_goal_tags,
-        "prompt_target_pattern": prompt_target_pattern,
-        "goal_key": primary_goal_key(prompt_goal_tags, prompt_target_pattern),
-        "seed_accuracy_baseline": _record_seed_accuracy(record),
-        "precomputed_eval_result": dict(_record_api_result(record)),
-    }
-
-
-def _entries_from_records(records: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-    return [_entry_from_record(record, index) for index, record in enumerate(records)]
-
-
-def _describe_reward_code_sections(*, block_code: str, init_code: str, forward_code: str) -> Dict[str, Any]:
-    graph_info = None
-    if init_code and forward_code and "self.pattern" not in forward_code:
-        try:
-            graph_info = extract_graph_info(
-                init_code,
-                forward_code,
-                legacy_patterns=SFTUtil.legacy_patterns,
-            )
-        except Exception:
-            graph_info = None
-    backbone_model_names = _extract_backbone_model_names(init_code)
-    backbone_signature = build_backbone_signature(backbone_model_names)
-    block_signature = _block_signature_from_code(block_code)
-    return {
-        "graph_info": graph_info,
-        "block_code": block_code,
-        "init_code": init_code,
-        "forward_code": forward_code,
-        "backbone_model_names": backbone_model_names,
-        "backbone_signature": backbone_signature,
-        "block_signature": block_signature,
-        "cnn_signature": (
-            str(getattr(graph_info, "cnn_signature", "") or "")
-            if graph_info is not None
-            else "incomplete_cnn"
-        ),
-        "cnn_expr": (
-            str(getattr(graph_info, "cnn_expr", "") or "")
-            if graph_info is not None
-            else "IncompleteCNN"
-        ),
-    }
-
-
-def _build_batched_eval_specs(
-    entries: List[Dict[str, Any]],
-    *,
-    group_context: Dict[str, Any],
-) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
-    eval_cfg_builder = reward_eval_cfg_builder()
-    batched_eval_entries: List[Dict[str, Any]] = []
-    batched_eval_specs: List[Dict[str, Any]] = []
-
-    for entry in entries:
-        if entry.get("precomputed_eval_result") is not None:
-            continue
-
-        completion = str(entry.get("completion", ""))
-        graph_info = entry.get("graph_info")
-        block_code, init_code, forward_code = extract_reward_completion_blocks(completion)
-        if not block_code or not init_code or not forward_code:
-            continue
-        if "self.pattern" in forward_code or graph_info is None:
-            continue
-
-        pattern_override = graph_info.suggested_pattern_name if not graph_info.has_custom_pattern_name else ""
-        final_code = reconstruct_code(completion, pattern_name_override=pattern_override)
-        if not final_code:
-            continue
-
-        formal_input_shape = _formal_reward_input_shape()
-        spec = {
-            "code": final_code,
-            "in_shape": formal_input_shape,
-            "out_shape": (10,),
-            "prm": {
-                "lr": 0.01,
-                "batch": 64,
-                "dropout": 0.3,
-                "momentum": 0.9,
-                "transform": FORMAL_REWARD_TRANSFORM,
-                "epoch": 1,
-            },
-            "device": "cuda" if torch.cuda.is_available() else "cpu",
-            "seed_accuracy_baseline": entry["seed_accuracy_baseline"],
-            "reward_batch_index": group_context["reward_batch_index"],
-            "completion_index": int(entry.get("global_index", entry["local_index"])),
-            "batch_last_item": False,
-        }
-        if callable(eval_cfg_builder):
-            spec["cfg"] = _invoke_eval_cfg_builder(
-                eval_cfg_builder,
-                stage_name=str(group_context.get("current_stage_name") or current_stage_name),
-                in_shape=formal_input_shape,
-                out_shape=(10,),
-                prm=spec["prm"],
-                cfg=None,
-                device=spec["device"],
-            )
-
-        batched_eval_entries.append(entry)
-        batched_eval_specs.append(spec)
-
-    if batched_eval_specs:
-        batched_eval_specs[-1]["batch_last_item"] = True
-
-    return batched_eval_entries, batched_eval_specs
-
-
-def _precompute_eval_results(
-    entries: List[Dict[str, Any]],
-    *,
-    group_context: Dict[str, Any],
-) -> None:
-    batched_eval_entries, batched_eval_specs = _build_batched_eval_specs(
-        entries,
-        group_context=group_context,
-    )
-    if not batched_eval_specs:
-        return
-    rank = _distributed_rank()
-    local_rank = env_int("LOCAL_RANK", 0)
-    started_at = time.time()
-    print(
-        "[Reward Precompute Local] start "
-        f"rank={rank} "
-        f"local_rank={local_rank} "
-        f"reward_batch_index={group_context.get('reward_batch_index')} "
-        f"entries={len(batched_eval_specs)} "
-        f"wall_time={started_at:.6f}"
-    )
-    if torch.cuda.is_available():
-        torch.cuda.empty_cache()
-    batched_eval_results = evaluate_reward_code_batch(batched_eval_specs)
-    if torch.cuda.is_available():
-        torch.cuda.empty_cache()
-    ended_at = time.time()
-    elapsed_seconds = max(0.0, ended_at - started_at)
-    print(
-        "[Reward Precompute Local] end "
-        f"rank={rank} "
-        f"local_rank={local_rank} "
-        f"reward_batch_index={group_context.get('reward_batch_index')} "
-        f"entries={len(batched_eval_specs)} "
-        f"elapsed_seconds={elapsed_seconds:.2f} "
-        f"wall_time={ended_at:.6f}"
-    )
-    for entry, eval_result in zip(batched_eval_entries, batched_eval_results):
-        entry["precomputed_eval_result"] = eval_result
 
 
 def _format_reward_trace_context(context: Optional[Dict[str, Any]]) -> str:
@@ -4297,331 +3955,17 @@ def _log_reward_failure_trace(entry: Dict[str, Any], res: Dict[str, Any]) -> Non
         code_logger.log_to_file(trace_message)
 
 
-def _score_reward_entries(
-    entries: List[Dict[str, Any]],
-    *,
-    group_context: Dict[str, Any],
-    archive_snapshot_family_counts: Dict[str, int],
-) -> List[Dict[str, Any]]:
-    archive_snapshot_descriptor_counts = dict(descriptor_archive_counts)
-    archive_snapshot_backbone_signature_counts = dict(backbone_signature_archive_counts)
-    archive_snapshot_cnn_signature_counts = dict(cnn_signature_archive_counts)
-    archive_snapshot_graph_counts = dict(graph_archive_counts)
-    archive_snapshot_block_signature_counts = dict(block_signature_archive_counts)
-    archive_snapshot_backbone_cnn_pair_counts = dict(backbone_cnn_pair_archive_counts)
-    archive_snapshot_backbone_block_pair_counts = dict(backbone_block_pair_archive_counts)
-    archive_snapshot_backbone_block_best_quality = dict(best_quality_acc_by_backbone_block)
-    batch_graph_hashes = [
-        entry["graph_info"].graph_hash if entry.get("graph_info") and entry["graph_info"].parse_ok else "incomplete"
-        for entry in entries
-    ]
-    batch_family_hashes = [
-        entry["graph_info"].family_hash if entry.get("graph_info") and entry["graph_info"].parse_ok else "incomplete"
-        for entry in entries
-    ]
-    batch_descriptor_keys = [
-        entry["graph_info"].descriptor_key if entry.get("graph_info") and entry["graph_info"].parse_ok else "incomplete"
-        for entry in entries
-    ]
-    batch_backbone_signatures = [
-        _entry_backbone_signature(entry)
-        for entry in entries
-    ]
-    batch_cnn_signatures = [
-        _entry_cnn_signature(entry)
-        for entry in entries
-    ]
-    batch_block_signatures = [
-        _entry_block_signature(entry)
-        for entry in entries
-    ]
-    batch_backbone_block_signatures = [
-        _backbone_block_pair_key(backbone_signature, block_signature)
-        for backbone_signature, block_signature in zip(batch_backbone_signatures, batch_block_signatures)
-    ]
-    scored_results: List[Dict[str, Any]] = []
-
-    for position, entry in enumerate(entries):
-        index = int(entry["local_index"])
-        completion_index = int(entry.get("global_index", index))
-        code_logger.log_to_file("=" * 50)
-        try:
-            res = reward_task_reward_fn(
-                entry["completion"],
-                seed_accuracy_baseline=entry["seed_accuracy_baseline"],
-                precomputed_eval_result=entry.get("precomputed_eval_result"),
-                graph_info=entry.get("graph_info"),
-                batch_graph_hashes=batch_graph_hashes,
-                batch_family_hashes=batch_family_hashes,
-                batch_descriptor_keys=batch_descriptor_keys,
-                batch_backbone_signatures=batch_backbone_signatures,
-                batch_cnn_signatures=batch_cnn_signatures,
-                batch_block_signatures=batch_block_signatures,
-                batch_backbone_block_signatures=batch_backbone_block_signatures,
-                prompt_goal_tags=entry.get("prompt_goal_tags"),
-                prompt_target_pattern=entry.get("prompt_target_pattern", ""),
-                archive_snapshot_family_counts=archive_snapshot_family_counts,
-                archive_snapshot_descriptor_counts=archive_snapshot_descriptor_counts,
-                archive_snapshot_backbone_signature_counts=archive_snapshot_backbone_signature_counts,
-                archive_snapshot_cnn_signature_counts=archive_snapshot_cnn_signature_counts,
-                archive_snapshot_graph_counts=archive_snapshot_graph_counts,
-                archive_snapshot_block_signature_counts=archive_snapshot_block_signature_counts,
-                archive_snapshot_backbone_cnn_pair_counts=archive_snapshot_backbone_cnn_pair_counts,
-                archive_snapshot_backbone_block_pair_counts=archive_snapshot_backbone_block_pair_counts,
-                archive_snapshot_backbone_block_best_quality=archive_snapshot_backbone_block_best_quality,
-                group_baseline_train_acc=group_context["group_baseline_train_acc"],
-                group_baseline_reward_target_acc=group_context["group_baseline_reward_target_acc"],
-                reward_batch_index=group_context["reward_batch_index"],
-                reward_group_id=group_context["reward_group_id"],
-                group_warmup=group_context["group_warmup"],
-                completion_index=completion_index,
-                batch_last_item=position == (len(entries) - 1),
-            )
-            res = _attach_group_context(
-                res,
-                seed_accuracy_baseline=entry["seed_accuracy_baseline"],
-                group_context=group_context,
-            )
-            dispatch_parts = []
-            if res.get("worker_slot") is not None:
-                dispatch_parts.append(f"worker_slot={res.get('worker_slot')}")
-            if res.get("assigned_gpu") is not None:
-                dispatch_parts.append(f"assigned_gpu={res.get('assigned_gpu')}")
-            if res.get("worker_device") is not None:
-                dispatch_parts.append(f"worker_device={res.get('worker_device')}")
-            if dispatch_parts:
-                code_logger.log_to_file(
-                    f"[Reward Dispatch] rank={entry['rank']} batch_index={index}, " + ", ".join(dispatch_parts)
-                )
-            _log_reward_failure_trace(entry, res)
-            score = float(res.get("reward", -2.0))
-        except PersistentEvalWorkerError:
-            raise
-        except Exception as exc:
-            code_logger.log_to_file(f"Reward calculation failed at rank={entry['rank']} index={index}: {exc}")
-            res = _reward_failure_result(
-                error=str(exc),
-                seed_accuracy_baseline=entry["seed_accuracy_baseline"],
-                group_context=group_context,
-            )
-            score = -1.0
-        scored_results.append(
-            {
-                **entry,
-                "result": res,
-                "score": score,
-            }
-        )
-
-    apply_reward_batch_elite_bonuses(scored_results, group_context)
-    for item in scored_results:
-        item["score"] = float(item["result"].get("reward", item.get("score", -1.0)))
-    return scored_results
-
-
 def score_reward_entries(
     entries: List[Dict[str, Any]],
     *,
     group_context: Dict[str, Any],
     archive_snapshot_family_counts: Dict[str, int],
 ) -> List[Dict[str, Any]]:
-    return _reward_task_callable("score_entries", _score_reward_entries)(
+    return _reward_task_callable("score_entries", _backbone_reward_runtime().score_entries)(
         entries,
         group_context=group_context,
         archive_snapshot_family_counts=archive_snapshot_family_counts,
     )
-
-
-def _finalize_scored_results(scored_results: List[Dict[str, Any]]) -> None:
-    global B_index
-
-    current_batch_results: List[Dict[str, Any]] = []
-    stage_name = str(current_stage_name)
-    for item in scored_results:
-        index = int(item["local_index"])
-        prompt = item["prompt"]
-        completion = item["completion"]
-        graph_info = item["graph_info"]
-        goal_key = item["goal_key"]
-        res = item["result"]
-        score = float(item["score"])
-        sig = res.get("signature", "unknown")
-        backbone_signature = _result_backbone_signature(res)
-        cnn_signature = _result_cnn_signature(res, graph_info)
-        block_signature = _result_block_signature(res, completion)
-        backbone_cnn_pair_key = _backbone_cnn_pair_key(backbone_signature, cnn_signature)
-        backbone_block_pair_key = _backbone_block_pair_key(backbone_signature, block_signature)
-
-        is_executable = _is_executable_candidate(res, graph_info)
-        is_trainable = _is_trainable_candidate(res, graph_info)
-        reward_target_value = _result_reward_target_value(res)
-        quality_acc_value = _optional_float(res.get("frozen_test_acc"))
-        if quality_acc_value is None:
-            quality_acc_value = _optional_float(reward_target_value)
-        if reward_target_value is not None:
-            current_batch_results.append(res)
-        if is_executable:
-            if stage_name != STAGE1_STRUCTURE_EXPLORE or bool(res.get("discovery_candidate")):
-                _record_current_group_trainable_sample(goal_key, res, graph_info)
-            graph_archive_counts[graph_info.graph_hash] += 1
-            family_archive_counts[graph_info.family_id] += 1
-            family_hash_archive_counts[graph_info.family_hash] += 1
-            descriptor_archive_key = str(res.get("descriptor_key") or getattr(graph_info, "descriptor_key", "") or "")
-            if descriptor_archive_key:
-                descriptor_archive_counts[descriptor_archive_key] += 1
-            if backbone_signature:
-                backbone_signature_archive_counts[backbone_signature] += 1
-            if cnn_signature:
-                cnn_signature_archive_counts[cnn_signature] += 1
-            if block_signature and block_signature != "incomplete_block":
-                block_signature_archive_counts[block_signature] += 1
-            if backbone_signature and cnn_signature:
-                backbone_cnn_pair_archive_counts[backbone_cnn_pair_key] += 1
-            if backbone_signature and block_signature and block_signature != "incomplete_block":
-                backbone_block_pair_archive_counts[backbone_block_pair_key] += 1
-                if is_trainable and quality_acc_value is not None:
-                    best_quality_acc_by_backbone_block[backbone_block_pair_key] = max(
-                        float(best_quality_acc_by_backbone_block.get(backbone_block_pair_key, float("-inf"))),
-                        float(quality_acc_value),
-                    )
-            motif_name_counts[res.get("pattern_name", graph_info.suggested_pattern_name)] += 1
-            get_goal_counter(goal_graph_archive_counts, goal_key)[graph_info.graph_hash] += 1
-            get_goal_counter(goal_family_hash_archive_counts, goal_key)[graph_info.family_hash] += 1
-            current_best = family_metric_best.get(graph_info.family_hash, float("-inf"))
-            gain_value = res.get("group_reward_target_gain")
-            family_metric_best[graph_info.family_hash] = max(
-                current_best,
-                float(gain_value if gain_value is not None else float("-inf")),
-            )
-            if bool(res.get("discovery_candidate")):
-                discovery_family_hashes_seen.add(str(graph_info.family_hash))
-
-        code_logger.log_to_file(
-            f"Rank {item['rank']} batch index {index}, Motif: {res.get('pattern_name')}, Signature: {sig}, Result: {res}"
-        )
-
-        should_save = (
-            bool(graph_info)
-            and graph_info.parse_ok
-            and res.get("built_ok")
-            and res.get("forward_shape_ok")
-            and res.get("backward_ok")
-            and _has_completed_formal_epoch(res)
-        )
-        save_gate_reason = "ok"
-        if should_save and backbone_signature and cnn_signature:
-            saved_best = saved_best_reward_target_by_backbone_cnn.get(backbone_cnn_pair_key)
-            if (
-                saved_backbone_cnn_pair_counts.get(backbone_cnn_pair_key, 0) > 0
-                and (
-                    reward_target_value is None
-                    or (
-                        saved_best is not None
-                        and float(reward_target_value) < float(saved_best) + SAVE_DUPLICATE_BACKBONE_CNN_DELTA
-                    )
-                )
-            ):
-                should_save = False
-                save_gate_reason = "duplicate_backbone_cnn_signature"
-
-        if should_save:
-            pattern_override = "" if graph_info.has_custom_pattern_name else res.get("suggested_pattern_name", "")
-            block_code, init_code, forward_code = extract_reward_completion_blocks(completion)
-            if pattern_override:
-                init_code = ensure_pattern_name(init_code, pattern_override)
-            final_code = reconstruct_code(completion, pattern_name_override=pattern_override)
-            normalized_completion = render_completion_xml(block_code, init_code, forward_code)
-            out_path = reward_run_epoch_dir(0)
-            model_dir = synth_dir(out_path) / f"B{B_index}"
-            model_dir.mkdir(exist_ok=True, parents=True)
-
-            code_file = model_dir / new_nn_file
-            with open(code_file, "w") as handle:
-                handle.write(final_code)
-
-            create_file(model_dir, new_out_file, normalized_completion)
-            code_logger.log_to_file(f"[INFO] Saved successful code to B{B_index} (Signature: {sig})")
-            saved_graph_counts[graph_info.graph_hash] += 1
-            saved_family_hash_counts[graph_info.family_hash] += 1
-            if backbone_signature:
-                saved_backbone_signature_counts[backbone_signature] += 1
-            if cnn_signature:
-                saved_cnn_signature_counts[cnn_signature] += 1
-            if backbone_signature and cnn_signature:
-                saved_backbone_cnn_pair_counts[backbone_cnn_pair_key] += 1
-                saved_best_reward_target_by_backbone_cnn[backbone_cnn_pair_key] = max(
-                    float(saved_best_reward_target_by_backbone_cnn.get(backbone_cnn_pair_key, float("-inf"))),
-                    float(reward_target_value if reward_target_value is not None else float("-inf")),
-                )
-            if backbone_signature and block_signature and block_signature != "incomplete_block":
-                saved_backbone_block_pair_counts[backbone_block_pair_key] += 1
-            get_goal_counter(saved_goal_family_hash_counts, goal_key)[graph_info.family_hash] += 1
-            B_index += 1
-        elif (
-            bool(graph_info)
-            and graph_info.parse_ok
-            and res.get("built_ok")
-            and res.get("forward_shape_ok")
-            and res.get("backward_ok")
-            and _has_completed_formal_epoch(res)
-        ):
-            code_logger.log_to_file(
-                f"[INFO] Skipped save for signature={sig} backbone={backbone_signature} cnn={cnn_signature} "
-                f"reason={save_gate_reason} reward_target={reward_target_value!r}"
-            )
-
-        generation_total = _current_generation_total() + 1
-        _record_generation_event(
-            {
-                "generation_total": generation_total,
-                "reward_batch_index": res.get("reward_batch_index"),
-                "reward_group_id": res.get("reward_group_id"),
-                "stage_name": str(res.get("current_stage_name") or current_stage_name),
-                "stage_index": int(res.get("current_stage_index") or RL_STAGE_TO_INDEX.get(current_stage_name, 0)),
-                "family_hash": str(res.get("family_hash") or getattr(graph_info, "family_hash", "") or ""),
-                "graph_hash": str(res.get("graph_hash") or getattr(graph_info, "graph_hash", "") or ""),
-                "descriptor_key": str(res.get("descriptor_key") or getattr(graph_info, "descriptor_key", "") or ""),
-                "backbone_signature": backbone_signature,
-                "cnn_signature": cnn_signature,
-                "block_signature": block_signature,
-                "backbone_cnn_pair_key": backbone_cnn_pair_key,
-                "backbone_block_pair_key": backbone_block_pair_key,
-                "reward": score,
-                "reward_target_metric": str(res.get("reward_target_metric") or ""),
-                "reward_target_value": reward_target_value,
-                "formal_reward_epochs": list(res.get("formal_reward_epochs") or []),
-                "formal_reward_max_epoch": int(res.get("formal_reward_max_epoch", 0) or 0),
-                "formal_horizon_test_acc": dict(res.get("formal_horizon_test_acc") or {}),
-                "formal_horizon_train_acc": dict(res.get("formal_horizon_train_acc") or {}),
-                "formal_horizon_scores": dict(res.get("formal_horizon_scores") or {}),
-                "formal_reward_target_value": _optional_float(res.get("formal_reward_target_value")),
-                "loss_end": _optional_float(res.get("loss_end")),
-                "best_epoch_loss": _optional_float(res.get("best_epoch_loss")),
-                "avg_epoch_loss": _optional_float(res.get("avg_epoch_loss")),
-                "epochs_completed": int(res.get("epochs_completed", 0) or 0),
-                "training_context_metric_name": str(res.get("training_context_metric_name") or ""),
-                "training_context_metric_value": _optional_float(res.get("training_context_metric_value")),
-                "trained_step_ok": bool(res.get("trained_step_ok")),
-                "backward_ok": bool(res.get("backward_ok")),
-                "loss_drop_ok": bool(res.get("loss_drop_ok")),
-                "executable_candidate": bool(res.get("executable_candidate", is_executable)),
-                "discovery_candidate": bool(res.get("discovery_candidate")),
-                "formal_success_candidate": bool(res.get("formal_success_candidate", is_trainable)),
-                "dominant_backbone_signature": dominant_backbone_signature,
-                "dominant_backbone_share": dominant_backbone_share,
-                "dominant_cnn_signature": dominant_cnn_signature,
-                "dominant_cnn_share": dominant_cnn_share,
-                "dominant_backbone_cnn_pair": dominant_backbone_cnn_pair,
-                "dominant_backbone_cnn_share": dominant_backbone_cnn_share,
-            }
-        )
-
-        code_logger.log_generation(prompt, completion, score, res)
-
-    update_current_group_metrics(current_batch_results)
-    group_close_result = close_reward_group_if_needed()
-    if group_close_result is not None:
-        code_logger.log_to_file(f"[Reward Group] {group_close_result}")
 
 
 def _print_discovery_metrics() -> None:
@@ -4933,16 +4277,16 @@ class OpenDiscoveryRewardTask:
         group_context: Dict[str, Any],
         precompute_eval: bool,
     ) -> List[Dict[str, Any]]:
-        return _prepare_local_reward_entries(
+        return _backbone_reward_runtime().prepare_entries(
             prompts,
             completions,
-            seed_accuracy_baselines=seed_contexts,
+            seed_contexts=seed_contexts,
             group_context=group_context,
             precompute_eval=precompute_eval,
         )
 
     def precompute_entries(self, entries: List[Dict[str, Any]], *, group_context: Dict[str, Any]) -> None:
-        _precompute_eval_results(entries, group_context=group_context)
+        _backbone_reward_runtime().precompute_entries(entries, group_context=group_context)
 
     def score_entries(
         self,
@@ -4951,27 +4295,27 @@ class OpenDiscoveryRewardTask:
         group_context: Dict[str, Any],
         archive_snapshot_family_counts: Dict[str, int],
     ) -> List[Dict[str, Any]]:
-        return _score_reward_entries(
+        return _backbone_reward_runtime().score_entries(
             entries,
             group_context=group_context,
             archive_snapshot_family_counts=archive_snapshot_family_counts,
         )
 
     def entries_from_records(self, records: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-        return _entries_from_records(records)
+        return _backbone_reward_runtime().entries_from_records(records)
 
     def describe_code_sections(self, *, block_code: str, init_code: str, forward_code: str) -> Dict[str, Any]:
-        return _describe_reward_code_sections(
+        return _backbone_reward_runtime().describe_code_sections(
             block_code=block_code,
             init_code=init_code,
             forward_code=forward_code,
         )
 
     def apply_batch_elite_bonuses(self, scored_results: List[Dict[str, Any]], group_context: Dict[str, Any]) -> None:
-        _apply_batch_elite_bonuses(scored_results, group_context)
+        _backbone_reward_runtime().apply_batch_elite_bonuses(scored_results, group_context)
 
     def finalize_scored_results(self, scored_results: List[Dict[str, Any]]) -> None:
-        _finalize_scored_results(scored_results)
+        _backbone_reward_runtime().finalize_scored_results(scored_results)
 
     def run_log_dir(self) -> str:
         return run_log_dir()

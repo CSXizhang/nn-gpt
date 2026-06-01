@@ -279,7 +279,7 @@ def forward(self, x, is_probing=False):
         recompute_return_index = recompute_body.index("return total_reward")
         self.assertLess(recompute_gate_index, recompute_return_index)
 
-        elite_body = _function_source("ab/gpt/TuneRL.py", "_apply_batch_elite_bonuses")
+        elite_body = _function_source("ab/gpt/rl_pipeline/backbone_reward_runtime.py", "_apply_batch_elite_bonuses")
         target_skip_index = elite_body.index('res.get("target_structure_match") is False')
         eligible_index = elite_body.index("eligible.append")
         self.assertLess(target_skip_index, eligible_index)
@@ -320,7 +320,7 @@ def forward(self, x, is_probing=False):
             "code_logger": SimpleNamespace(log_to_file=lambda message: None),
         }
         exec(_function_source("ab/gpt/TuneRL.py", "_recompute_discovery_reward"), namespace)
-        exec(_function_source("ab/gpt/TuneRL.py", "_apply_batch_elite_bonuses"), namespace)
+        exec(_function_source("ab/gpt/rl_pipeline/backbone_reward_runtime.py", "_apply_batch_elite_bonuses"), namespace)
         graph_info = SimpleNamespace(parse_ok=True)
         result = {
             "reward": 0.67,
@@ -469,6 +469,7 @@ def forward(self, x, is_probing=False):
 
     def test_backbone_reward_runtime_owns_entry_construction(self):
         runtime_source = _source("ab/gpt/rl_pipeline/backbone_reward_runtime.py")
+        tunerl_source = _source("ab/gpt/TuneRL.py")
 
         for token in (
             "def _base_discovery_reward_fn(",
@@ -495,6 +496,14 @@ def forward(self, x, is_probing=False):
             "TuneRL.build_backbone_signature(",
         ):
             self.assertNotIn(token, runtime_source)
+        for token in (
+            "def _prepare_local_reward_entries(",
+            "def _precompute_eval_results(",
+            "def _score_reward_entries(",
+            "def _finalize_scored_results(",
+            "def _apply_batch_elite_bonuses(",
+        ):
+            self.assertNotIn(token, tunerl_source)
 
     def test_tunerlsft_grpo_learning_rate_uses_runtime_env(self):
         body = _function_source("ab/gpt/TuneRLSft.py", "_build_sft_grpo_config")
