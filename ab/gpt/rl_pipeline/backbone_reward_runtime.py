@@ -16,9 +16,11 @@ from datasets import Dataset
 from ab.gpt.rl_pipeline import stage_state as StageState
 from ab.gpt.rl_pipeline.completion import extract_completion_blocks_strict
 from ab.gpt.util.ArchDiscovery import ensure_pattern_name, extract_graph_info, normalize_pattern_name
+from ab.gpt.util.Const import new_nn_file, new_out_file, synth_dir
 from ab.gpt.util.Reward import FORMAL_MULTI_HORIZON_REWARD_TARGET_METRIC
 import ab.gpt.util.SFTUtil as SFTUtil
 from ab.gpt.util.Util import extract_str
+from ab.nn.util.Util import create_file
 import ab.nn.api as api
 
 
@@ -290,27 +292,16 @@ def _tunerl():
 
 _TUNERL_DEPENDENCY_NAMES = (
     "B_index",
-    "_current_generation_total",
     "_record_current_group_trainable_sample",
-    "_record_generation_event",
     "_training_context_guidance",
     "best_closed_group_mean_reward_target_acc",
     "best_closed_group_mean_test_acc",
     "best_closed_group_mean_train_acc",
     "best_reward_target_by_goal",
-    "close_reward_group_if_needed",
     "code_logger",
-    "create_file",
     "current_stage_name",
-    "evaluate_reward_code",
-    "get_goal_counter",
-    "new_nn_file",
-    "new_out_file",
     "prev_closed_group_mean_reward_target_acc",
-    "reward_eval_cfg_builder",
-    "reward_run_epoch_dir",
     "summarize_stage_training_context",
-    "synth_dir",
     "update_current_group_metrics",
 )
 
@@ -319,6 +310,36 @@ def _bind_tunerl_dependencies():
     TuneRL = _tunerl()
     globals().update({name: getattr(TuneRL, name) for name in _TUNERL_DEPENDENCY_NAMES})
     return TuneRL
+
+
+def _current_generation_total() -> int:
+    return StageState.current_generation_total(_tunerl())
+
+
+def _record_generation_event(payload: Dict[str, Any]) -> Dict[str, Any]:
+    return StageState.record_generation_event(_tunerl(), payload)
+
+
+def close_reward_group_if_needed() -> Optional[Dict[str, Any]]:
+    return StageState.close_reward_group_if_needed(_tunerl())
+
+
+def get_goal_counter(store: Dict[str, Counter], goal_key: str) -> Counter:
+    if goal_key not in store:
+        store[goal_key] = Counter()
+    return store[goal_key]
+
+
+def evaluate_reward_code(*args, **kwargs):
+    return _tunerl().evaluate_reward_code(*args, **kwargs)
+
+
+def reward_eval_cfg_builder():
+    return _tunerl().reward_eval_cfg_builder()
+
+
+def reward_run_epoch_dir(*args):
+    return _tunerl().reward_run_epoch_dir(*args)
 
 
 def extract_seed_context(kwargs: Dict[str, Any], expected_count: int):
@@ -3405,7 +3426,7 @@ def _finalize_scored_results(scored_results: List[Dict[str, Any]]) -> None:
             if bool(res.get("discovery_candidate")):
                 discovery_family_hashes_seen.add(str(graph_info.family_hash))
 
-        code_logger.log_to_file(
+        _tunerl().code_logger.log_to_file(
             f"Rank {item['rank']} batch index {index}, Motif: {res.get('pattern_name')}, Signature: {sig}, Result: {res}"
         )
 
@@ -3449,7 +3470,7 @@ def _finalize_scored_results(scored_results: List[Dict[str, Any]]) -> None:
                 handle.write(final_code)
 
             create_file(model_dir, new_out_file, normalized_completion)
-            code_logger.log_to_file(f"[INFO] Saved successful code to B{B_index} (Signature: {sig})")
+            _tunerl().code_logger.log_to_file(f"[INFO] Saved successful code to B{B_index} (Signature: {sig})")
             saved_graph_counts[graph_info.graph_hash] += 1
             saved_family_hash_counts[graph_info.family_hash] += 1
             if backbone_signature:
@@ -3474,7 +3495,7 @@ def _finalize_scored_results(scored_results: List[Dict[str, Any]]) -> None:
             and res.get("backward_ok")
             and _has_completed_formal_epoch(res)
         ):
-            code_logger.log_to_file(
+            _tunerl().code_logger.log_to_file(
                 f"[INFO] Skipped save for signature={sig} backbone={backbone_signature} cnn={cnn_signature} "
                 f"reason={save_gate_reason} reward_target={reward_target_value!r}"
             )
@@ -3525,12 +3546,12 @@ def _finalize_scored_results(scored_results: List[Dict[str, Any]]) -> None:
             }
         )
 
-        code_logger.log_generation(prompt, completion, score, res)
+        _tunerl().code_logger.log_generation(prompt, completion, score, res)
 
     update_current_group_metrics(current_batch_results)
     group_close_result = close_reward_group_if_needed()
     if group_close_result is not None:
-        code_logger.log_to_file(f"[Reward Group] {group_close_result}")
+        _tunerl().code_logger.log_to_file(f"[Reward Group] {group_close_result}")
 
 
 def apply_batch_elite_bonuses(scored_results, group_context: Dict[str, Any]) -> None:
