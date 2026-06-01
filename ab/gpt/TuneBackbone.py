@@ -17,6 +17,7 @@ def main():
     parser.add_argument('--sft_batch_size', type=int, default=2, help='Per-device SFT batch size')
     parser.add_argument('--sft_gradient_accumulation', type=int, default=4, help='SFT gradient accumulation steps')
     parser.add_argument('--epoch_root', type=str, default=None, help='Output root for A* cycle directories')
+    parser.add_argument('--sft_dataset', type=str, default='cifar-10', help='Dataset used for SFT seed/query data')
     parser.add_argument(
         '--sft_nn_prefixes',
         type=lambda raw: tuple(item.strip() for item in raw.split(',') if item.strip()),
@@ -72,6 +73,7 @@ def main():
         # max_prompts=1000,
         use_backbone=True,
         sft_nn_prefixes=args.sft_nn_prefixes,
+        sft_dataset=args.sft_dataset,
         num_cycles=args.num_cycles,
         epoch_root=args.epoch_root,
         temperature=0.8

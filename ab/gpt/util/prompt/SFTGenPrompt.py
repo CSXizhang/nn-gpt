@@ -26,10 +26,11 @@ class SFTGenPrompt(Prompt):
     Uses SFTUtil for specialized parsing and formatting.
     """
 
-    def __init__(self, max_len: int, tokenizer: PreTrainedTokenizerBase, nn_prefixes=None):
+    def __init__(self, max_len: int, tokenizer: PreTrainedTokenizerBase, nn_prefixes=None, dataset: str = None):
         # prompts_path is not needed for SFTGenPrompt as it uses SFTUtil templates
         super().__init__(max_len, tokenizer)
         self.nn_prefixes = _normalize_nn_prefixes(nn_prefixes)
+        self.dataset = dataset
 
     @override
     def get_raw_dataset(self, only_best_accuracy, n_training_prompts=None) -> DataFrame:
@@ -37,13 +38,17 @@ class SFTGenPrompt(Prompt):
         Extracts data from Lemur and formats it using SFTUtil.
         Returns prompt/completion chat columns so TRL can build completion masks.
         """
-        print(f"extracting data from Lemur for SFT with nn_prefixes={self.nn_prefixes}...")
-        df = lemur.data(
-            task='img-classification',
-            # dataset='cifar-10',
-            # metric='acc',
-            nn_prefixes=self.nn_prefixes,
+        print(
+            f"extracting data from Lemur for SFT with "
+            f"nn_prefixes={self.nn_prefixes}, dataset={self.dataset}..."
         )
+        data_kwargs = {
+            "task": "img-classification",
+            "nn_prefixes": self.nn_prefixes,
+        }
+        if self.dataset:
+            data_kwargs["dataset"] = self.dataset
+        df = lemur.data(**data_kwargs)
         print(f"extracted {len(df)} samples.")
         
         if n_training_prompts:

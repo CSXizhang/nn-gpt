@@ -24,6 +24,7 @@ Fixed SFT parameters:
 
 ```text
 --sft_nn_prefixes rl-bb-test1
+--sft_dataset cifar-10
 --test_nn 30
 --nn_train_epochs 1
 --num_train_epochs 1
@@ -34,6 +35,8 @@ Fixed SFT parameters:
 ```
 
 The SFT dataset is the existing 1-pattern CIFAR-10 backbone set behind prefix `rl-bb-test1`. Generated cycle prefixes are model-specific and recorded in each run's `run_config.json`.
+
+Generation mode: DeepSeek/Qwen use direct generation for the existing local path; Mistral uses the transformers text-generation pipeline chat-message path (`NNGPT_FORCE_DIRECT_GENERATE=0`) to avoid the direct path's tokenizer length sentinel issue.
 
 Output layout:
 

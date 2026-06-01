@@ -110,6 +110,7 @@ def nn_gen(
     prompt_batch,
     use_backbone=False,
     sft_nn_prefixes=None,
+    sft_dataset=None,
 ):
     print("Preparing prompts for generation, this might take a while...")
 
@@ -150,11 +151,19 @@ def nn_gen(
             data_kwargs = {"only_best_accuracy": True, "task": key_config["task"]}
             if use_backbone and sft_nn_prefixes:
                 data_kwargs["nn_prefixes"] = sft_nn_prefixes
+            if use_backbone and sft_dataset:
+                data_kwargs["dataset"] = sft_dataset
             data = (
                 lemur.data(**data_kwargs)
                 .groupby(by="nn")
                 .sample(n=1)[:test_nn]
             )
+            if use_backbone:
+                datasets = sorted(data["dataset"].dropna().unique().tolist()) if "dataset" in data else []
+                print(
+                    f"[TUNE] Backbone generation seed rows={len(data)} "
+                    f"datasets={datasets} nn_prefixes={sft_nn_prefixes} sft_dataset={sft_dataset}"
+                )
             addon_task = key_config.get("addon_task")
             addon_data = lemur.data(only_best_accuracy=True, task=addon_task) if addon_task else None
 
@@ -600,6 +609,7 @@ def generate_step(state: AgentState) -> dict:
             state.get("prompt_batch", 1),
             use_backbone=state.get("use_backbone",False),
             sft_nn_prefixes=state.get("sft_nn_prefixes"),
+            sft_dataset=state.get("sft_dataset"),
         )
 
     # Classification prompts may intentionally emit labels or structured output
@@ -821,6 +831,7 @@ def _finetune_epoch(
     resume_trainer_checkpoint=None,
     use_backbone=False,
     sft_nn_prefixes=None,
+    sft_dataset=None,
 ):
     """
     Single source of truth for one finetune epoch.
@@ -841,6 +852,7 @@ def _finetune_epoch(
             context_length if context_length else model_loader.get_max_length(),
             tokenizer,
             nn_prefixes=sft_nn_prefixes,
+            dataset=sft_dataset,
         )
     else:
         length = (
@@ -896,6 +908,7 @@ def finetune_step(state: AgentState) -> dict:
         state.get("trainer_resume_checkpoint"),
         state.get("use_backbone", False),
         state.get("sft_nn_prefixes"),
+        state.get("sft_dataset"),
     )
 
     return {
@@ -952,6 +965,7 @@ def tune(
     classification_mode=False,
     use_backbone=False,
     sft_nn_prefixes=None,
+    sft_dataset=None,
     num_cycles=None,
     epoch_root=None,
 ):
@@ -1081,6 +1095,7 @@ def tune(
         "use_predictor": use_predictor,
         "use_backbone": use_backbone,
         "sft_nn_prefixes": sft_nn_prefixes,
+        "sft_dataset": sft_dataset,
         "trainer_resume_checkpoint": trainer_resume_checkpoint,
         "enable_merge": enable_merge,
         "classification_mode": classification_mode,
@@ -1101,7 +1116,7 @@ def tune(
             if trans_mode:
                 trans_gen(epoch, out_path, chat_bot, conf_keys, nn_train_epochs, prompt_dict, test_nn, max_new_tokens, save_llm_output, nn_name_prefix)
             else:
-                nn_gen(epoch, out_path, chat_bot, conf_keys, nn_train_epochs, prompt_dict, test_nn, max_new_tokens, save_llm_output, nn_name_prefix, unsloth_max_input_length, prompt_batch, use_backbone=use_backbone, sft_nn_prefixes=sft_nn_prefixes)
+                nn_gen(epoch, out_path, chat_bot, conf_keys, nn_train_epochs, prompt_dict, test_nn, max_new_tokens, save_llm_output, nn_name_prefix, unsloth_max_input_length, prompt_batch, use_backbone=use_backbone, sft_nn_prefixes=sft_nn_prefixes, sft_dataset=sft_dataset)
 
             _evaluate_epoch(
                 epoch,
@@ -1125,5 +1140,6 @@ def tune(
             trainer_resume_checkpoint,
             use_backbone=use_backbone,
             sft_nn_prefixes=sft_nn_prefixes,
+            sft_dataset=sft_dataset,
         )
         trainer_resume_checkpoint = None

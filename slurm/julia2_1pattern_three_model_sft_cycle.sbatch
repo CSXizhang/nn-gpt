@@ -32,6 +32,7 @@ export NNGPT_NNEVAL_WORKERS_PER_GPU="${NNGPT_NNEVAL_WORKERS_PER_GPU:-1}"
 run_root="/home/s471802/nn-gpt/parallel_runs/${NNGPT_1PATTERN_SFT_RUN_ID}"
 epoch_root="${NNGPT_1PATTERN_SFT_EPOCH_ROOT:-/home/s471802/nn-gpt/out/nngpt/llm/${NNGPT_1PATTERN_SFT_RUN_ID}/epoch_sft}"
 sft_nn_prefixes="${NNGPT_1PATTERN_SFT_NN_PREFIXES:-rl-bb-test1}"
+sft_dataset="${NNGPT_1PATTERN_SFT_DATASET:-cifar-10}"
 gen_nn_prefix="${NNGPT_1PATTERN_SFT_GEN_NN_PREFIX:-rl-bb-test1-${NNGPT_1PATTERN_SFT_MODEL_LABEL}-sftcycle}"
 num_cycles="${NNGPT_1PATTERN_SFT_NUM_CYCLES:-20}"
 test_nn="${NNGPT_1PATTERN_SFT_TEST_NN:-30}"
@@ -53,6 +54,7 @@ cat > "${run_root}/run_config.json" <<EOF
   "code_commit": "${code_commit}",
   "nn_dataset_commit": "${dataset_commit}",
   "sft_nn_prefixes": ["${sft_nn_prefixes}"],
+  "sft_dataset": "${sft_dataset}",
   "gen_nn_prefix": "${gen_nn_prefix}",
   "llm_conf": "${NNGPT_1PATTERN_SFT_LLM_CONF}",
   "base_model": "${NNGPT_1PATTERN_SFT_BASE_MODEL:-}",
@@ -65,7 +67,7 @@ cat > "${run_root}/run_config.json" <<EOF
   "sft_gradient_accumulation": ${sft_gradient_accumulation},
   "formal_eval_epochs": 1,
   "force_direct_generate": "${NNGPT_FORCE_DIRECT_GENERATE}",
-  "dataset": "cifar-10",
+  "dataset": "${sft_dataset}",
   "pattern": "1-pattern",
   "gpus": "${SLURM_GPUS_ON_NODE:-4}",
   "nneval_cuda_visible_devices": "${NNGPT_TUNEBACKBONE_EVAL_CUDA_VISIBLE_DEVICES}",
@@ -77,6 +79,7 @@ EOF
 python -m ab.gpt.TuneBackbone \
   --llm_conf "${NNGPT_1PATTERN_SFT_LLM_CONF}" \
   --sft_nn_prefixes "${sft_nn_prefixes}" \
+  --sft_dataset "${sft_dataset}" \
   --gen_nn_prefix "${gen_nn_prefix}" \
   --num_cycles "${num_cycles}" \
   --test_nn "${test_nn}" \
