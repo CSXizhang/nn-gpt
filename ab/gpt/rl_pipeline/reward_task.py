@@ -32,6 +32,38 @@ class RewardTask(Protocol):
     def load_rl_dataset(self, tokenizer: Any) -> Any:
         ...
 
+    def extract_seed_context(self, kwargs: Dict[str, Any], expected_count: int) -> Any:
+        ...
+
+    def prepare_entries(
+        self,
+        prompts: Any,
+        completions: Any,
+        *,
+        seed_contexts: Any,
+        group_context: Dict[str, Any],
+        precompute_eval: bool,
+    ) -> Any:
+        ...
+
+    def precompute_entries(self, entries: Any, *, group_context: Dict[str, Any]) -> None:
+        ...
+
+    def score_entries(
+        self,
+        entries: Any,
+        *,
+        group_context: Dict[str, Any],
+        archive_snapshot_family_counts: Dict[str, int],
+    ) -> Any:
+        ...
+
+    def entries_from_records(self, records: Any) -> Any:
+        ...
+
+    def describe_code_sections(self, *, block_code: str, init_code: str, forward_code: str) -> Dict[str, Any]:
+        ...
+
     def apply_batch_elite_bonuses(self, scored_results: Any, group_context: Dict[str, Any]) -> None:
         ...
 

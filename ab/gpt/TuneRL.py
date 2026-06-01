@@ -3611,12 +3611,59 @@ def load_reward_dataset(tokenizer):
     return _reward_task_callable("load_rl_dataset", load_rl_dataset)(tokenizer)
 
 
+def extract_reward_seed_context(kwargs: Dict[str, Any], expected_count: int):
+    return _reward_task_callable("extract_seed_context", require_sample_accuracy_baselines)(kwargs, expected_count)
+
+
+def prepare_reward_entries(
+    prompts,
+    completions,
+    *,
+    seed_contexts,
+    group_context: Dict[str, Any],
+    precompute_eval: bool,
+) -> List[Dict[str, Any]]:
+    task = current_reward_task()
+    method = getattr(task, "prepare_entries", None) if task is not None else None
+    if callable(method):
+        return method(
+            prompts,
+            completions,
+            seed_contexts=seed_contexts,
+            group_context=group_context,
+            precompute_eval=precompute_eval,
+        )
+    return _prepare_local_reward_entries(
+        prompts,
+        completions,
+        seed_accuracy_baselines=seed_contexts,
+        group_context=group_context,
+        precompute_eval=precompute_eval,
+    )
+
+
+def precompute_reward_entries(entries: List[Dict[str, Any]], *, group_context: Dict[str, Any]) -> None:
+    _reward_task_callable("precompute_entries", _precompute_eval_results)(entries, group_context=group_context)
+
+
 def apply_reward_batch_elite_bonuses(scored_results: List[Dict[str, Any]], group_context: Dict[str, Any]) -> None:
     _reward_task_callable("apply_batch_elite_bonuses", _apply_batch_elite_bonuses)(scored_results, group_context)
 
 
 def finalize_reward_scored_results(scored_results: List[Dict[str, Any]]) -> None:
     _reward_task_callable("finalize_scored_results", _finalize_scored_results)(scored_results)
+
+
+def reward_entries_from_records(records: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    return _reward_task_callable("entries_from_records", _entries_from_records)(records)
+
+
+def describe_reward_code_sections(*, block_code: str, init_code: str, forward_code: str) -> Dict[str, Any]:
+    return _reward_task_callable("describe_code_sections", _describe_reward_code_sections)(
+        block_code=block_code,
+        init_code=init_code,
+        forward_code=forward_code,
+    )
 
 
 def _attach_group_context(
@@ -5205,6 +5252,112 @@ def _merge_gathered_reward_entries(
     return merged_entries
 
 
+def _record_completion(record: Dict[str, Any]) -> str:
+    return str(record.get("completion") or record.get("raw_completion") or "")
+
+
+def _record_api_result(record: Dict[str, Any]) -> Dict[str, Any]:
+    value = record.get("api_result")
+    return value if isinstance(value, dict) else {}
+
+
+def _record_seed_accuracy(record: Dict[str, Any]) -> float:
+    api_result = _record_api_result(record)
+    sources = (
+        record,
+        api_result,
+        record.get("candidate") if isinstance(record.get("candidate"), dict) else {},
+    )
+    for source in sources:
+        value = (
+            source.get("seed_accuracy_baseline")
+            if source.get("seed_accuracy_baseline") is not None
+            else source.get("accuracy_baseline")
+            if source.get("accuracy_baseline") is not None
+            else source.get("accuracy")
+        )
+        if value is not None:
+            return _coerce_accuracy_baseline(value, context="replay record accuracy")
+    return 0.10
+
+
+def _entry_from_record(record: Dict[str, Any], index: int) -> Dict[str, Any]:
+    completion = _record_completion(record)
+    block_code, init_code, forward_code = extract_reward_completion_blocks(completion)
+    backbone_model_names = _extract_backbone_model_names(init_code)
+    graph_info = None
+    if block_code and init_code and forward_code and "self.pattern" not in forward_code:
+        graph_info = extract_graph_info(
+            init_code,
+            forward_code,
+            legacy_patterns=SFTUtil.legacy_patterns,
+        )
+    backbone_signature = build_backbone_signature(backbone_model_names)
+    cnn_signature = (
+        str(getattr(graph_info, "cnn_signature", "") or "")
+        if graph_info is not None
+        else "incomplete_cnn"
+    )
+    prompt = str(record.get("prompt") or "")
+    prompt_goal_tags = extract_prompt_goal_tags(prompt)
+    prompt_target_pattern = extract_prompt_target_pattern(prompt)
+    return {
+        "rank": 0,
+        "local_index": index,
+        "global_index": index,
+        "completion": completion,
+        "prompt": prompt,
+        "graph_info": graph_info,
+        "backbone_model_names": backbone_model_names,
+        "backbone_signature": backbone_signature,
+        "cnn_signature": cnn_signature,
+        "prompt_goal_tags": prompt_goal_tags,
+        "prompt_target_pattern": prompt_target_pattern,
+        "goal_key": primary_goal_key(prompt_goal_tags, prompt_target_pattern),
+        "seed_accuracy_baseline": _record_seed_accuracy(record),
+        "precomputed_eval_result": dict(_record_api_result(record)),
+    }
+
+
+def _entries_from_records(records: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    return [_entry_from_record(record, index) for index, record in enumerate(records)]
+
+
+def _describe_reward_code_sections(*, block_code: str, init_code: str, forward_code: str) -> Dict[str, Any]:
+    graph_info = None
+    if init_code and forward_code and "self.pattern" not in forward_code:
+        try:
+            graph_info = extract_graph_info(
+                init_code,
+                forward_code,
+                legacy_patterns=SFTUtil.legacy_patterns,
+            )
+        except Exception:
+            graph_info = None
+    backbone_model_names = _extract_backbone_model_names(init_code)
+    backbone_signature = build_backbone_signature(backbone_model_names)
+    block_signature = _block_signature_from_code(block_code)
+    return {
+        "graph_info": graph_info,
+        "block_code": block_code,
+        "init_code": init_code,
+        "forward_code": forward_code,
+        "backbone_model_names": backbone_model_names,
+        "backbone_signature": backbone_signature,
+        "block_signature": block_signature,
+        "cnn_signature": (
+            str(getattr(graph_info, "cnn_signature", "") or "")
+            if graph_info is not None
+            else "incomplete_cnn"
+        ),
+        "cnn_expr": (
+            str(getattr(graph_info, "cnn_expr", "") or "")
+            if graph_info is not None
+            else "IncompleteCNN"
+        ),
+    }
+
+
 def _build_batched_eval_specs(
     entries: List[Dict[str, Any]],
     *,
@@ -5513,7 +5666,7 @@ def score_reward_entries(
     group_context: Dict[str, Any],
     archive_snapshot_family_counts: Dict[str, int],
 ) -> List[Dict[str, Any]]:
-    return _score_reward_entries(
+    return _reward_task_callable("score_entries", _score_reward_entries)(
         entries,
         group_context=group_context,
         archive_snapshot_family_counts=archive_snapshot_family_counts,
@@ -5763,7 +5916,7 @@ def _print_discovery_metrics() -> None:
 
 def compute_reward(prompts, completions, **kwargs):
     clear_reward_extraction_meta_cache()
-    seed_accuracy_baselines = require_sample_accuracy_baselines(kwargs, len(completions))
+    seed_contexts = extract_reward_seed_context(kwargs, len(completions))
     group_context = current_reward_group_context()
 
     try:
@@ -5784,10 +5937,10 @@ def compute_reward(prompts, completions, **kwargs):
                 f"reward_batch_index={group_context.get('reward_batch_index')} "
                 "reason='distributed_global_sharded_gpu_eval'"
             )
-        local_entries = _prepare_local_reward_entries(
+        local_entries = prepare_reward_entries(
             prompts,
             completions,
-            seed_accuracy_baselines=seed_accuracy_baselines,
+            seed_contexts=seed_contexts,
             group_context=group_context,
             precompute_eval=precompute_eval,
         )
@@ -5835,7 +5988,7 @@ def compute_reward(prompts, completions, **kwargs):
             f"global_entries={len(global_entries)} "
             f"assigned_entries={len(assigned_entries)}"
         )
-        _precompute_eval_results(
+        precompute_reward_entries(
             assigned_entries,
             group_context=group_context,
         )
@@ -6008,6 +6161,52 @@ class OpenDiscoveryRewardTask:
 
     def load_rl_dataset(self, tokenizer):
         return load_rl_dataset(tokenizer)
+
+    def extract_seed_context(self, kwargs: Dict[str, Any], expected_count: int):
+        return require_sample_accuracy_baselines(kwargs, expected_count)
+
+    def prepare_entries(
+        self,
+        prompts,
+        completions,
+        *,
+        seed_contexts,
+        group_context: Dict[str, Any],
+        precompute_eval: bool,
+    ) -> List[Dict[str, Any]]:
+        return _prepare_local_reward_entries(
+            prompts,
+            completions,
+            seed_accuracy_baselines=seed_contexts,
+            group_context=group_context,
+            precompute_eval=precompute_eval,
+        )
+
+    def precompute_entries(self, entries: List[Dict[str, Any]], *, group_context: Dict[str, Any]) -> None:
+        _precompute_eval_results(entries, group_context=group_context)
+
+    def score_entries(
+        self,
+        entries: List[Dict[str, Any]],
+        *,
+        group_context: Dict[str, Any],
+        archive_snapshot_family_counts: Dict[str, int],
+    ) -> List[Dict[str, Any]]:
+        return _score_reward_entries(
+            entries,
+            group_context=group_context,
+            archive_snapshot_family_counts=archive_snapshot_family_counts,
+        )
+
+    def entries_from_records(self, records: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        return _entries_from_records(records)
+
+    def describe_code_sections(self, *, block_code: str, init_code: str, forward_code: str) -> Dict[str, Any]:
+        return _describe_reward_code_sections(
+            block_code=block_code,
+            init_code=init_code,
+            forward_code=forward_code,
+        )
 
     def apply_batch_elite_bonuses(self, scored_results: List[Dict[str, Any]], group_context: Dict[str, Any]) -> None:
         _apply_batch_elite_bonuses(scored_results, group_context)

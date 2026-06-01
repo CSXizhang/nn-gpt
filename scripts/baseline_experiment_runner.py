@@ -539,14 +539,11 @@ def _graph_info_from_sections(init_code: str, forward_code: str):
         return None
     if "self.pattern" in forward_code:
         return None
-    try:
-        return TuneRL.extract_graph_info(
-            init_code,
-            forward_code,
-            legacy_patterns=TuneRL.SFTUtil.legacy_patterns,
-        )
-    except Exception:
-        return None
+    return TuneRL.describe_reward_code_sections(
+        block_code="",
+        init_code=init_code,
+        forward_code=forward_code,
+    ).get("graph_info")
 
 
 def _full_code_eval_spec(
@@ -565,8 +562,13 @@ def _full_code_eval_spec(
         block_code, init_code, forward_code = _full_code_sections(code)
     except Exception:
         block_code, init_code, forward_code = "", "", ""
-    graph_info = _graph_info_from_sections(init_code, forward_code)
-    backbone_model_names = TuneRL._extract_backbone_model_names(init_code)
+    section_info = TuneRL.describe_reward_code_sections(
+        block_code=block_code,
+        init_code=init_code,
+        forward_code=forward_code,
+    )
+    graph_info = section_info.get("graph_info")
+    backbone_model_names = list(section_info.get("backbone_model_names") or [])
     seed_accuracy_baseline = float(candidate.get("seed_accuracy_baseline") or 0.10)
     prm = {
         "lr": 0.01,
@@ -618,18 +620,15 @@ def _augment_full_code_result(
     graph_info = meta.get("graph_info")
     block_code = str(meta.get("block_code") or "")
     backbone_model_names = list(meta.get("backbone_model_names") or [])
-    backbone_signature = TuneRL.build_backbone_signature(backbone_model_names)
-    block_signature = TuneRL._block_signature_from_code(block_code)
-    cnn_signature = (
-        str(getattr(graph_info, "cnn_signature", "") or "")
-        if graph_info is not None
-        else "incomplete_cnn"
+    section_info = TuneRL.describe_reward_code_sections(
+        block_code=block_code,
+        init_code=str(meta.get("init_code") or ""),
+        forward_code=str(meta.get("forward_code") or ""),
     )
-    cnn_expr = (
-        str(getattr(graph_info, "cnn_expr", "") or "")
-        if graph_info is not None
-        else "IncompleteCNN"
-    )
+    backbone_signature = str(section_info.get("backbone_signature") or "")
+    block_signature = str(section_info.get("block_signature") or "")
+    cnn_signature = str(section_info.get("cnn_signature") or "incomplete_cnn")
+    cnn_expr = str(section_info.get("cnn_expr") or "IncompleteCNN")
     graph_hash = str(getattr(graph_info, "graph_hash", "") or "")
     pattern_name = (
         str(getattr(graph_info, "pattern_name", "") or getattr(graph_info, "suggested_pattern_name", "") or "")
@@ -753,34 +752,22 @@ def _build_batch_reward_entry(candidate: dict[str, Any], *, index: int) -> dict[
     if candidate.get("generation_error") or not completion:
         return None
 
-    block_code, init_code, forward_code = TuneRL.extract_reward_completion_blocks(completion)
-    backbone_model_names = TuneRL._extract_backbone_model_names(init_code)
-    graph_info = None
-    if block_code and init_code and forward_code and "self.pattern" not in forward_code:
-        graph_info = TuneRL.extract_graph_info(
-            init_code,
-            forward_code,
-            legacy_patterns=TuneRL.SFTUtil.legacy_patterns,
-        )
-
-    return {
-        "rank": 0,
+    entry = TuneRL.reward_entries_from_records(
+        [
+            {
+                "completion": completion,
+                "prompt": candidate.get("prompt", ""),
+                "seed_accuracy_baseline": float(candidate.get("seed_accuracy_baseline") or 0.10),
+            }
+        ]
+    )[0]
+    entry.update({
         "local_index": index,
         "global_index": index,
         "completion": completion,
-        "graph_info": graph_info,
-        "backbone_model_names": backbone_model_names,
-        "backbone_signature": TuneRL.build_backbone_signature(backbone_model_names),
-        "cnn_signature": (
-            str(getattr(graph_info, "cnn_signature", "") or "")
-            if graph_info is not None
-            else "incomplete_cnn"
-        ),
-        "prompt_goal_tags": [],
-        "goal_key": TuneRL.primary_goal_key([]),
-        "seed_accuracy_baseline": float(candidate.get("seed_accuracy_baseline") or 0.10),
         "precomputed_eval_result": None,
-    }
+    })
+    return entry
 
 
 def _evaluate_candidate_batch(
@@ -810,7 +797,7 @@ def _evaluate_candidate_batch(
             precompute_entries.append(entry)
 
     if precompute_entries:
-        TuneRL._precompute_eval_results(
+        TuneRL.precompute_reward_entries(
             precompute_entries,
             group_context={
                 "reward_batch_index": 0,

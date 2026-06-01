@@ -2249,6 +2249,52 @@ class BackboneRewardTask:
     def load_rl_dataset(self, tokenizer):
         return load_rl_dataset_sft(tokenizer)
 
+    def extract_seed_context(self, kwargs: dict, expected_count: int):
+        return TuneRL.require_sample_accuracy_baselines(kwargs, expected_count)
+
+    def prepare_entries(
+        self,
+        prompts,
+        completions,
+        *,
+        seed_contexts,
+        group_context: Dict[str, Any],
+        precompute_eval: bool,
+    ):
+        return TuneRL._prepare_local_reward_entries(
+            prompts,
+            completions,
+            seed_accuracy_baselines=seed_contexts,
+            group_context=group_context,
+            precompute_eval=precompute_eval,
+        )
+
+    def precompute_entries(self, entries, *, group_context: Dict[str, Any]) -> None:
+        TuneRL._precompute_eval_results(entries, group_context=group_context)
+
+    def score_entries(
+        self,
+        entries,
+        *,
+        group_context: Dict[str, Any],
+        archive_snapshot_family_counts: Dict[str, int],
+    ):
+        return TuneRL._score_reward_entries(
+            entries,
+            group_context=group_context,
+            archive_snapshot_family_counts=archive_snapshot_family_counts,
+        )
+
+    def entries_from_records(self, records):
+        return TuneRL._entries_from_records(records)
+
+    def describe_code_sections(self, *, block_code: str, init_code: str, forward_code: str):
+        return TuneRL._describe_reward_code_sections(
+            block_code=block_code,
+            init_code=init_code,
+            forward_code=forward_code,
+        )
+
     def apply_batch_elite_bonuses(self, scored_results, group_context: Dict[str, Any]) -> None:
         TuneRL._apply_batch_elite_bonuses(scored_results, group_context)
 

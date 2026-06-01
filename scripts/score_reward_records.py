@@ -33,34 +33,6 @@ def _write_jsonl(path: Path, rows: List[Dict[str, Any]]) -> None:
             handle.write(json.dumps(row, ensure_ascii=False) + "\n")
 
 
-def _completion(record: Dict[str, Any]) -> str:
-    return str(record.get("completion") or record.get("raw_completion") or "")
-
-
-def _api(record: Dict[str, Any]) -> Dict[str, Any]:
-    value = record.get("api_result")
-    return value if isinstance(value, dict) else {}
-
-
-def _seed_accuracy(record: Dict[str, Any]) -> float:
-    api = _api(record)
-    for source in (
-        record,
-        api,
-        record.get("candidate") if isinstance(record.get("candidate"), dict) else {},
-    ):
-        value = (
-            source.get("seed_accuracy_baseline")
-            if source.get("seed_accuracy_baseline") is not None
-            else source.get("accuracy_baseline")
-            if source.get("accuracy_baseline") is not None
-            else source.get("accuracy")
-        )
-        if value is not None:
-            return float(value)
-    return 0.10
-
-
 def _set_default_env(args: argparse.Namespace) -> None:
     os.environ.setdefault("NNGPT_RL_REWARD_VARIANT", args.reward_variant)
     os.environ.setdefault("NNGPT_RL_RESUME_STAGE", "stage2_formal_explore")
@@ -72,46 +44,6 @@ def _set_default_env(args: argparse.Namespace) -> None:
     os.environ.setdefault("NNGPT_SFT_TOKENIZER_ID", "deepseek-ai/deepseek-coder-6.7b-instruct")
     os.environ.setdefault("NNGPT_SFT_RL_NN_PREFIXES", "rl-bb-struct1")
     os.environ.setdefault("NNGPT_SFT_RL_PROMPT_MODE", "sft_aligned")
-
-
-def _entry_from_record(record: Dict[str, Any], index: int) -> Dict[str, Any]:
-    from ab.gpt import TuneRL
-
-    completion = _completion(record)
-    block_code, init_code, forward_code = TuneRL.extract_reward_completion_blocks(completion)
-    backbone_model_names = TuneRL._extract_backbone_model_names(init_code)
-    graph_info = None
-    if block_code and init_code and forward_code and "self.pattern" not in forward_code:
-        graph_info = TuneRL.extract_graph_info(
-            init_code,
-            forward_code,
-            legacy_patterns=TuneRL.SFTUtil.legacy_patterns,
-        )
-    backbone_signature = TuneRL.build_backbone_signature(backbone_model_names)
-    cnn_signature = (
-        str(getattr(graph_info, "cnn_signature", "") or "")
-        if graph_info is not None
-        else "incomplete_cnn"
-    )
-    prompt = str(record.get("prompt") or "")
-    prompt_goal_tags = TuneRL.extract_prompt_goal_tags(prompt)
-    prompt_target_pattern = TuneRL.extract_prompt_target_pattern(prompt)
-    return {
-        "rank": 0,
-        "local_index": index,
-        "global_index": index,
-        "completion": completion,
-        "prompt": prompt,
-        "graph_info": graph_info,
-        "backbone_model_names": backbone_model_names,
-        "backbone_signature": backbone_signature,
-        "cnn_signature": cnn_signature,
-        "prompt_goal_tags": prompt_goal_tags,
-        "prompt_target_pattern": prompt_target_pattern,
-        "goal_key": TuneRL.primary_goal_key(prompt_goal_tags, prompt_target_pattern),
-        "seed_accuracy_baseline": _seed_accuracy(record),
-        "precomputed_eval_result": dict(_api(record)),
-    }
 
 
 def main() -> None:
@@ -132,7 +64,7 @@ def main() -> None:
     rows = _read_jsonl(args.input)
     if args.limit is not None:
         rows = rows[: int(args.limit)]
-    entries = [_entry_from_record(record, index) for index, record in enumerate(rows)]
+    entries = TuneRL.reward_entries_from_records(rows)
     group_context = {
         "group_baseline_train_acc": None,
         "group_baseline_reward_target_acc": None,

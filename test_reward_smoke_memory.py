@@ -400,6 +400,52 @@ def forward(self, x, is_probing=False):
         self.assertIn("evaluate_reward_code(", base_reward)
         self.assertIn("reward_eval_cfg_builder()", base_reward)
 
+    def test_tunerl_compute_reward_delegates_task_boundary(self):
+        body = _function_source("ab/gpt/TuneRL.py", "compute_reward")
+
+        for token in (
+            "extract_reward_seed_context(",
+            "prepare_reward_entries(",
+            "precompute_reward_entries(",
+            "score_reward_entries(",
+            "finalize_reward_scored_results(",
+        ):
+            self.assertIn(token, body)
+        for token in (
+            "require_sample_accuracy_baselines(",
+            "_prepare_local_reward_entries(",
+            "_precompute_eval_results(",
+            "_score_reward_entries(",
+            "_finalize_scored_results(",
+        ):
+            self.assertNotIn(token, body)
+
+    def test_score_replay_uses_task_record_adapter(self):
+        score_source = _source("scripts/score_reward_records.py")
+
+        self.assertIn("TuneRL.reward_entries_from_records(", score_source)
+        for token in (
+            "TuneRL.extract_reward_completion_blocks(",
+            "TuneRL._extract_backbone_model_names(",
+            "TuneRL.extract_graph_info(",
+            "TuneRL.build_backbone_signature(",
+        ):
+            self.assertNotIn(token, score_source)
+
+    def test_baseline_runner_uses_task_entry_and_precompute_adapters(self):
+        baseline_source = _source("scripts/baseline_experiment_runner.py")
+
+        self.assertIn("TuneRL.reward_entries_from_records(", baseline_source)
+        self.assertIn("TuneRL.precompute_reward_entries(", baseline_source)
+        for token in (
+            "TuneRL.extract_reward_completion_blocks(",
+            "TuneRL._extract_backbone_model_names(",
+            "TuneRL.extract_graph_info(",
+            "TuneRL.build_backbone_signature(",
+            "TuneRL._precompute_eval_results(",
+        ):
+            self.assertNotIn(token, baseline_source)
+
     def test_tunerlsft_grpo_learning_rate_uses_runtime_env(self):
         body = _function_source("ab/gpt/TuneRLSft.py", "_build_sft_grpo_config")
 
