@@ -1,5 +1,6 @@
 import json
 import pandas as pd
+from ab.nn.util.Const import ab_root_path
 from overrides import override
 from transformers import AutoTokenizer
 
@@ -20,7 +21,7 @@ lemur.data = lambda only_best_accuracy=False, max_rows=None: pd.DataFrame([
 ])
 
 tokenizer = MockTokenizer()
-generator = NNGenPromptPrun(1000, tokenizer, 'ab/gpt/conf/prompt/train/NN_gen_train_efficiency_prun.json')
+generator = NNGenPromptPrun(1000, tokenizer, ab_root_path / 'ab/gpt/conf/prompt/train/NN_gen_train_efficiency_prun.json')
 
 df = generator.get_raw_dataset(only_best_accuracy=True)
 print("\nGenerated dataset length:", len(df))
