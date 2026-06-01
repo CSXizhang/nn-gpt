@@ -1861,6 +1861,56 @@ def finalize_scored_results(scored_results) -> None:
     TuneRL.B_index = globals().get("B_index", getattr(TuneRL, "B_index", 0))
 
 
+def print_discovery_metrics() -> None:
+    _sync_tunerl_globals()
+    total_valid = sum(family_hash_archive_counts.values())
+    unique_count = len(graph_archive_counts)
+    unique_families = len(family_archive_counts)
+    unique_skeletons = len(family_hash_archive_counts)
+    unique_descriptors = len(descriptor_archive_counts)
+    unique_backbones = len(backbone_signature_archive_counts)
+    unique_cnns = len(cnn_signature_archive_counts)
+    unique_blocks = len(block_signature_archive_counts)
+    unique_backbone_cnn_pairs = len(backbone_cnn_pair_archive_counts)
+    unique_backbone_block_pairs = len(backbone_block_pair_archive_counts)
+
+    if total_valid > 0:
+        most_common_count = family_hash_archive_counts.most_common(1)[0][1]
+        dominant_share = most_common_count / total_valid
+        import math
+        entropy = -sum(
+            (count / total_valid) * math.log2(count / total_valid)
+            for count in family_hash_archive_counts.values()
+            if count > 0
+        )
+    else:
+        dominant_share = 0.0
+        entropy = 0.0
+
+    print(
+        f"\n[Discovery Metrics] Unique Graphs: {unique_count}, "
+        f"Families: {unique_families}, Skeletons: {unique_skeletons}, Descriptors: {unique_descriptors}, "
+        f"Backbone Buckets: {unique_backbones}, CNN Signatures: {unique_cnns}, Block Signatures: {unique_blocks}, "
+        f"Backbone+CNN Pairs: {unique_backbone_cnn_pairs}, Backbone+Block Cells: {unique_backbone_block_pairs}, "
+        f"Dominant Family Share: {dominant_share:.2%}, Entropy: {entropy:.2f}"
+    )
+    print(f"[Graph Archive] Top 5 Exact Graphs: {dict(graph_archive_counts.most_common(5))}")
+    print(f"[Family Archive] Top 5 Family IDs: {dict(family_archive_counts.most_common(5))}")
+    print(f"[Family Archive] Top 5 Skeletons: {dict(family_hash_archive_counts.most_common(5))}")
+    print(f"[Descriptor Archive] Top 5: {dict(descriptor_archive_counts.most_common(5))}")
+    print(f"[Backbone Archive] Top 5: {dict(backbone_signature_archive_counts.most_common(5))}")
+    print(f"[CNN Archive] Top 5: {dict(cnn_signature_archive_counts.most_common(5))}")
+    print(f"[Block Archive] Top 5: {dict(block_signature_archive_counts.most_common(5))}")
+    print(f"[Backbone+CNN Archive] Top 5: {dict(backbone_cnn_pair_archive_counts.most_common(5))}")
+    print(f"[Backbone+Block Archive] Top 5: {dict(backbone_block_pair_archive_counts.most_common(5))}")
+    print(f"[Motif Names] Top 5: {dict(motif_name_counts.most_common(5))}")
+    goal_summary = {
+        goal_key: len(counter)
+        for goal_key, counter in goal_family_hash_archive_counts.items()
+    }
+    print(f"[Goal Skeleton Coverage] {goal_summary}")
+
+
 def _extract_backbone_model_names(init_code: str) -> list[str]:
     matches: dict[str, str] = {}
     patterns = (

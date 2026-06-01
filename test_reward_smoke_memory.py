@@ -507,6 +507,8 @@ def forward(self, x, is_probing=False):
             "def _block_contributes_to_forward(",
             "def _is_plain_dual_backbone_concat(",
             "def _result_backbone_signature(",
+            "def _print_discovery_metrics(",
+            "[Discovery Metrics]",
         ):
             self.assertNotIn(token, tunerl_source)
 
