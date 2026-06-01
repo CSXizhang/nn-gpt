@@ -101,6 +101,7 @@ RL_STAGE_TO_INDEX = {
     for index, stage_name in enumerate(RL_STAGE_ORDER, start=1)
 }
 FORMAL_SUCCESS_SIGNAL_BONUS = 0.08
+STAGE1_EXECUTABLE_BONUS = 0.10
 STAGE1_DISCOVERY_FAMILY_BONUS = 0.42
 STAGE1_DISCOVERY_GRAPH_BONUS = 0.20
 STAGE1_STATIC_BASE_SCORE = 0.04
@@ -264,42 +265,23 @@ def _tunerl():
 
 _TUNERL_DEPENDENCY_NAMES = (
     "B_index",
-    "_apply_executability_clamp",
-    "_apply_stage1_trainability_clamp",
-    "_apply_trainability_clamp",
-    "_clip",
-    "_compute_build_partial_reward",
-    "_compute_warmup_dense_reward",
     "_current_generation_total",
     "_coerce_accuracy_baseline",
     "_discovery_failure_result",
     "_format_optional_metric",
     "_format_optional_signed_metric",
     "_format_target_metric",
-    "_goal_tag_match_stats",
-    "_has_completed_formal_epoch",
-    "_history_context_reward",
-    "_is_executable_candidate",
-    "_is_minimal_backbone_classifier_template",
     "_is_repeated_block_without_refresh",
     "_is_strong_repeat_without_refresh",
-    "_is_trainable_candidate",
-    "_optional_float",
     "_record_current_group_trainable_sample",
     "_record_generation_event",
-    "_remove_positive_structural_novelty_components",
-    "_result_reward_target_value",
     "_reward_variant_is_strong_repeat_penalty",
-    "_stage1_validity_reward",
-    "_stage1_validity_scale",
     "_stage23_gate_positive_novelty_by_quality",
     "_stage23_local_competition_reward",
     "_stage_reward_target_metric",
     "_stage_uses_formal_eval",
     "_stage_uses_static_only",
-    "_template_penalty",
     "_training_context_guidance",
-    "_truncate_text",
     "best_closed_group_mean_reward_target_acc",
     "best_closed_group_mean_test_acc",
     "best_closed_group_mean_train_acc",
@@ -588,6 +570,317 @@ def primary_goal_key(prompt_goal_tags: List[str], prompt_target_pattern: str = "
         return "__".join(tags)
     normalized_target = normalize_pattern_name(prompt_target_pattern) if prompt_target_pattern else ""
     return normalized_target or "open"
+
+
+def _clip(value: float, lower: float, upper: float) -> float:
+    return max(lower, min(upper, float(value)))
+
+
+def _optional_float(value: Any) -> Optional[float]:
+    if value is None or isinstance(value, bool):
+        return None
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _result_reward_target_value(res: Dict[str, Any]) -> Optional[float]:
+    reward_target_value = _optional_float(res.get("reward_target_value"))
+    if reward_target_value is not None:
+        return reward_target_value
+    return _optional_float(res.get("frozen_test_acc", res.get("val_metric")))
+
+
+def _truncate_text(text: str, max_chars: int) -> str:
+    text = (text or "").strip()
+    if len(text) <= max_chars:
+        return text
+    if max_chars <= 3:
+        return text[:max_chars]
+    return text[: max_chars - 3].rstrip() + "..."
+
+
+def _without_positive_bonus(value: float) -> float:
+    return min(float(value or 0.0), 0.0)
+
+
+def _remove_positive_structural_novelty_components(
+    components: Dict[str, float],
+) -> Tuple[Dict[str, float], Dict[str, Any]]:
+    adjusted: Dict[str, float] = {}
+    removed_positive: Dict[str, float] = {}
+    original: Dict[str, float] = {}
+    for key, value in components.items():
+        original_value = float(value or 0.0)
+        adjusted_value = _without_positive_bonus(original_value)
+        original[key] = original_value
+        adjusted[key] = adjusted_value
+        if adjusted_value != original_value:
+            removed_positive[key] = original_value - adjusted_value
+    return adjusted, {
+        "original_components": original,
+        "removed_positive_bonus": removed_positive,
+    }
+
+
+def _compute_build_partial_reward(res: Dict[str, Any]) -> float:
+    error_str = str(res.get('error', ''))
+    error_lower = error_str.lower()
+    error_stage = str(res.get("error_stage") or "")
+    error_context = dict(res.get("error_context") or {})
+    code_trace = dict(error_context.get("code_trace") or {})
+    raw_extraction = dict(res.get("raw_extraction") or {})
+    build_partial = 0.0
+
+    if error_stage == "cpu_prevalidate":
+        if "must call self.infer_dimensions_dynamically" in error_str:
+            return -0.12
+        elif "infer_dimensions_dynamically() takes 2 positional arguments but 3 were given" in error_str:
+            build_partial = -0.04
+        elif "has no attribute '_input_spec'" in error_lower:
+            build_partial = -0.12
+        elif "has no attribute '_output_dim'" in error_lower or "has no attribute '_input_dim'" in error_lower:
+            build_partial = -0.09
+        elif "has no attribute 'infer_dimensions'" in error_lower:
+            build_partial = -0.08
+        elif "nameerror" in error_lower and any(
+            token in error_str for token in ("dropout_prob", "in_channels", "features", "out_channels")
+        ):
+            build_partial = -0.06
+        elif "keyerror" in error_lower and "out_channels" in error_lower:
+            build_partial = -0.06
+        elif "runtimeerror" in error_lower and "expected input" in error_lower and "to have" in error_lower:
+            build_partial = -0.05
+        else:
+            build_partial = -0.10
+
+        if bool(raw_extraction.get("dual_backbone_ok")):
+            build_partial += 0.02
+        if bool(raw_extraction.get("xml_tag_exact")):
+            build_partial += 0.01
+        if bool(raw_extraction.get("exact_init_signature")):
+            build_partial += 0.02
+        if bool(raw_extraction.get("exact_forward_signature")):
+            build_partial += 0.01
+        if bool(code_trace.get("assigns_input_spec")):
+            build_partial += 0.03
+        elif bool(code_trace.get("references_input_spec")):
+            build_partial -= 0.02
+
+        return _clip(build_partial, -0.12, 0.12)
+
+    if 'SyntaxError' in error_str:
+        build_partial = -0.3
+    elif 'NameError' in error_str or 'ImportError' in error_str:
+        build_partial = -0.2
+    elif 'TypeError' in error_str:
+        build_partial = -0.1
+    elif 'RuntimeError' in error_str and 'shape' in error_str.lower():
+        build_partial = 0.05
+    elif error_str:
+        build_partial = -0.15
+    return build_partial
+
+
+def _compute_warmup_dense_reward(test_acc: Optional[float]) -> Optional[float]:
+    if test_acc is None:
+        return None
+    return max(0.05, min(0.30, 0.08 + 0.55 * float(test_acc)))
+
+
+def _is_minimal_backbone_classifier_template(init_code: str) -> bool:
+    significant_lines = []
+    for raw_line in textwrap.dedent(init_code or "").splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#"):
+            continue
+        if line.startswith(
+            (
+                "def __init__",
+                "super().__init__",
+                "self.device",
+                "self.use_amp",
+                "self._input_spec",
+                "self.pattern",
+                "self.infer_dimensions",
+            )
+        ):
+            continue
+        significant_lines.append(line)
+    assignment_lines = [line for line in significant_lines if line.startswith("self.")]
+    if len(assignment_lines) > 3:
+        return False
+    has_backbone_a = any("self.backbone_a" in line for line in assignment_lines)
+    has_backbone_b = any("self.backbone_b" in line for line in assignment_lines)
+    has_classifier = any("self.classifier" in line for line in assignment_lines)
+    if not (has_backbone_a and has_backbone_b and has_classifier):
+        return False
+    non_core_assignments = [
+        line
+        for line in assignment_lines
+        if all(token not in line for token in ("self.backbone_a", "self.backbone_b", "self.classifier"))
+    ]
+    return not non_core_assignments
+
+
+def _has_completed_formal_epoch(res: Dict[str, Any]) -> bool:
+    try:
+        return int(res.get("epochs_completed", 0) or 0) >= 1
+    except (TypeError, ValueError):
+        return False
+
+
+def _stage1_trainability_ok(res: Dict[str, Any], graph_info) -> bool:
+    return bool(
+        graph_info
+        and graph_info.parse_ok
+        and res.get("built_ok")
+        and res.get("forward_shape_ok")
+        and (
+            res.get("backward_ok")
+            or res.get("trained_step_ok")
+            or _has_completed_formal_epoch(res)
+        )
+    )
+
+
+def _is_trainable_candidate(res: Dict[str, Any], graph_info) -> bool:
+    return _stage1_trainability_ok(res, graph_info)
+
+
+def _is_executable_candidate(res: Dict[str, Any], graph_info) -> bool:
+    return bool(
+        graph_info
+        and graph_info.parse_ok
+        and res.get("built_ok")
+        and res.get("forward_shape_ok")
+    )
+
+
+def _stage1_validity_scale(res: Dict[str, Any]) -> float:
+    if bool(
+        res.get("built_ok")
+        and res.get("forward_shape_ok")
+        and (
+            res.get("backward_ok")
+            or res.get("trained_step_ok")
+            or _has_completed_formal_epoch(res)
+        )
+    ):
+        return 1.0
+    if bool(res.get("backward_ok") or res.get("trained_step_ok") or _has_completed_formal_epoch(res)):
+        return 0.45
+    if bool(res.get("forward_shape_ok")):
+        return 0.15
+    return 0.0
+
+
+def _stage1_validity_reward(res: Dict[str, Any], graph_info) -> float:
+    if not graph_info or not graph_info.parse_ok:
+        return -0.85
+    if not res.get("built_ok"):
+        build_partial = float(res.get("r_build_partial", 0.0) or 0.0)
+        return min(-0.35, -0.55 + build_partial)
+    if not res.get("forward_ok"):
+        return -0.40
+    if not res.get("forward_shape_ok"):
+        return -0.30
+    if not _stage1_trainability_ok(res, graph_info):
+        return -0.04
+    return max(STAGE1_EXECUTABLE_BONUS, 0.12)
+
+
+def _template_penalty(
+    *,
+    stage_name: str,
+    shallow_one_shot: bool,
+    minimal_init_template: bool,
+) -> float:
+    penalty = 0.0
+    if shallow_one_shot:
+        penalty += -0.08 if stage_name == STAGE1_STRUCTURE_EXPLORE else -0.05
+    if minimal_init_template:
+        penalty += -0.10 if stage_name == STAGE1_STRUCTURE_EXPLORE else -0.08
+    return penalty
+
+
+def _history_context_reward(
+    *,
+    stage_name: str,
+    training_context: Dict[str, Any],
+    executable_candidate: bool,
+    formal_success_candidate: bool,
+    discovery_candidate: bool,
+    novel_vs_trainset_family: bool,
+    novel_vs_trainset_graph: bool,
+    dominant_family_repeat: bool,
+    dominant_descriptor_repeat: bool,
+    shallow_one_shot: bool,
+    plain_parallel_repeat: bool,
+    minimal_init_template: bool,
+    batch_same_descriptor_count: int,
+    validity_scale: float = 1.0,
+) -> float:
+    return 0.0
+
+
+def _goal_tag_match_stats(graph_info, prompt_goal_tags: Optional[List[str]]) -> Tuple[int, int, float]:
+    tags = list(prompt_goal_tags or [])
+    if not tags:
+        return 0, 0, 0.0
+    hit_count = sum(1 for tag in tags if prompt_goal_satisfied(graph_info, tag))
+    total_count = len(tags)
+    hit_rate = float(hit_count) / float(total_count) if total_count > 0 else 0.0
+    return hit_count, total_count, hit_rate
+
+
+def _apply_trainability_clamp(res: Dict[str, Any], reward_value: float, graph_info) -> float:
+    parse_ok = bool(graph_info and graph_info.parse_ok)
+    if not parse_ok:
+        return min(reward_value, -0.30)
+    if not res.get("built_ok"):
+        build_partial = float(res.get("r_build_partial", 0.0))
+        return min(reward_value, -0.70 + build_partial)
+    if not res.get("forward_ok"):
+        return min(reward_value, -0.30)
+    if not res.get("forward_shape_ok"):
+        return min(reward_value, -0.20)
+    if not res.get("backward_ok"):
+        loss_drop = _optional_float(res.get("loss_drop"))
+        partial_progress = _clip(0.25 * float(loss_drop or 0.0), -0.04, 0.04)
+        return min(reward_value, -0.12 + partial_progress)
+    return reward_value
+
+
+def _apply_stage1_trainability_clamp(res: Dict[str, Any], reward_value: float, graph_info) -> float:
+    parse_ok = bool(graph_info and graph_info.parse_ok)
+    if not parse_ok:
+        return min(reward_value, -0.85)
+    if not res.get("built_ok"):
+        build_partial = float(res.get("r_build_partial", 0.0) or 0.0)
+        return min(reward_value, -0.70 + build_partial)
+    if not res.get("forward_ok"):
+        return min(reward_value, -0.40)
+    if not res.get("forward_shape_ok"):
+        return min(reward_value, -0.30)
+    if not _stage1_trainability_ok(res, graph_info):
+        return min(reward_value, -0.04)
+    return reward_value
+
+
+def _apply_executability_clamp(res: Dict[str, Any], reward_value: float, graph_info) -> float:
+    parse_ok = bool(graph_info and graph_info.parse_ok)
+    if not parse_ok:
+        return min(reward_value, -0.35)
+    if not res.get("built_ok"):
+        build_partial = float(res.get("r_build_partial", 0.0))
+        return min(reward_value, -0.70 + build_partial)
+    if not res.get("forward_ok"):
+        return min(reward_value, -0.28)
+    if not res.get("forward_shape_ok"):
+        return min(reward_value, -0.16)
+    return reward_value
 
 
 def _stage_reward_profile(stage_name: str) -> Dict[str, float]:
