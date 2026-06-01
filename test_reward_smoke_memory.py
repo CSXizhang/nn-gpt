@@ -559,6 +559,21 @@ def forward(self, x, is_probing=False):
         ):
             self.assertNotIn(token, tunerl_source)
 
+    def test_prompt_feedback_text_is_task_owned(self):
+        tunerl_source = _source("ab/gpt/TuneRL.py")
+        runtime_source = _source("ab/gpt/rl_pipeline/backbone_reward_runtime.py")
+        tunerl_feedback = _function_source("ab/gpt/TuneRL.py", "render_prompt_feedback_text")
+
+        self.assertIn("_reward_task_callable(", tunerl_feedback)
+        self.assertIn('"render_prompt_feedback_text"', tunerl_feedback)
+        for token in (
+            "same backbone pair",
+            "stem/project/fuse CNN layout",
+            "dominant-family reuse",
+        ):
+            self.assertNotIn(token, tunerl_source)
+            self.assertIn(token, runtime_source)
+
     def test_tunerlsft_grpo_learning_rate_uses_runtime_env(self):
         body = _function_source("ab/gpt/TuneRLSft.py", "_build_sft_grpo_config")
 

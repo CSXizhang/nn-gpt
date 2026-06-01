@@ -2329,6 +2329,9 @@ class BackboneRewardTask:
     def archive_snapshot_family_counts(self) -> Dict[str, int]:
         return BackboneRewardRuntime.archive_snapshot_family_counts()
 
+    def render_prompt_feedback_text(self, *, feedback_char_budget: int = 1200) -> str:
+        return BackboneRewardRuntime.render_prompt_feedback_text(feedback_char_budget=feedback_char_budget)
+
     def run_log_dir(self) -> str:
         return resolve_sft_log_dir()
 

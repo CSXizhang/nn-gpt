@@ -1074,99 +1074,10 @@ def _format_target_metric(base_value: Optional[float], delta: float) -> str:
 
 
 def render_prompt_feedback_text(*, feedback_char_budget: int = 1200) -> str:
-    state = get_prompt_feedback_state()
-    current_metric = _stage_reward_target_metric(current_stage_name)
-    header_lines = [
-        f"- Current Stage: {current_stage_name}",
-        f"- Reward Target Metric: {current_metric}",
-        f"- Previous Closed Group Mean Target Acc: {_format_optional_metric(state['prev_closed_group_mean_reward_target_acc'])}",
-        f"- Current Best Closed Group Mean Target Acc: {_format_optional_metric(state['best_closed_group_mean_reward_target_acc'])}",
-        f"- Previous Closed Group Mean Frozen Train Acc: {_format_optional_metric(state['prev_closed_group_mean_train_acc'])}",
-        f"- Previous Closed Group Mean Frozen Test Acc: {_format_optional_metric(state['prev_closed_group_mean_test_acc'])}",
-        (
-            "- Current Dominant Family To Avoid When Not Improving: "
-            f"{state['dominant_family_hash'] or 'n/a'} "
-            f"(share={float(state['dominant_family_share'] or 0.0):.2%})"
-        ),
-        (
-            "- Rule: same backbone pair is acceptable; compare new models mainly against that pair's own recent baseline"
-        ),
-        (
-            "- Rule: within the same backbone pair, change stem/project/fuse CNN layout, not just widths, ordering, or formatting"
-        ),
-    ]
-    if current_stage_name != STAGE1_STRUCTURE_EXPLORE:
-        header_lines.extend(
-            [
-                f"- Meaningful Reward Target: >= {_format_target_metric(state['prev_closed_group_mean_reward_target_acc'], GROUP_IMPROVEMENT_DELTA)}",
-                f"- Stretch Target To Refresh Best: >= {_format_target_metric(state['best_closed_group_mean_reward_target_acc'], BEST_GROUP_REFRESH_DELTA)}",
-                "- Rule: prioritize higher frozen test accuracy, not just easier train accuracy",
-                "- Rule: dominant-family reuse or plain classifier-only fuse below target is penalized",
-            ]
-        )
-    if current_stage_name == STAGE2_FORMAL_EXPLORE:
-        training_context = dict(state.get("training_context") or {})
-        context_guidance = _training_context_guidance(training_context)
-        header_lines.extend(
-            [
-                (
-                    "- Current Training Context: "
-                    f"last50 best_loss={_format_optional_metric(training_context.get('recent_best_loss'))}, "
-                    f"delta_best={_format_optional_signed_metric(training_context.get('delta_best_loss'))}; "
-                    f"last50 avg_loss={_format_optional_metric(training_context.get('recent_avg_loss'))}, "
-                    f"delta_avg={_format_optional_signed_metric(training_context.get('delta_avg_loss'))}"
-                ),
-                (
-                    "- Training Trend: "
-                    f"slope={_format_optional_signed_metric(training_context.get('loss_slope_recent'))}/epoch, "
-                    f"variance={_format_optional_metric(training_context.get('loss_variance_recent'))}, "
-                    f"since_best={training_context.get('epochs_since_last_improvement', 'n/a')}, "
-                    f"plateau={float(training_context.get('plateau_score') or 0.0):.2f}, "
-                    f"oscillation={float(training_context.get('oscillation_score') or 0.0):.2f}"
-                ),
-                f"- Training Guidance: {context_guidance}",
-            ]
-        )
-
-    prev_lines = [
-        f"  - {item['summary']}"
-        for item in state.get("prev_group_feedback", [])[:FEEDBACK_SUMMARY_LIMIT]
-    ]
-    best_lines = [
-        f"  - {item['summary']}"
-        for item in state.get("best_group_feedback", [])[:FEEDBACK_SUMMARY_LIMIT]
-    ]
-
-    def _compose_lines(current_prev_lines: List[str], current_best_lines: List[str]) -> str:
-        lines = list(header_lines)
-        if current_prev_lines:
-            lines.append("- Previous Group Strong Examples:")
-            lines.extend(current_prev_lines)
-        else:
-            lines.append("- Previous Group Strong Examples: none yet")
-
-        if current_best_lines:
-            lines.append("- Current Best Group Strong Examples:")
-            lines.extend(current_best_lines)
-        else:
-            lines.append("- Current Best Group Strong Examples: none yet")
-        return "\n".join(lines)
-
-    text = _compose_lines(prev_lines, best_lines)
-    if len(text) <= feedback_char_budget:
-        return text
-
-    if len(best_lines) >= 2:
-        best_lines = best_lines[:1]
-    text = _compose_lines(prev_lines, best_lines)
-    if len(text) <= feedback_char_budget:
-        return text
-
-    if len(prev_lines) >= 2:
-        prev_lines = prev_lines[:1]
-        text = _compose_lines(prev_lines, best_lines)
-    return _truncate_text(text, feedback_char_budget)
-
+    return _reward_task_callable(
+        "render_prompt_feedback_text",
+        _backbone_reward_runtime().render_prompt_feedback_text,
+    )(feedback_char_budget=feedback_char_budget)
 
 def reset_reward_runtime_state() -> None:
     StageState.reset_reward_runtime_state(
@@ -4126,6 +4037,9 @@ class OpenDiscoveryRewardTask:
 
     def finalize_scored_results(self, scored_results: List[Dict[str, Any]]) -> None:
         _backbone_reward_runtime().finalize_scored_results(scored_results)
+
+    def render_prompt_feedback_text(self, *, feedback_char_budget: int = 1200) -> str:
+        return _backbone_reward_runtime().render_prompt_feedback_text(feedback_char_budget=feedback_char_budget)
 
     def run_log_dir(self) -> str:
         return run_log_dir()

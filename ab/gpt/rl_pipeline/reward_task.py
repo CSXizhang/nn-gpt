@@ -97,6 +97,9 @@ class RewardTask(Protocol):
     def archive_snapshot_family_counts(self) -> Dict[str, int]:
         ...
 
+    def render_prompt_feedback_text(self, *, feedback_char_budget: int = 1200) -> str:
+        ...
+
     def run_log_dir(self) -> str:
         ...
 
