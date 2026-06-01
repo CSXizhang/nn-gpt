@@ -3,6 +3,7 @@ from __future__ import annotations
 import ast
 import hashlib
 import inspect
+import math
 import re
 import textwrap
 import time
@@ -63,6 +64,45 @@ PROMPT_TEMPLATE = SFTUtil.open_discovery_prompt_template
 PROMPT_BLOCK_SIGNATURE = "def drop_conv3x3_block(in_channels, out_channels, stride=1, padding=1, bias=False, dropout_prob=0.0):"
 PROMPT_INIT_SIGNATURE = "def __init__(self, in_shape: tuple, out_shape: tuple, prm: dict, device: torch.device) -> None:"
 PROMPT_FORWARD_SIGNATURE = "def forward(self, x: torch.Tensor, is_probing: bool = False) -> torch.Tensor:"
+STRUCTURE_MACRO_BONUS = 0.04
+STRUCTURE_MULTI_STAGE_BONUS = 0.03
+STRUCTURE_MOTIF_BONUS = 0.02
+STRUCTURE_BATCH_DIVERSITY_BONUS = 0.03
+STRUCTURE_NON_DOMINANT_FAMILY_BONUS = 0.02
+STRUCTURE_ARCHIVE_RARITY_STRONG_BONUS = 0.03
+STRUCTURE_ARCHIVE_RARITY_MEDIUM_BONUS = 0.02
+STRUCTURE_ARCHIVE_RARITY_LIGHT_BONUS = 0.01
+STAGE23_STRUCTURE_ARCHIVE_RARITY_CAP = 0.03
+TRAINSET_NOVEL_FAMILY_BONUS = 0.04
+TRAINSET_NOVEL_GRAPH_BONUS = 0.02
+STAGE2_DENSE_SCALE = 0.50
+STAGE2_PREV_GROUP_SCALE = 0.20
+STAGE2_BEST_GROUP_SCALE = 0.20
+STAGE2_GLOBAL_BASELINE_BLEND = 0.20
+STAGE2_BACKBONE_PREV_GROUP_SCALE = 0.25
+STAGE2_BACKBONE_BEST_GROUP_SCALE = 0.25
+STAGE2_GOAL_BEST_SCALE = 0.70
+STAGE2_GOAL_MATCH_SCALE = 0.85
+STAGE2_STRUCTURE_SCALE = 1.40
+STAGE2_REPEAT_FAMILY_SCALE = 1.10
+STAGE2_PLAIN_FUSE_SCALE = 1.10
+STAGE2_NO_PROGRESS_SCALE = 0.50
+STAGE2_NON_IMPROVING_CAP = 2.0
+STAGE2_DESCRIPTOR_NON_IMPROVING_CAP = 2.0
+STAGE3_DENSE_SCALE = 0.70
+STAGE3_PREV_GROUP_SCALE = 1.10
+STAGE3_BEST_GROUP_SCALE = 1.10
+STAGE3_GLOBAL_BASELINE_BLEND = 0.25
+STAGE3_BACKBONE_PREV_GROUP_SCALE = 1.20
+STAGE3_BACKBONE_BEST_GROUP_SCALE = 1.15
+STAGE3_GOAL_BEST_SCALE = 1.00
+STAGE3_GOAL_MATCH_SCALE = 1.00
+STAGE3_STRUCTURE_SCALE = 0.85
+STAGE3_REPEAT_FAMILY_SCALE = 1.00
+STAGE3_PLAIN_FUSE_SCALE = 1.00
+STAGE3_NO_PROGRESS_SCALE = 1.15
+STAGE3_NON_IMPROVING_CAP = 2.0
+STAGE3_DESCRIPTOR_NON_IMPROVING_CAP = 2.0
 
 _TASK_STATE_NAMES = {
     "graph_archive_counts",
@@ -215,8 +255,6 @@ _TUNERL_DEPENDENCY_NAMES = (
     "TARGET_STRUCTURE_PARSE_PENALTY",
     "TARGET_STRUCTURE_PATH_PENALTY",
     "TARGET_STRUCTURE_PENALTY_FLOOR",
-    "TRAINSET_NOVEL_FAMILY_BONUS",
-    "TRAINSET_NOVEL_GRAPH_BONUS",
     "_apply_executability_clamp",
     "_apply_stage1_trainability_clamp",
     "_apply_trainability_clamp",
@@ -247,11 +285,9 @@ _TUNERL_DEPENDENCY_NAMES = (
     "_stage1_validity_scale",
     "_stage23_gate_positive_novelty_by_quality",
     "_stage23_local_competition_reward",
-    "_stage_reward_profile",
     "_stage_reward_target_metric",
     "_stage_uses_formal_eval",
     "_stage_uses_static_only",
-    "_structure_progress_components",
     "_template_penalty",
     "_training_context_guidance",
     "_truncate_text",
@@ -543,6 +579,106 @@ def primary_goal_key(prompt_goal_tags: List[str], prompt_target_pattern: str = "
         return "__".join(tags)
     normalized_target = normalize_pattern_name(prompt_target_pattern) if prompt_target_pattern else ""
     return normalized_target or "open"
+
+
+def _stage_reward_profile(stage_name: str) -> Dict[str, float]:
+    if stage_name == STAGE2_FORMAL_EXPLORE:
+        return {
+            "dense_scale": STAGE2_DENSE_SCALE,
+            "prev_group_scale": STAGE2_PREV_GROUP_SCALE,
+            "best_group_scale": STAGE2_BEST_GROUP_SCALE,
+            "global_baseline_blend": STAGE2_GLOBAL_BASELINE_BLEND,
+            "backbone_prev_group_scale": STAGE2_BACKBONE_PREV_GROUP_SCALE,
+            "backbone_best_group_scale": STAGE2_BACKBONE_BEST_GROUP_SCALE,
+            "goal_best_scale": STAGE2_GOAL_BEST_SCALE,
+            "goal_match_scale": STAGE2_GOAL_MATCH_SCALE,
+            "structure_scale": STAGE2_STRUCTURE_SCALE,
+            "repeat_family_scale": STAGE2_REPEAT_FAMILY_SCALE,
+            "plain_fuse_scale": STAGE2_PLAIN_FUSE_SCALE,
+            "no_progress_scale": STAGE2_NO_PROGRESS_SCALE,
+            "non_improving_cap": STAGE2_NON_IMPROVING_CAP,
+            "descriptor_non_improving_cap": STAGE2_DESCRIPTOR_NON_IMPROVING_CAP,
+        }
+    return {
+        "dense_scale": STAGE3_DENSE_SCALE,
+        "prev_group_scale": STAGE3_PREV_GROUP_SCALE,
+        "best_group_scale": STAGE3_BEST_GROUP_SCALE,
+        "global_baseline_blend": STAGE3_GLOBAL_BASELINE_BLEND,
+        "backbone_prev_group_scale": STAGE3_BACKBONE_PREV_GROUP_SCALE,
+        "backbone_best_group_scale": STAGE3_BACKBONE_BEST_GROUP_SCALE,
+        "goal_best_scale": STAGE3_GOAL_BEST_SCALE,
+        "goal_match_scale": STAGE3_GOAL_MATCH_SCALE,
+        "structure_scale": STAGE3_STRUCTURE_SCALE,
+        "repeat_family_scale": STAGE3_REPEAT_FAMILY_SCALE,
+        "plain_fuse_scale": STAGE3_PLAIN_FUSE_SCALE,
+        "no_progress_scale": STAGE3_NO_PROGRESS_SCALE,
+        "non_improving_cap": STAGE3_NON_IMPROVING_CAP,
+        "descriptor_non_improving_cap": STAGE3_DESCRIPTOR_NON_IMPROVING_CAP,
+    }
+
+
+def _archive_rarity_bonus_stage1(archive_snapshot_family_freq: int) -> float:
+    if archive_snapshot_family_freq <= 0:
+        return STRUCTURE_ARCHIVE_RARITY_STRONG_BONUS
+    if archive_snapshot_family_freq == 1:
+        return STRUCTURE_ARCHIVE_RARITY_MEDIUM_BONUS
+    if archive_snapshot_family_freq <= 3:
+        return STRUCTURE_ARCHIVE_RARITY_LIGHT_BONUS
+    return 0.0
+
+
+def _archive_rarity_bonus_formal(archive_snapshot_family_freq: int) -> float:
+    return min(
+        STAGE23_STRUCTURE_ARCHIVE_RARITY_CAP,
+        STAGE23_STRUCTURE_ARCHIVE_RARITY_CAP / math.sqrt(float(archive_snapshot_family_freq) + 1.0),
+    )
+
+
+def _structure_progress_components(
+    graph_info,
+    *,
+    batch_same_family_count: int,
+    archive_snapshot_family_freq: int,
+    novel_vs_trainset_family: bool,
+    novel_vs_trainset_graph: bool,
+    shallow_one_shot: bool,
+    use_formal_archive_bonus: bool = False,
+) -> Tuple[float, float]:
+    if not graph_info or not graph_info.parse_ok:
+        return 0.0, 0.0
+
+    r_structure_group = 0.0
+    if passes_macro_structure_gate(graph_info):
+        r_structure_group += STRUCTURE_MACRO_BONUS
+    if is_multi_stage_architecture(graph_info):
+        r_structure_group += STRUCTURE_MULTI_STAGE_BONUS
+    if has_structural_motif(graph_info):
+        r_structure_group += STRUCTURE_MOTIF_BONUS
+    if batch_same_family_count <= 1:
+        r_structure_group += STRUCTURE_BATCH_DIVERSITY_BONUS
+    elif batch_same_family_count == 2:
+        r_structure_group += STRUCTURE_BATCH_DIVERSITY_BONUS * 0.5
+    task_context = _tunerl().reward_task_group_context_fields()
+    current_dominant_family_hash = task_context.get("dominant_family_hash")
+    current_dominant_family_share = task_context.get("dominant_family_share")
+    if (
+        current_dominant_family_hash
+        and graph_info.family_hash != current_dominant_family_hash
+        and float(current_dominant_family_share or 0.0) >= 0.20
+    ):
+        r_structure_group += STRUCTURE_NON_DOMINANT_FAMILY_BONUS
+    if shallow_one_shot:
+        r_structure_group = max(0.0, r_structure_group - 0.02)
+
+    r_structure_archive = 0.0
+    if novel_vs_trainset_family:
+        r_structure_archive += TRAINSET_NOVEL_FAMILY_BONUS
+    elif novel_vs_trainset_graph:
+        r_structure_archive += TRAINSET_NOVEL_GRAPH_BONUS
+    archive_bonus = _archive_rarity_bonus_formal if use_formal_archive_bonus else _archive_rarity_bonus_stage1
+    r_structure_archive += archive_bonus(archive_snapshot_family_freq)
+
+    return _clip(r_structure_group, 0.0, 0.14), _clip(r_structure_archive, 0.0, 0.08)
 
 
 def render_completion_xml(block_code: str, init_code: str, forward_code: str) -> str:
