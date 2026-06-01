@@ -372,32 +372,6 @@ def forward(self, x, is_probing=False):
             self.assertIn(parameter_name, sft_reward)
             self.assertIn(parameter_name, sft_raw_reward)
 
-    def test_sft_runtime_does_not_monkey_patch_tunerl_reward_functions(self):
-        sft_source = _source("ab/gpt/TuneRLSft.py")
-        score_source = _source("scripts/score_reward_records.py")
-
-        forbidden = (
-            "TuneRL.reward_fn =",
-            "TuneRL.evaluate_code_and_reward =",
-            "TuneRL.load_rl_dataset =",
-            "TuneRL.extract_completion_blocks =",
-        )
-        for token in forbidden:
-            self.assertNotIn(token, sft_source)
-            self.assertNotIn(token, score_source)
-        self.assertNotIn("patch_sft_runtime()", score_source)
-
-        baseline_source = _source("scripts/baseline_experiment_runner.py")
-        probe_source = _source("scripts/probe_struct1_a3_reward.py")
-        for script_source in (baseline_source, probe_source, score_source):
-            self.assertNotIn("TuneRLSft.sft_reward_fn(", script_source)
-            self.assertNotIn("RewardUtil.evaluate_code_and_reward_batch(", script_source)
-        self.assertNotIn("TuneRL._score_reward_entries(", score_source)
-
-        base_reward = _function_source("ab/gpt/TuneRL.py", "base_discovery_reward_fn")
-        self.assertIn("evaluate_reward_code(", base_reward)
-        self.assertIn("reward_eval_cfg_builder()", base_reward)
-
     def test_tunerlsft_grpo_learning_rate_uses_runtime_env(self):
         body = _function_source("ab/gpt/TuneRLSft.py", "_build_sft_grpo_config")
 

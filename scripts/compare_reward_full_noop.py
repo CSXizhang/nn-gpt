@@ -22,8 +22,6 @@ NUMERIC_PATHS = (
     ("api", ("block_archive_reward",)),
     ("api", ("r_repeat_family",)),
     ("api", ("r_no_progress_penalty",)),
-    ("api", ("reward_target_value",)),
-    ("api", ("formal_reward_target_value",)),
     ("open_discovery", ("r_primary",)),
     ("open_discovery", ("r_tiebreak",)),
     ("open_discovery", ("r_trainset_novelty",)),
@@ -37,8 +35,6 @@ NUMERIC_PATHS = (
     ("open_discovery", ("block_archive_reward",)),
     ("open_discovery", ("r_repeat_family",)),
     ("open_discovery", ("r_no_progress_penalty",)),
-    ("open_discovery", ("reward_target_value",)),
-    ("open_discovery", ("formal_reward_target_value",)),
 )
 
 BOOL_PATHS = (

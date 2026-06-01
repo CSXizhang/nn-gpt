@@ -2,18 +2,8 @@
 import argparse
 import json
 import os
-import sys
 from pathlib import Path
 from typing import Any, Dict, List
-
-ROOT = Path(__file__).resolve().parents[1]
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
-
-if os.getenv("NNGPT_REWARD_REPLAY_LIGHTWEIGHT", "").strip().lower() in {"1", "true", "yes", "on"}:
-    from scripts import reward_replay_stubs
-
-    reward_replay_stubs.install()
 
 
 def _read_jsonl(path: Path) -> List[Dict[str, Any]]:
@@ -49,13 +39,7 @@ def _seed_accuracy(record: Dict[str, Any]) -> float:
         api,
         record.get("candidate") if isinstance(record.get("candidate"), dict) else {},
     ):
-        value = (
-            source.get("seed_accuracy_baseline")
-            if source.get("seed_accuracy_baseline") is not None
-            else source.get("accuracy_baseline")
-            if source.get("accuracy_baseline") is not None
-            else source.get("accuracy")
-        )
+        value = source.get("seed_accuracy_baseline")
         if value is not None:
             return float(value)
     return 0.10
@@ -64,7 +48,7 @@ def _seed_accuracy(record: Dict[str, Any]) -> float:
 def _set_default_env(args: argparse.Namespace) -> None:
     os.environ.setdefault("NNGPT_RL_REWARD_VARIANT", args.reward_variant)
     os.environ.setdefault("NNGPT_RL_RESUME_STAGE", "stage2_formal_explore")
-    os.environ.setdefault("NNGPT_RL_FORMAL_REWARD_EPOCHS", "1,5,10")
+    os.environ.setdefault("NNGPT_RL_FORMAL_REWARD_EPOCHS", "10")
     os.environ.setdefault(
         "NNGPT_SFT_BASE_MODEL_ID",
         "/home/s471802/nn-gpt/out/llm/deepseek-ai/deepseek-coder-6.7b-instruct",
@@ -78,7 +62,7 @@ def _entry_from_record(record: Dict[str, Any], index: int) -> Dict[str, Any]:
     from ab.gpt import TuneRL
 
     completion = _completion(record)
-    block_code, init_code, forward_code = TuneRL.extract_reward_completion_blocks(completion)
+    block_code, init_code, forward_code = TuneRL.extract_completion_blocks(completion)
     backbone_model_names = TuneRL._extract_backbone_model_names(init_code)
     graph_info = None
     if block_code and init_code and forward_code and "self.pattern" not in forward_code:
@@ -93,22 +77,18 @@ def _entry_from_record(record: Dict[str, Any], index: int) -> Dict[str, Any]:
         if graph_info is not None
         else "incomplete_cnn"
     )
-    prompt = str(record.get("prompt") or "")
-    prompt_goal_tags = TuneRL.extract_prompt_goal_tags(prompt)
-    prompt_target_pattern = TuneRL.extract_prompt_target_pattern(prompt)
     return {
         "rank": 0,
         "local_index": index,
         "global_index": index,
         "completion": completion,
-        "prompt": prompt,
+        "prompt": str(record.get("prompt") or ""),
         "graph_info": graph_info,
         "backbone_model_names": backbone_model_names,
         "backbone_signature": backbone_signature,
         "cnn_signature": cnn_signature,
-        "prompt_goal_tags": prompt_goal_tags,
-        "prompt_target_pattern": prompt_target_pattern,
-        "goal_key": TuneRL.primary_goal_key(prompt_goal_tags, prompt_target_pattern),
+        "prompt_goal_tags": [],
+        "goal_key": TuneRL.primary_goal_key([]),
         "seed_accuracy_baseline": _seed_accuracy(record),
         "precomputed_eval_result": dict(_api(record)),
     }
@@ -126,7 +106,7 @@ def main() -> None:
 
     from ab.gpt import TuneRL, TuneRLSft
 
-    TuneRLSft.configure_sft_runtime()
+    TuneRLSft.patch_sft_runtime()
     TuneRL.apply_resume_stage_override(os.environ["NNGPT_RL_RESUME_STAGE"], log_prefix="[score_reward_records]")
 
     rows = _read_jsonl(args.input)
@@ -160,7 +140,7 @@ def main() -> None:
         "stage_group_count": 0,
         "recovery_active": False,
     }
-    scored = TuneRL.score_reward_entries(
+    scored = TuneRL._score_reward_entries(
         entries,
         group_context=group_context,
         archive_snapshot_family_counts={},

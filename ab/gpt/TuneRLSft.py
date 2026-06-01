@@ -9,7 +9,6 @@ import sys
 import tempfile
 import time
 import traceback
-from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 from torch.utils.data import Dataset as TorchDataset
@@ -792,8 +791,8 @@ def _write_sft_run_config(
         "phase": "four_pattern_reward_ablation",
         "created_at": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
         "git": _sft_git_metadata(),
-        "model_source": source_info.get("model_source", TuneRL.reward_model_source()),
-        "tokenizer_source": source_info.get("tokenizer_source", TuneRL.reward_tokenizer_source()),
+        "model_source": source_info.get("model_source", TuneRL.base_model),
+        "tokenizer_source": source_info.get("tokenizer_source", getattr(TuneRL, "tokenizer_source", TuneRL.base_model)),
         "source_mode": source_info.get("source_mode", ""),
         "reward": {
             "variant": TuneRL.resolve_reward_variant(),
@@ -1941,9 +1940,8 @@ def run_sft_training(*, gpu_role_plan: Optional[Dict[str, Any]] = None):
     if resume_stage_override:
         TuneRL.apply_resume_stage_override(resume_stage_override, log_prefix="[SFT RL]")
     precision = TuneRL.best_mixed_precision()
-    model_source = TuneRL.reward_model_source()
-    tokenizer_source = TuneRL.reward_tokenizer_source()
-    if tokenizer_source != model_source:
+    tokenizer_source = getattr(TuneRL, "tokenizer_source", TuneRL.base_model)
+    if tokenizer_source != TuneRL.base_model:
         print(f"Using RL tokenizer: {tokenizer_source}")
     tokenizer = TrainerRuntime.load_tokenizer(tokenizer_source)
     generation_kwargs = _resolve_sft_generation_kwargs(tokenizer)
@@ -1967,7 +1965,7 @@ def run_sft_training(*, gpu_role_plan: Optional[Dict[str, Any]] = None):
     if restored_runtime_state_path is not None:
         print(f"[SFT RL] Restored runtime state from {restored_runtime_state_path}")
 
-    print(f"Using RL base model: {model_source}")
+    print(f"Using RL base model: {TuneRL.base_model}")
     print(
         "[SFT RL] Distributed Runtime: "
         f"rank={rank} local_rank={local_rank} raw_local_rank={raw_local_rank} world_size={world_size}"
@@ -2055,12 +2053,12 @@ def run_sft_training(*, gpu_role_plan: Optional[Dict[str, Any]] = None):
         print(f"[SFT RL] Run config: {Path(resolve_sft_log_dir()) / 'run_config.json'}")
     _print_runtime_cache_roots()
 
-    rl_dataset = TuneRL.load_reward_dataset(tokenizer)
+    rl_dataset = TuneRL.load_rl_dataset(tokenizer)
     if len(rl_dataset) > runtime_settings["dataset_limit"]:
         rl_dataset = rl_dataset.select(range(runtime_settings["dataset_limit"]))
 
     model = TrainerRuntime.load_quantized_causal_lm(
-        model_source=model_source,
+        model_source=TuneRL.base_model,
         precision=precision,
         train_device=train_device,
         use_deepspeed=use_deepspeed,
@@ -2218,55 +2216,8 @@ def run_sft_training(*, gpu_role_plan: Optional[Dict[str, Any]] = None):
     return model
 
 
-@dataclass(frozen=True)
-class BackboneRewardTask:
-    name: str
-    model_source: str
-    tokenizer_source: str
-    source_mode: str
-    load_existing_model: bool
-    saved_model_path: str
-    prompt_template: str = SFT_DISCOVERY_PROMPT_TEMPLATE
-
-    def extract_completion_blocks(self, completion: str):
-        return extract_completion_blocks_strict(completion)
-
-    def clear_extraction_meta_cache(self) -> None:
-        clear_extraction_meta_cache()
-
-    def evaluate_code_and_reward(self, *args, **kwargs):
-        return evaluate_code_and_reward_cifar(*args, **kwargs)
-
-    def evaluate_code_and_reward_batch(self, specs):
-        return RewardUtil.evaluate_code_and_reward_batch(specs)
-
-    def build_eval_cfg(self, *args, **kwargs):
-        return build_sft_reward_eval_cfg(*args, **kwargs)
-
-    def reward_fn(self, *args, **kwargs):
-        return sft_reward_fn(*args, **kwargs)
-
-    def load_rl_dataset(self, tokenizer):
-        return load_rl_dataset_sft(tokenizer)
-
-    def apply_batch_elite_bonuses(self, scored_results, group_context: Dict[str, Any]) -> None:
-        TuneRL._apply_batch_elite_bonuses(scored_results, group_context)
-
-    def finalize_scored_results(self, scored_results) -> None:
-        TuneRL._finalize_scored_results(scored_results)
-
-    def run_log_dir(self) -> str:
-        return resolve_sft_log_dir()
-
-    def run_model_out(self) -> str:
-        return resolve_sft_model_out()
-
-    def run_epoch_dir(self, *args):
-        return sft_run_epoch_dir(*args)
-
-
-def configure_sft_runtime() -> tuple[str, str, str]:
-    """Register the SFT task hooks used by the generic RL runtime."""
+def patch_sft_runtime() -> tuple[str, str, str]:
+    """Patch TuneRL to use the SFT runtime and CIFAR-aware reward."""
     global SFT_RUNTIME_SOURCE_INFO
     model_source, tokenizer_source, source_mode = resolve_sft_model_sources()
     SFT_RUNTIME_SOURCE_INFO = {
@@ -2276,16 +2227,20 @@ def configure_sft_runtime() -> tuple[str, str, str]:
     }
     load_initial_adapter = resolve_sft_load_initial_adapter()
     init_adapter_path = resolve_sft_init_adapter()
-    TuneRL.register_reward_task(
-        BackboneRewardTask(
-            name="backbone_sft",
-            model_source=model_source,
-            tokenizer_source=tokenizer_source,
-            source_mode=source_mode,
-            load_existing_model=load_initial_adapter,
-            saved_model_path=init_adapter_path if load_initial_adapter else "",
-        )
-    )
+    TuneRL.base_model = model_source
+    TuneRL.tokenizer_source = tokenizer_source
+    TuneRL.LOAD_EXISTING_MODEL = load_initial_adapter
+    TuneRL.SAVED_MODEL_PATH = init_adapter_path if load_initial_adapter else ""
+    TuneRL.PROMPT_TEMPLATE = SFT_DISCOVERY_PROMPT_TEMPLATE
+    TuneRL.extract_completion_blocks = extract_completion_blocks_strict
+    TuneRL.clear_extraction_meta_cache = clear_extraction_meta_cache
+    TuneRL.evaluate_code_and_reward = evaluate_code_and_reward_cifar
+    setattr(TuneRL.evaluate_code_and_reward, "_nngpt_eval_cfg_builder", build_sft_reward_eval_cfg)
+    TuneRL.reward_fn = sft_reward_fn
+    TuneRL.load_rl_dataset = load_rl_dataset_sft
+    TuneRL.run_log_dir = resolve_sft_log_dir
+    TuneRL.run_model_out = resolve_sft_model_out
+    TuneRL.run_epoch_dir = sft_run_epoch_dir
     return model_source, tokenizer_source, source_mode
 
 
@@ -2301,7 +2256,7 @@ def bootstrap_sft_runtime() -> None:
     else:
         os.environ.pop("NNGPT_SFT_APPEND_LOGS", None)
 
-    log_dir = TuneRL.reward_run_log_dir()
+    log_dir = TuneRL.run_log_dir()
     os.makedirs(log_dir, exist_ok=True)
     sentinel_path = _bootstrap_sentinel_path(log_dir, runtime)
     trainer_out_dir = Path(resolve_sft_trainer_out())
@@ -2325,8 +2280,8 @@ def bootstrap_sft_runtime() -> None:
                 if path.exists():
                     print(f"Removing stale runtime log: {path}")
                     path.unlink()
-            print(f"Cleaning existing models in {TuneRL.reward_run_epoch_dir()}...")
-            shutil.rmtree(TuneRL.reward_run_epoch_dir(), ignore_errors=True)
+            print(f"Cleaning existing models in {TuneRL.run_epoch_dir()}...")
+            shutil.rmtree(TuneRL.run_epoch_dir(), ignore_errors=True)
             print(f"Cleaning existing trainer outputs in {trainer_out_dir}...")
             shutil.rmtree(trainer_out_dir, ignore_errors=True)
         TuneRL.code_logger = TuneRL.SimpleCodeLogger(log_dir)
@@ -2362,7 +2317,7 @@ def main() -> None:
         )
     _maybe_relaunch_sft_with_visible_gpu_workers()
     _validate_sft_visible_worker_count(RewardUtil.get_distributed_runtime_info())
-    model_source, tokenizer_source, source_mode = configure_sft_runtime()
+    model_source, tokenizer_source, source_mode = patch_sft_runtime()
     bootstrap_sft_runtime()
 
     print(f"[SFT RL] Base model id: {resolve_sft_base_model_id()}")
