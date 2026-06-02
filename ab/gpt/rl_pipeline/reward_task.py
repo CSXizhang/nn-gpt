@@ -60,7 +60,7 @@ class RewardTask(Protocol):
         entries: Any,
         *,
         group_context: Dict[str, Any],
-        archive_snapshot_family_counts: Dict[str, int],
+        archive_snapshot_counts: Dict[str, int],
     ) -> Any:
         ...
 
@@ -100,7 +100,10 @@ class RewardTask(Protocol):
     def reset_stage_comparison_state(self) -> None:
         ...
 
-    def archive_snapshot_family_counts(self) -> Dict[str, int]:
+    def archive_snapshot_counts(self) -> Dict[str, int]:
+        ...
+
+    def recovery_marker_count(self) -> int:
         ...
 
     def print_metrics(self) -> None:
@@ -111,12 +114,33 @@ class RewardTask(Protocol):
         *,
         goal_key: str,
         res: Dict[str, Any],
-        graph_info: Any,
+        candidate_info: Any,
         reward_group_id: int,
     ) -> Dict[str, Any]:
         ...
 
     def render_prompt_feedback_text(self, *, feedback_char_budget: int = 1200) -> str:
+        ...
+
+    def training_context_guidance(self, summary: Dict[str, Any]) -> str:
+        ...
+
+    def stage1_gate_ready(self) -> bool:
+        ...
+
+    def stage1_trainable_stable_ready(self) -> Optional[Dict[str, Any]]:
+        ...
+
+    def stage1_force_promotion_ready(self) -> Optional[Dict[str, int]]:
+        ...
+
+    def stage2_gate_ready(self) -> bool:
+        ...
+
+    def stage_gate_snapshot(self) -> Dict[str, Any]:
+        ...
+
+    def log_reward_failure_trace(self, entry: Dict[str, Any], res: Dict[str, Any]) -> None:
         ...
 
     def run_log_dir(self) -> str:

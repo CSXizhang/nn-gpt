@@ -107,6 +107,14 @@ RL_STAGE_TO_INDEX = {
     stage_name: index
     for index, stage_name in enumerate(RL_STAGE_ORDER, start=1)
 }
+STAGE1_GATE_DISCOVERY_MIN = 8
+STAGE1_GATE_UNIQUE_DISCOVERY_FAMILIES_MIN = 6
+STAGE1_FORCE_PROMOTION_DISCOVERY_MIN = 8
+STAGE1_FORCE_PROMOTION_UNIQUE_DISCOVERY_FAMILIES_MIN = 6
+STAGE2_GATE_MIN_REWARD_TARGET = 0.90
+STAGE2_GATE_MIN_TARGET_COUNT = 16
+STAGE2_GATE_MIN_UNIQUE_TARGET_FAMILIES = 6
+STAGE2_GATE_MAX_DOMINANT_DESCRIPTOR_SHARE = 0.50
 FORMAL_SUCCESS_SIGNAL_BONUS = 0.08
 STAGE1_EXECUTABLE_BONUS = 0.10
 STAGE1_DISCOVERY_FAMILY_BONUS = 0.42
@@ -381,6 +389,285 @@ def _training_context_guidance(summary: Dict[str, Any]) -> str:
 
 def summarize_stage_training_context(stage_name: str, *, window_size: int = 50) -> Dict[str, Any]:
     return _services().summarize_stage_training_context(stage_name, window_size=window_size)
+
+
+def training_context_guidance(summary: Dict[str, Any]) -> str:
+    if not summary.get("has_recent_window"):
+        return "no train-loss window yet"
+    pressure = float(summary.get("exploration_pressure") or 0.0)
+    if pressure >= 0.60:
+        return "loss has plateaued or oscillated; favor structurally new candidates and avoid dominant templates"
+    if bool(summary.get("monotonic_improving")) and pressure <= 0.25:
+        return "loss is still improving; keep local mutations and avoid collapsing to one family"
+    return "improvement is slowing; bias toward descriptor and family novelty over shallow repeats"
+
+
+def _stage_items_unique(items: List[Dict[str, Any]], *, key: str) -> Set[str]:
+    return {
+        str(item.get(key))
+        for item in items
+        if item.get(key)
+    }
+
+
+def _stage_items_mean_key(items: List[Dict[str, Any]], key: str) -> Optional[float]:
+    values = [
+        float(item.get(key))
+        for item in items
+        if item.get(key) is not None
+    ]
+    if not values:
+        return None
+    return float(sum(values) / len(values))
+
+
+def _stage_target_qualified_rows(items: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    qualified = []
+    for item in items:
+        if not bool(item.get("formal_success_candidate")):
+            continue
+        target_value = _optional_float(item.get("reward_target_value"))
+        if target_value is None:
+            target_value = _optional_float(item.get("formal_reward_target_value"))
+        if target_value is not None and target_value >= STAGE2_GATE_MIN_REWARD_TARGET:
+            qualified.append(item)
+    return qualified
+
+
+def stage1_gate_ready(rl) -> bool:
+    recent_generations = rl._recent_stage_generation_window(rl.STAGE1_STRUCTURE_EXPLORE, rl.STAGE1_GATE_WINDOW_GENERATIONS)
+    current_entry_group_count = len(rl._recent_stage_group_window(rl.STAGE1_STRUCTURE_EXPLORE, rl.MAX_STAGE_GROUP_HISTORY))
+    if len(recent_generations) < rl.STAGE1_GATE_WINDOW_GENERATIONS:
+        return False
+    if current_entry_group_count < rl.STAGE1_PROMOTION_MIN_GROUPS:
+        return False
+    executable_count = sum(1 for item in recent_generations if bool(item.get("executable_candidate")))
+    trainable_count = sum(
+        1
+        for item in recent_generations
+        if bool(item.get("trained_step_ok") or item.get("backward_ok"))
+    )
+    discovery_rows = [item for item in recent_generations if bool(item.get("discovery_candidate"))]
+    unique_discovery_families = len(_stage_items_unique(discovery_rows, key="family_hash"))
+    return bool(
+        executable_count >= rl.STAGE1_GATE_EXECUTABLE_MIN
+        and trainable_count >= rl.STAGE1_GATE_TRAINABLE_MIN
+        and len(discovery_rows) >= STAGE1_GATE_DISCOVERY_MIN
+        and unique_discovery_families >= STAGE1_GATE_UNIQUE_DISCOVERY_FAMILIES_MIN
+    )
+
+
+def stage1_trainable_stable_ready(rl) -> Optional[Dict[str, Any]]:
+    recent_generations = rl._recent_stage_generation_window(
+        rl.STAGE1_STRUCTURE_EXPLORE,
+        rl.STAGE1_EXECUTABLE_STABLE_WINDOW_GENERATIONS,
+    )
+    current_entry_group_count = len(rl._recent_stage_group_window(rl.STAGE1_STRUCTURE_EXPLORE, rl.MAX_STAGE_GROUP_HISTORY))
+    if current_entry_group_count < rl.STAGE1_EXECUTABLE_STABLE_MIN_GROUPS:
+        return None
+    if len(recent_generations) < rl.STAGE1_EXECUTABLE_STABLE_WINDOW_GENERATIONS:
+        return None
+    recent_executable_count = sum(1 for item in recent_generations if bool(item.get("executable_candidate")))
+    recent_executable_rate = recent_executable_count / float(len(recent_generations))
+    recent_trainable_count = sum(
+        1
+        for item in recent_generations
+        if bool(item.get("trained_step_ok") or item.get("backward_ok"))
+    )
+    recent_trainable_rate = recent_trainable_count / float(len(recent_generations))
+    if recent_executable_rate < rl.STAGE1_EXECUTABLE_STABLE_MIN_RATE:
+        return None
+    if recent_trainable_rate < rl.STAGE1_TRAINABLE_STABLE_MIN_RATE:
+        return None
+    return {
+        "stage_group_count": current_entry_group_count,
+        "recent_generation_count": len(recent_generations),
+        "recent_executable_count": recent_executable_count,
+        "recent_executable_rate": recent_executable_rate,
+        "recent_trainable_count": recent_trainable_count,
+        "recent_trainable_rate": recent_trainable_rate,
+    }
+
+
+def stage1_force_promotion_ready(rl) -> Optional[Dict[str, int]]:
+    recent_generations = rl._recent_stage_generation_window(rl.STAGE1_STRUCTURE_EXPLORE, rl.STAGE1_GATE_WINDOW_GENERATIONS)
+    current_entry_group_count = len(rl._recent_stage_group_window(rl.STAGE1_STRUCTURE_EXPLORE, rl.MAX_STAGE_GROUP_HISTORY))
+    if len(recent_generations) < rl.STAGE1_GATE_WINDOW_GENERATIONS:
+        return None
+    if current_entry_group_count < rl.STAGE1_PROMOTION_MIN_GROUPS:
+        return None
+    recent_executable_count = sum(1 for item in recent_generations if bool(item.get("executable_candidate")))
+    recent_trainable_count = sum(
+        1
+        for item in recent_generations
+        if bool(item.get("trained_step_ok") or item.get("backward_ok"))
+    )
+    discovery_rows = [item for item in recent_generations if bool(item.get("discovery_candidate"))]
+    recent_discovery_count = len(discovery_rows)
+    recent_unique_discovery_families = len(_stage_items_unique(discovery_rows, key="family_hash"))
+    if recent_executable_count < rl.STAGE1_FORCE_PROMOTION_EXECUTABLE_MIN:
+        return None
+    if recent_trainable_count < rl.STAGE1_FORCE_PROMOTION_TRAINABLE_MIN:
+        return None
+    if recent_discovery_count < STAGE1_FORCE_PROMOTION_DISCOVERY_MIN:
+        return None
+    if recent_unique_discovery_families < STAGE1_FORCE_PROMOTION_UNIQUE_DISCOVERY_FAMILIES_MIN:
+        return None
+    reason = (
+        "stage1_forced_promotion_after_plateau: "
+        f"stage_groups={current_entry_group_count}, "
+        f"recent_generations={len(recent_generations)}, "
+        f"recent_executable_count={recent_executable_count}, "
+        f"recent_trainable_count={recent_trainable_count}, "
+        f"recent_discovery_count={recent_discovery_count}, "
+        f"recent_unique_discovery_families={recent_unique_discovery_families}"
+    )
+    return {
+        "stage_group_count": current_entry_group_count,
+        "recent_generation_count": len(recent_generations),
+        "recent_executable_count": recent_executable_count,
+        "recent_trainable_count": recent_trainable_count,
+        "recent_discovery_count": recent_discovery_count,
+        "recent_unique_discovery_families": recent_unique_discovery_families,
+        "reason": reason,
+    }
+
+
+def stage2_gate_ready(rl) -> bool:
+    recent_generations = rl._recent_stage_generation_window(rl.STAGE2_FORMAL_EXPLORE, rl.STAGE2_GATE_WINDOW_GENERATIONS)
+    recent_groups = rl._recent_stage_group_window(rl.STAGE2_FORMAL_EXPLORE, 5)
+    recent_improvement_groups = rl._recent_stage_group_window(rl.STAGE2_FORMAL_EXPLORE, 4)
+    current_entry_group_count = len(rl._recent_stage_group_window(rl.STAGE2_FORMAL_EXPLORE, rl.MAX_STAGE_GROUP_HISTORY))
+    if len(recent_generations) < rl.STAGE2_GATE_WINDOW_GENERATIONS:
+        return False
+    if current_entry_group_count < rl.STAGE_REFERENCE_MIN_GROUPS[rl.STAGE2_FORMAL_EXPLORE]:
+        return False
+    qualified_rows = _stage_target_qualified_rows(recent_generations)
+    unique_target_families = len(_stage_items_unique(qualified_rows, key="family_hash"))
+    mean_dominant_share = _stage_items_mean_key(recent_groups, "dominant_family_share")
+    mean_dominant_descriptor_share = _stage_items_mean_key(recent_groups, "dominant_descriptor_share")
+    improving_groups = rl._count_group_improvements(recent_improvement_groups)
+    return bool(
+        len(qualified_rows) >= STAGE2_GATE_MIN_TARGET_COUNT
+        and unique_target_families >= STAGE2_GATE_MIN_UNIQUE_TARGET_FAMILIES
+        and improving_groups >= rl.STAGE2_GATE_IMPROVING_GROUPS_REQUIRED
+        and mean_dominant_share is not None
+        and mean_dominant_share <= 0.45
+        and mean_dominant_descriptor_share is not None
+        and mean_dominant_descriptor_share <= STAGE2_GATE_MAX_DOMINANT_DESCRIPTOR_SHARE
+    )
+
+
+def stage_gate_snapshot(rl) -> Dict[str, Any]:
+    stage_name = str(rl.current_stage_name)
+    recent_generations = rl._recent_stage_generation_window(
+        stage_name,
+        rl.STAGE1_GATE_WINDOW_GENERATIONS if stage_name == rl.STAGE1_STRUCTURE_EXPLORE else rl.STAGE2_GATE_WINDOW_GENERATIONS,
+    )
+    recent_groups = rl._recent_stage_group_window(stage_name, 5)
+    discovery_rows = [item for item in recent_generations if bool(item.get("discovery_candidate"))]
+    formal_rows = [item for item in recent_generations if bool(item.get("formal_success_candidate"))]
+    qualified_target_rows = _stage_target_qualified_rows(recent_generations)
+    return {
+        "stage_name": stage_name,
+        "stage_index": rl.RL_STAGE_TO_INDEX.get(stage_name, 0),
+        "recent_generation_count": len(recent_generations),
+        "recent_executable_count": sum(1 for item in recent_generations if bool(item.get("executable_candidate"))),
+        "recent_trainable_count": sum(
+            1
+            for item in recent_generations
+            if bool(item.get("trained_step_ok") or item.get("backward_ok"))
+        ),
+        "recent_discovery_count": len(discovery_rows),
+        "recent_unique_discovery_families": len(_stage_items_unique(discovery_rows, key="family_hash")),
+        "recent_formal_success_count": len(formal_rows),
+        "recent_unique_formal_families": len(_stage_items_unique(formal_rows, key="family_hash")),
+        "recent_target_qualified_count": len(qualified_target_rows),
+        "recent_unique_target_families": len(_stage_items_unique(qualified_target_rows, key="family_hash")),
+        "recent_unique_backbone_signatures": len(_stage_items_unique(recent_generations, key="backbone_signature")),
+        "recent_unique_cnn_signatures": len(_stage_items_unique(recent_generations, key="cnn_signature")),
+        "recent_unique_backbone_cnn_pairs": len(_stage_items_unique(recent_generations, key="backbone_cnn_pair_key")),
+        "recent_mean_dominant_family_share": _stage_items_mean_key(recent_groups, "dominant_family_share"),
+        "recent_mean_dominant_descriptor_share": _stage_items_mean_key(recent_groups, "dominant_descriptor_share"),
+        "recent_mean_dominant_backbone_share": _stage_items_mean_key(recent_groups, "dominant_backbone_share"),
+        "recent_mean_dominant_cnn_share": _stage_items_mean_key(recent_groups, "dominant_cnn_share"),
+        "recent_mean_dominant_backbone_cnn_share": _stage_items_mean_key(recent_groups, "dominant_backbone_cnn_share"),
+        "recent_improving_groups": rl._count_group_improvements(rl._recent_stage_group_window(stage_name, 4)),
+        "recovery_active": bool(rl.recovery_active),
+    }
+
+
+def _format_reward_trace_context(context: Optional[Dict[str, Any]]) -> str:
+    if not isinstance(context, dict) or not context:
+        return ""
+    preferred_keys = (
+        "freeze_backbones",
+        "formal_eval_backend",
+        "formal_eval_duration_seconds",
+        "trainer_device",
+        "trainer_in_shape",
+        "dataset_out_shape",
+        "forward_output_shape",
+        "params_m",
+        "batch",
+        "epoch",
+        "epoch_limit_minutes",
+        "transform",
+        "num_workers",
+        "estimated_training_time_minutes",
+        "reported_accuracy",
+        "reported_duration_seconds",
+    )
+    parts = []
+    for key in preferred_keys:
+        if key in context and context[key] is not None:
+            parts.append(f"{key}={context[key]!r}")
+    code_trace = context.get("code_trace")
+    if isinstance(code_trace, dict):
+        for key in ("references_input_spec", "assigns_input_spec", "references_pattern_attr", "line_count"):
+            if key in code_trace and code_trace[key] is not None:
+                parts.append(f"code_trace.{key}={code_trace[key]!r}")
+    return ", ".join(parts)
+
+
+def log_reward_failure_trace(entry: Dict[str, Any], res: Dict[str, Any]) -> None:
+    graph_info = entry.get("graph_info")
+    pattern_name = getattr(graph_info, "suggested_pattern_name", None) if graph_info is not None else None
+    branches = [("root", res)]
+    frozen_eval = res.get("frozen_eval")
+    unfrozen_eval = res.get("unfrozen_eval")
+    if isinstance(frozen_eval, dict):
+        branches.append(("frozen", frozen_eval))
+    if isinstance(unfrozen_eval, dict):
+        branches.append(("unfrozen", unfrozen_eval))
+
+    seen = set()
+    for branch_name, payload in branches:
+        error = payload.get("error")
+        if not error:
+            continue
+        stage = payload.get("error_stage")
+        hint = payload.get("error_hint")
+        context = payload.get("error_context")
+        dedupe_key = (branch_name, str(error), str(stage), str(hint), repr(context))
+        if dedupe_key in seen:
+            continue
+        seen.add(dedupe_key)
+
+        trace_message = (
+            f"[Reward Failure Trace] rank={entry['rank']} "
+            f"batch_index={entry['local_index']} "
+            f"branch={branch_name} "
+            f"pattern={pattern_name!r} "
+            f"stage={stage or 'unknown'} "
+            f"error={error!r}"
+        )
+        if hint:
+            trace_message += f" hint={hint!r}"
+        formatted_context = _format_reward_trace_context(context)
+        if formatted_context:
+            trace_message += f" context=({formatted_context})"
+        _services().code_logger.log_to_file(trace_message)
 
 
 def update_current_group_metrics(results: List[Dict[str, Any]]) -> None:
@@ -1929,6 +2216,10 @@ def close_group_payload() -> Dict[str, Any]:
 
     return {
         **group_context_fields(),
+        "group_log_summary": (
+            f"dominant_family={dominant_family_hash or 'n/a'} "
+            f"({float(dominant_family_share or 0.0):.2%})"
+        ),
         "closed_mean_reward_target_by_backbone": StageState.float_dict_payload(closed_mean_reward_target_by_backbone),
         "prev_closed_group_mean_reward_target_by_backbone": StageState.float_dict_payload(prev_closed_group_mean_reward_target_by_backbone),
         "best_closed_group_mean_reward_target_by_backbone": StageState.float_dict_payload(best_closed_group_mean_reward_target_by_backbone),
@@ -1948,6 +2239,10 @@ def reset_stage_comparison_state() -> None:
 
 def archive_snapshot_family_counts() -> Dict[str, int]:
     return dict(family_hash_archive_counts)
+
+
+def recovery_marker_count() -> int:
+    return len(discovery_family_hashes_seen)
 
 
 def render_prompt_feedback_text(*, feedback_char_budget: int = 1200) -> str:

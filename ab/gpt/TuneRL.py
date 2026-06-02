@@ -74,10 +74,6 @@ import ab.gpt.rl_pipeline.stage_state as StageState
 import ab.gpt.rl_pipeline.reward_payload as RewardPayload
 from ab.gpt.rl_pipeline.reward_task import RewardTask
 import ab.gpt.util.SFTUtil as SFTUtil
-from ab.gpt.util.ArchDiscovery import (
-    extract_graph_info,
-    normalize_pattern_name,
-)
 from ab.gpt.util.Const import conf_train_dir, conf_test_dir, epoch_dir, new_nn_file, synth_dir, new_out_file
 from ab.nn.util.Util import create_file
 from ab.gpt.util.Reward import (
@@ -100,7 +96,7 @@ from pathlib import Path
 
 from ab.gpt.util.simple_logger import SimpleCodeLogger
 import ab.gpt.util.training_runtime as TrainingRuntime
-from typing import Tuple, Any, List, Dict, Optional, Set
+from typing import Tuple, Any, List, Dict, Optional
 from collections import Counter, deque
 
 # ===== Configuration Options =====
@@ -204,11 +200,11 @@ class TuneRLRewardRuntimeServices:
     def reward_run_epoch_dir(self, *args):
         return reward_run_epoch_dir(*args)
 
-    def record_current_group_trainable_sample(self, goal_key: str, res: Dict[str, Any], graph_info) -> None:
-        _record_current_group_trainable_sample(goal_key, res, graph_info)
+    def record_current_group_trainable_sample(self, goal_key: str, res: Dict[str, Any], candidate_info) -> None:
+        _record_current_group_trainable_sample(goal_key, res, candidate_info)
 
     def training_context_guidance(self, summary: Dict[str, Any]) -> str:
-        return _training_context_guidance(summary)
+        return reward_task_training_context_guidance(summary)
 
     def summarize_stage_training_context(self, stage_name: str, *, window_size: int = 50) -> Dict[str, Any]:
         return summarize_stage_training_context(stage_name, window_size=window_size)
@@ -244,7 +240,7 @@ class TuneRLRewardRuntimeServices:
         return _attach_group_context(res, seed_accuracy_baseline=seed_accuracy_baseline, group_context=group_context)
 
     def log_reward_failure_trace(self, entry: Dict[str, Any], res: Dict[str, Any]) -> None:
-        _log_reward_failure_trace(entry, res)
+        reward_task_log_reward_failure_trace(entry, res)
 
     def reward_failure_result(self, *, error: str, seed_accuracy_baseline: float, group_context: Dict[str, Any]) -> Dict[str, Any]:
         return _reward_failure_result(
@@ -324,21 +320,9 @@ STAGE1_TRAINABLE_STABLE_MIN_RATE = 0.30
 STAGE1_PROMOTION_MIN_GROUPS = 20
 STAGE1_GATE_EXECUTABLE_MIN = 96
 STAGE1_GATE_TRAINABLE_MIN = 480
-STAGE1_GATE_DISCOVERY_MIN = 8
-STAGE1_GATE_UNIQUE_DISCOVERY_FAMILIES_MIN = 6
 STAGE1_FORCE_PROMOTION_EXECUTABLE_MIN = 800
 STAGE1_FORCE_PROMOTION_TRAINABLE_MIN = 480
-STAGE1_FORCE_PROMOTION_DISCOVERY_MIN = 8
-STAGE1_FORCE_PROMOTION_UNIQUE_DISCOVERY_FAMILIES_MIN = 6
-STAGE2_GATE_MIN_REWARD_TARGET = 0.90
-STAGE2_GATE_MIN_TARGET_COUNT = 16
-STAGE2_GATE_MIN_UNIQUE_TARGET_FAMILIES = 6
 STAGE2_GATE_IMPROVING_GROUPS_REQUIRED = 2
-STAGE2_GATE_MAX_DOMINANT_DESCRIPTOR_SHARE = 0.50
-STAGE_RECOVERY_DOMINANT_SHARE_THRESHOLD = 0.55
-STAGE_RECOVERY_NEW_DISCOVERY_FAMILIES_MAX = 1
-STAGE_RECOVERY_RELEASE_GENERATIONS = 2000
-STAGE_RECOVERY_RELEASE_DISCOVERY_FAMILIES = 4
 MAX_STAGE_SAMPLE_HISTORY = 24000
 MAX_STAGE_GROUP_HISTORY = 512
 TRAINING_CONTEXT_WINDOW = 50
@@ -405,7 +389,7 @@ closed_group_history: List[Dict[str, Any]] = []
 stage_event_history: List[Dict[str, Any]] = []
 recovery_active = False
 recovery_start_generation_total = 0
-recovery_start_discovery_family_count = 0
+recovery_start_task_marker_count = 0
 # ==================================
 
 
@@ -872,7 +856,7 @@ def _update_top_feedback(summary: Dict[str, Any]) -> None:
     del current_group_top_feedback[FEEDBACK_SUMMARY_LIMIT:]
 
 
-def _record_current_group_trainable_sample(goal_key: str, res: Dict[str, Any], graph_info) -> None:
+def _record_current_group_trainable_sample(goal_key: str, res: Dict[str, Any], candidate_info) -> None:
     reward_target_value = _result_reward_target_value(res)
     if reward_target_value is None:
         return
@@ -882,7 +866,7 @@ def _record_current_group_trainable_sample(goal_key: str, res: Dict[str, Any], g
     summary = reward_task_build_group_feedback_summary(
         goal_key=goal_key,
         res=res,
-        graph_info=graph_info,
+        candidate_info=candidate_info,
         reward_group_id=current_group_id,
     )
     _update_top_feedback(summary)
@@ -1478,157 +1462,23 @@ def register_stage_checkpoint_signal_handlers() -> None:
 
 
 def _stage1_gate_ready() -> bool:
-    recent_generations = _recent_stage_generation_window(STAGE1_STRUCTURE_EXPLORE, STAGE1_GATE_WINDOW_GENERATIONS)
-    current_entry_group_count = len(_recent_stage_group_window(STAGE1_STRUCTURE_EXPLORE, MAX_STAGE_GROUP_HISTORY))
-    if len(recent_generations) < STAGE1_GATE_WINDOW_GENERATIONS:
-        return False
-    if current_entry_group_count < STAGE1_PROMOTION_MIN_GROUPS:
-        return False
-    executable_count = sum(1 for item in recent_generations if bool(item.get("executable_candidate")))
-    trainable_count = sum(
-        1
-        for item in recent_generations
-        if bool(item.get("trained_step_ok") or item.get("backward_ok"))
-    )
-    discovery_rows = [item for item in recent_generations if bool(item.get("discovery_candidate"))]
-    unique_discovery_families = len(_family_hash_set(discovery_rows, key="family_hash"))
-    return bool(
-        executable_count >= STAGE1_GATE_EXECUTABLE_MIN
-        and trainable_count >= STAGE1_GATE_TRAINABLE_MIN
-        and len(discovery_rows) >= STAGE1_GATE_DISCOVERY_MIN
-        and unique_discovery_families >= STAGE1_GATE_UNIQUE_DISCOVERY_FAMILIES_MIN
-    )
+    return bool(_require_reward_task_callable("stage1_gate_ready")())
 
 
 def _stage1_trainable_stable_ready() -> Optional[Dict[str, Any]]:
-    recent_generations = _recent_stage_generation_window(
-        STAGE1_STRUCTURE_EXPLORE,
-        STAGE1_EXECUTABLE_STABLE_WINDOW_GENERATIONS,
-    )
-    current_entry_group_count = len(_recent_stage_group_window(STAGE1_STRUCTURE_EXPLORE, MAX_STAGE_GROUP_HISTORY))
-    if current_entry_group_count < STAGE1_EXECUTABLE_STABLE_MIN_GROUPS:
-        return None
-    if len(recent_generations) < STAGE1_EXECUTABLE_STABLE_WINDOW_GENERATIONS:
-        return None
-    recent_executable_count = sum(1 for item in recent_generations if bool(item.get("executable_candidate")))
-    recent_executable_rate = recent_executable_count / float(len(recent_generations))
-    recent_trainable_count = sum(
-        1
-        for item in recent_generations
-        if bool(item.get("trained_step_ok") or item.get("backward_ok"))
-    )
-    recent_trainable_rate = recent_trainable_count / float(len(recent_generations))
-    if recent_executable_rate < STAGE1_EXECUTABLE_STABLE_MIN_RATE:
-        return None
-    if recent_trainable_rate < STAGE1_TRAINABLE_STABLE_MIN_RATE:
-        return None
-    return {
-        "stage_group_count": current_entry_group_count,
-        "recent_generation_count": len(recent_generations),
-        "recent_executable_count": recent_executable_count,
-        "recent_executable_rate": recent_executable_rate,
-        "recent_trainable_count": recent_trainable_count,
-        "recent_trainable_rate": recent_trainable_rate,
-    }
+    return _require_reward_task_callable("stage1_trainable_stable_ready")()
 
 
 def _stage1_force_promotion_ready() -> Optional[Dict[str, int]]:
-    recent_generations = _recent_stage_generation_window(STAGE1_STRUCTURE_EXPLORE, STAGE1_GATE_WINDOW_GENERATIONS)
-    current_entry_group_count = len(_recent_stage_group_window(STAGE1_STRUCTURE_EXPLORE, MAX_STAGE_GROUP_HISTORY))
-    if len(recent_generations) < STAGE1_GATE_WINDOW_GENERATIONS:
-        return None
-    if current_entry_group_count < STAGE1_PROMOTION_MIN_GROUPS:
-        return None
-    recent_executable_count = sum(1 for item in recent_generations if bool(item.get("executable_candidate")))
-    recent_trainable_count = sum(
-        1
-        for item in recent_generations
-        if bool(item.get("trained_step_ok") or item.get("backward_ok"))
-    )
-    discovery_rows = [item for item in recent_generations if bool(item.get("discovery_candidate"))]
-    recent_discovery_count = len(discovery_rows)
-    recent_unique_discovery_families = len(_family_hash_set(discovery_rows, key="family_hash"))
-    if recent_executable_count < STAGE1_FORCE_PROMOTION_EXECUTABLE_MIN:
-        return None
-    if recent_trainable_count < STAGE1_FORCE_PROMOTION_TRAINABLE_MIN:
-        return None
-    if recent_discovery_count < STAGE1_FORCE_PROMOTION_DISCOVERY_MIN:
-        return None
-    if recent_unique_discovery_families < STAGE1_FORCE_PROMOTION_UNIQUE_DISCOVERY_FAMILIES_MIN:
-        return None
-    return {
-        "stage_group_count": current_entry_group_count,
-        "recent_generation_count": len(recent_generations),
-        "recent_executable_count": recent_executable_count,
-        "recent_trainable_count": recent_trainable_count,
-        "recent_discovery_count": recent_discovery_count,
-        "recent_unique_discovery_families": recent_unique_discovery_families,
-    }
+    return _require_reward_task_callable("stage1_force_promotion_ready")()
 
 
 def _stage2_gate_ready() -> bool:
-    recent_generations = _recent_stage_generation_window(STAGE2_FORMAL_EXPLORE, STAGE2_GATE_WINDOW_GENERATIONS)
-    recent_groups = _recent_stage_group_window(STAGE2_FORMAL_EXPLORE, 5)
-    recent_improvement_groups = _recent_stage_group_window(STAGE2_FORMAL_EXPLORE, 4)
-    current_entry_group_count = len(_recent_stage_group_window(STAGE2_FORMAL_EXPLORE, MAX_STAGE_GROUP_HISTORY))
-    if len(recent_generations) < STAGE2_GATE_WINDOW_GENERATIONS:
-        return False
-    if current_entry_group_count < STAGE_REFERENCE_MIN_GROUPS[STAGE2_FORMAL_EXPLORE]:
-        return False
-    formal_rows = [item for item in recent_generations if bool(item.get("formal_success_candidate"))]
-    qualified_rows = _stage2_target_qualified_rows(recent_generations)
-    unique_target_families = len(_family_hash_set(qualified_rows, key="family_hash"))
-    mean_dominant_share = _mean_dominant_share(recent_groups)
-    mean_dominant_descriptor_share = _mean_dominant_descriptor_share(recent_groups)
-    improving_groups = _count_group_improvements(recent_improvement_groups)
-    return bool(
-        len(qualified_rows) >= STAGE2_GATE_MIN_TARGET_COUNT
-        and unique_target_families >= STAGE2_GATE_MIN_UNIQUE_TARGET_FAMILIES
-        and improving_groups >= STAGE2_GATE_IMPROVING_GROUPS_REQUIRED
-        and mean_dominant_share is not None
-        and mean_dominant_share <= 0.45
-        and mean_dominant_descriptor_share is not None
-        and mean_dominant_descriptor_share <= STAGE2_GATE_MAX_DOMINANT_DESCRIPTOR_SHARE
-    )
+    return bool(_require_reward_task_callable("stage2_gate_ready")())
 
 
 def _stage_gate_snapshot() -> Dict[str, Any]:
-    stage_name = str(current_stage_name)
-    recent_generations = _recent_stage_generation_window(
-        stage_name,
-        STAGE1_GATE_WINDOW_GENERATIONS if stage_name == STAGE1_STRUCTURE_EXPLORE else STAGE2_GATE_WINDOW_GENERATIONS,
-    )
-    recent_groups = _recent_stage_group_window(stage_name, 5)
-    discovery_rows = [item for item in recent_generations if bool(item.get("discovery_candidate"))]
-    formal_rows = [item for item in recent_generations if bool(item.get("formal_success_candidate"))]
-    qualified_target_rows = _stage2_target_qualified_rows(recent_generations)
-    return {
-        "stage_name": stage_name,
-        "stage_index": RL_STAGE_TO_INDEX.get(stage_name, 0),
-        "recent_generation_count": len(recent_generations),
-        "recent_executable_count": sum(1 for item in recent_generations if bool(item.get("executable_candidate"))),
-        "recent_trainable_count": sum(
-            1
-            for item in recent_generations
-            if bool(item.get("trained_step_ok") or item.get("backward_ok"))
-        ),
-        "recent_discovery_count": len(discovery_rows),
-        "recent_unique_discovery_families": len(_family_hash_set(discovery_rows, key="family_hash")),
-        "recent_formal_success_count": len(formal_rows),
-        "recent_unique_formal_families": len(_family_hash_set(formal_rows, key="family_hash")),
-        "recent_target_qualified_count": len(qualified_target_rows),
-        "recent_unique_target_families": len(_family_hash_set(qualified_target_rows, key="family_hash")),
-        "recent_unique_backbone_signatures": len(_family_hash_set(recent_generations, key="backbone_signature")),
-        "recent_unique_cnn_signatures": len(_family_hash_set(recent_generations, key="cnn_signature")),
-        "recent_unique_backbone_cnn_pairs": len(_family_hash_set(recent_generations, key="backbone_cnn_pair_key")),
-        "recent_mean_dominant_family_share": _mean_dominant_share(recent_groups),
-        "recent_mean_dominant_descriptor_share": _mean_dominant_descriptor_share(recent_groups),
-        "recent_mean_dominant_backbone_share": _mean_dominant_backbone_share(recent_groups),
-        "recent_mean_dominant_cnn_share": _mean_dominant_cnn_share(recent_groups),
-        "recent_mean_dominant_backbone_cnn_share": _mean_dominant_backbone_cnn_share(recent_groups),
-        "recent_improving_groups": _count_group_improvements(_recent_stage_group_window(stage_name, 4)),
-        "recovery_active": bool(recovery_active),
-    }
+    return _require_reward_task_callable("stage_gate_snapshot")()
 
 
 def _transition_to_stage(
@@ -1777,69 +1627,6 @@ def _recent_stage_generation_window(stage_name: str, max_items: int) -> List[Dic
 
 def _recent_stage_group_window(stage_name: str, max_items: int) -> List[Dict[str, Any]]:
     return StageState.recent_stage_group_window(sys.modules[__name__], stage_name, max_items)
-
-
-def _family_hash_set(items: List[Dict[str, Any]], *, key: str) -> Set[str]:
-    return {
-        str(item.get(key))
-        for item in items
-        if item.get(key)
-    }
-
-
-def _mean_dominant_share(items: List[Dict[str, Any]]) -> Optional[float]:
-    shares = [
-        float(item.get("dominant_family_share"))
-        for item in items
-        if item.get("dominant_family_share") is not None
-    ]
-    if not shares:
-        return None
-    return float(sum(shares) / len(shares))
-
-
-def _mean_dominant_descriptor_share(items: List[Dict[str, Any]]) -> Optional[float]:
-    shares = [
-        float(item.get("dominant_descriptor_share"))
-        for item in items
-        if item.get("dominant_descriptor_share") is not None
-    ]
-    if not shares:
-        return None
-    return float(sum(shares) / len(shares))
-
-
-def _mean_dominant_backbone_share(items: List[Dict[str, Any]]) -> Optional[float]:
-    shares = [
-        float(item.get("dominant_backbone_share"))
-        for item in items
-        if item.get("dominant_backbone_share") is not None
-    ]
-    if not shares:
-        return None
-    return float(sum(shares) / len(shares))
-
-
-def _mean_dominant_cnn_share(items: List[Dict[str, Any]]) -> Optional[float]:
-    shares = [
-        float(item.get("dominant_cnn_share"))
-        for item in items
-        if item.get("dominant_cnn_share") is not None
-    ]
-    if not shares:
-        return None
-    return float(sum(shares) / len(shares))
-
-
-def _mean_dominant_backbone_cnn_share(items: List[Dict[str, Any]]) -> Optional[float]:
-    shares = [
-        float(item.get("dominant_backbone_cnn_share"))
-        for item in items
-        if item.get("dominant_backbone_cnn_share") is not None
-    ]
-    if not shares:
-        return None
-    return float(sum(shares) / len(shares))
 
 
 def _count_group_improvements(items: List[Dict[str, Any]]) -> int:
@@ -2041,17 +1828,6 @@ def summarize_stage_training_context(
     return summary
 
 
-def _training_context_guidance(summary: Dict[str, Any]) -> str:
-    if not summary.get("has_recent_window"):
-        return "no train-loss window yet"
-    pressure = float(summary.get("exploration_pressure") or 0.0)
-    if pressure >= 0.60:
-        return "loss has plateaued or oscillated; favor structurally new candidates and avoid dominant templates"
-    if bool(summary.get("monotonic_improving")) and pressure <= 0.25:
-        return "loss is still improving; keep local mutations and avoid collapsing to one family"
-    return "improvement is slowing; bias toward descriptor and family novelty over shallow repeats"
-
-
 def _stage_reward_target_metric(stage_name: str) -> str:
     if str(stage_name) == STAGE1_STRUCTURE_EXPLORE:
         return STATIC_STAGE_REWARD_TARGET_METRIC
@@ -2232,23 +2008,35 @@ def reward_task_reset_stage_comparison_state() -> None:
     _require_reward_task_callable("reset_stage_comparison_state")()
 
 
-def reward_task_archive_snapshot_family_counts() -> Dict[str, int]:
-    return _require_reward_task_callable("archive_snapshot_family_counts")()
+def reward_task_archive_snapshot_counts() -> Dict[str, int]:
+    return _require_reward_task_callable("archive_snapshot_counts")()
+
+
+def reward_task_recovery_marker_count() -> int:
+    return int(_require_reward_task_callable("recovery_marker_count")())
 
 
 def reward_task_build_group_feedback_summary(
     *,
     goal_key: str,
     res: Dict[str, Any],
-    graph_info,
+    candidate_info,
     reward_group_id: int,
 ) -> Dict[str, Any]:
     return _require_reward_task_callable("build_group_feedback_summary")(
         goal_key=goal_key,
         res=res,
-        graph_info=graph_info,
+        candidate_info=candidate_info,
         reward_group_id=reward_group_id,
     )
+
+
+def reward_task_training_context_guidance(summary: Dict[str, Any]) -> str:
+    return _require_reward_task_callable("training_context_guidance")(summary)
+
+
+def reward_task_log_reward_failure_trace(entry: Dict[str, Any], res: Dict[str, Any]) -> None:
+    _require_reward_task_callable("log_reward_failure_trace")(entry, res)
 
 
 def _attach_group_context(
@@ -2264,70 +2052,8 @@ def _attach_group_context(
         group_context=group_context,
     )
 
-def reward_fn(
-    completion: str,
-    *,
-    seed_accuracy_baseline: float,
-    precomputed_eval_result: Optional[Dict[str, Any]] = None,
-    graph_info=None,
-    batch_graph_hashes: List[str] = None,
-    batch_family_hashes: List[str] = None,
-    batch_descriptor_keys: List[str] = None,
-    batch_backbone_signatures: List[str] = None,
-    batch_cnn_signatures: List[str] = None,
-    batch_block_signatures: List[str] = None,
-    batch_backbone_block_signatures: List[str] = None,
-    prompt_goal_tags: List[str] = None,
-    prompt_target_pattern: str = "",
-    archive_snapshot_family_counts: Optional[Dict[str, int]] = None,
-    archive_snapshot_descriptor_counts: Optional[Dict[str, int]] = None,
-    archive_snapshot_backbone_signature_counts: Optional[Dict[str, int]] = None,
-    archive_snapshot_cnn_signature_counts: Optional[Dict[str, int]] = None,
-    archive_snapshot_graph_counts: Optional[Dict[str, int]] = None,
-    archive_snapshot_block_signature_counts: Optional[Dict[str, int]] = None,
-    archive_snapshot_backbone_cnn_pair_counts: Optional[Dict[str, int]] = None,
-    archive_snapshot_backbone_block_pair_counts: Optional[Dict[str, int]] = None,
-    archive_snapshot_backbone_block_best_quality: Optional[Dict[str, float]] = None,
-    group_baseline_train_acc: Optional[float] = None,
-    group_baseline_reward_target_acc: Optional[float] = None,
-    reward_batch_index: Optional[int] = None,
-    reward_group_id: Optional[int] = None,
-    group_warmup: bool = False,
-    completion_index: Optional[int] = None,
-    batch_last_item: bool = False,
-) -> Dict[str, Any]:
-    """Reward open-ended motif discovery while keeping the existing XML output ABI."""
-    return reward_task_reward_fn(
-        completion,
-        seed_accuracy_baseline=seed_accuracy_baseline,
-        precomputed_eval_result=precomputed_eval_result,
-        graph_info=graph_info,
-        batch_graph_hashes=batch_graph_hashes,
-        batch_family_hashes=batch_family_hashes,
-        batch_descriptor_keys=batch_descriptor_keys,
-        batch_backbone_signatures=batch_backbone_signatures,
-        batch_cnn_signatures=batch_cnn_signatures,
-        batch_block_signatures=batch_block_signatures,
-        batch_backbone_block_signatures=batch_backbone_block_signatures,
-        prompt_goal_tags=prompt_goal_tags,
-        prompt_target_pattern=prompt_target_pattern,
-        archive_snapshot_family_counts=archive_snapshot_family_counts,
-        archive_snapshot_descriptor_counts=archive_snapshot_descriptor_counts,
-        archive_snapshot_backbone_signature_counts=archive_snapshot_backbone_signature_counts,
-        archive_snapshot_cnn_signature_counts=archive_snapshot_cnn_signature_counts,
-        archive_snapshot_graph_counts=archive_snapshot_graph_counts,
-        archive_snapshot_block_signature_counts=archive_snapshot_block_signature_counts,
-        archive_snapshot_backbone_cnn_pair_counts=archive_snapshot_backbone_cnn_pair_counts,
-        archive_snapshot_backbone_block_pair_counts=archive_snapshot_backbone_block_pair_counts,
-        archive_snapshot_backbone_block_best_quality=archive_snapshot_backbone_block_best_quality,
-        group_baseline_train_acc=group_baseline_train_acc,
-        group_baseline_reward_target_acc=group_baseline_reward_target_acc,
-        reward_batch_index=reward_batch_index,
-        reward_group_id=reward_group_id,
-        group_warmup=group_warmup,
-        completion_index=completion_index,
-        batch_last_item=batch_last_item,
-    )
+def reward_fn(*args, **kwargs) -> Dict[str, Any]:
+    return reward_task_reward_fn(*args, **kwargs)
 def _reward_failure_result(
     *,
     error: str,
@@ -2400,89 +2126,16 @@ def _merge_gathered_reward_entries(
     return merged_entries
 
 
-def _format_reward_trace_context(context: Optional[Dict[str, Any]]) -> str:
-    if not isinstance(context, dict) or not context:
-        return ""
-    preferred_keys = (
-        "freeze_backbones",
-        "formal_eval_backend",
-        "formal_eval_duration_seconds",
-        "trainer_device",
-        "trainer_in_shape",
-        "dataset_out_shape",
-        "forward_output_shape",
-        "params_m",
-        "batch",
-        "epoch",
-        "epoch_limit_minutes",
-        "transform",
-        "num_workers",
-        "estimated_training_time_minutes",
-        "reported_accuracy",
-        "reported_duration_seconds",
-    )
-    parts = []
-    for key in preferred_keys:
-        if key in context and context[key] is not None:
-            parts.append(f"{key}={context[key]!r}")
-    code_trace = context.get("code_trace")
-    if isinstance(code_trace, dict):
-        for key in ("references_input_spec", "assigns_input_spec", "references_pattern_attr", "line_count"):
-            if key in code_trace and code_trace[key] is not None:
-                parts.append(f"code_trace.{key}={code_trace[key]!r}")
-    return ", ".join(parts)
-
-
-def _log_reward_failure_trace(entry: Dict[str, Any], res: Dict[str, Any]) -> None:
-    graph_info = entry.get("graph_info")
-    pattern_name = getattr(graph_info, "suggested_pattern_name", None) if graph_info is not None else None
-    branches = [("root", res)]
-    frozen_eval = res.get("frozen_eval")
-    unfrozen_eval = res.get("unfrozen_eval")
-    if isinstance(frozen_eval, dict):
-        branches.append(("frozen", frozen_eval))
-    if isinstance(unfrozen_eval, dict):
-        branches.append(("unfrozen", unfrozen_eval))
-
-    seen = set()
-    for branch_name, payload in branches:
-        error = payload.get("error")
-        if not error:
-            continue
-        stage = payload.get("error_stage")
-        hint = payload.get("error_hint")
-        context = payload.get("error_context")
-        dedupe_key = (branch_name, str(error), str(stage), str(hint), repr(context))
-        if dedupe_key in seen:
-            continue
-        seen.add(dedupe_key)
-
-        trace_message = (
-            f"[Reward Failure Trace] rank={entry['rank']} "
-            f"batch_index={entry['local_index']} "
-            f"branch={branch_name} "
-            f"pattern={pattern_name!r} "
-            f"stage={stage or 'unknown'} "
-            f"error={error!r}"
-        )
-        if hint:
-            trace_message += f" hint={hint!r}"
-        formatted_context = _format_reward_trace_context(context)
-        if formatted_context:
-            trace_message += f" context=({formatted_context})"
-        code_logger.log_to_file(trace_message)
-
-
 def score_reward_entries(
     entries: List[Dict[str, Any]],
     *,
     group_context: Dict[str, Any],
-    archive_snapshot_family_counts: Dict[str, int],
+    archive_snapshot_counts: Dict[str, int],
 ) -> List[Dict[str, Any]]:
     return _require_reward_task_callable("score_entries")(
         entries,
         group_context=group_context,
-        archive_snapshot_family_counts=archive_snapshot_family_counts,
+        archive_snapshot_counts=archive_snapshot_counts,
     )
 
 
@@ -2520,13 +2173,13 @@ def compute_reward(prompts, completions, **kwargs):
             group_context=group_context,
             precompute_eval=precompute_eval,
         )
-        archive_snapshot_family_counts = reward_task_archive_snapshot_family_counts()
+        archive_snapshot_counts = reward_task_archive_snapshot_counts()
 
         if not distributed_mode:
             scored_results = score_reward_entries(
                 local_entries,
                 group_context=group_context,
-                archive_snapshot_family_counts=archive_snapshot_family_counts,
+                archive_snapshot_counts=archive_snapshot_counts,
             )
             rewards = [-1.0] * len(completions)
             for item in scored_results:
@@ -2591,7 +2244,7 @@ def compute_reward(prompts, completions, **kwargs):
             scored_results = score_reward_entries(
                 merged_precomputed_entries,
                 group_context=group_context,
-                archive_snapshot_family_counts=archive_snapshot_family_counts,
+                archive_snapshot_counts=archive_snapshot_counts,
             )
             finalize_reward_scored_results(scored_results)
             print_reward_metrics()

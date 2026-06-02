@@ -69,7 +69,7 @@ def main() -> None:
     scored = TuneRL.score_reward_entries(
         entries,
         group_context=group_context,
-        archive_snapshot_family_counts={},
+        archive_snapshot_counts={},
     )
     output_rows = []
     for item in scored:

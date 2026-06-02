@@ -129,7 +129,7 @@ def capture_reward_runtime_state(
         "stage_event_history": copy_history_items(runtime["stage_event_history"], limit=max_stage_group_history),
         "recovery_active": bool(runtime["recovery_active"]),
         "recovery_start_generation_total": int(runtime["recovery_start_generation_total"]),
-        "recovery_start_discovery_family_count": int(runtime["recovery_start_discovery_family_count"]),
+        "recovery_start_task_marker_count": int(runtime["recovery_start_task_marker_count"]),
     }
 
 
@@ -158,7 +158,7 @@ def _runtime_scalar_defaults(stage1_structure_explore: str) -> Dict[str, Any]:
         "current_stage_name": stage1_structure_explore,
         "recovery_active": False,
         "recovery_start_generation_total": 0,
-        "recovery_start_discovery_family_count": 0,
+        "recovery_start_task_marker_count": 0,
     }
 
 
@@ -267,7 +267,7 @@ def stage_checkpoint_dir(rl, stage_name):
 
 
 def stage_group_snapshot_payload(rl, current_group_payload=None):
-    return {'current_stage_name': rl.current_stage_name, 'current_stage_index': rl._current_stage_index(), 'generation_total': rl._current_generation_total(), 'reward_batch_index': rl.reward_batch_index, 'current_group_id': rl.current_group_id, 'stage_group_count': len(rl._recent_stage_group_window(rl.current_stage_name, rl.MAX_STAGE_GROUP_HISTORY)), 'recovery_active': bool(rl.recovery_active), 'recovery_start_generation_total': int(rl.recovery_start_generation_total), 'recovery_start_discovery_family_count': int(rl.recovery_start_discovery_family_count), 'latest_closed_group': dict(current_group_payload or {}), 'recent_stage_groups': rl._recent_stage_group_window(rl.current_stage_name, 12), 'recent_stage_generations': rl._recent_stage_generation_window(rl.current_stage_name, 64)}
+    return {'current_stage_name': rl.current_stage_name, 'current_stage_index': rl._current_stage_index(), 'generation_total': rl._current_generation_total(), 'reward_batch_index': rl.reward_batch_index, 'current_group_id': rl.current_group_id, 'stage_group_count': len(rl._recent_stage_group_window(rl.current_stage_name, rl.MAX_STAGE_GROUP_HISTORY)), 'recovery_active': bool(rl.recovery_active), 'recovery_start_generation_total': int(rl.recovery_start_generation_total), 'recovery_start_task_marker_count': int(rl.recovery_start_task_marker_count), 'latest_closed_group': dict(current_group_payload or {}), 'recent_stage_groups': rl._recent_stage_group_window(rl.current_stage_name, 12), 'recent_stage_generations': rl._recent_stage_generation_window(rl.current_stage_name, 64)}
 
 
 def save_stage_plot_snapshot(rl, output_path):
@@ -331,11 +331,11 @@ def transition_to_stage(rl, next_stage_name, *, event, reason, group_progress_pa
     if event == 'recovery_entered':
         rl.recovery_active = True
         rl.recovery_start_generation_total = rl._current_generation_total()
-        rl.recovery_start_discovery_family_count = len(rl.discovery_family_hashes_seen)
+        rl.recovery_start_task_marker_count = int(rl.reward_task_recovery_marker_count())
     elif previous_stage != next_stage_name:
         rl.recovery_active = False
         rl.recovery_start_generation_total = 0
-        rl.recovery_start_discovery_family_count = 0
+        rl.recovery_start_task_marker_count = 0
     rl._append_stage_event({'event': event, 'reason': reason, 'previous_stage_name': previous_stage, 'next_stage_name': rl.current_stage_name})
     rl._save_stage_checkpoint(event, stage_name=rl.current_stage_name, group_progress_payload=group_progress_payload, reason=reason)
 
@@ -345,7 +345,7 @@ def evaluate_stage_transitions(rl, group_progress_payload):
     if rl.recovery_active:
         rl.recovery_active = False
         rl.recovery_start_generation_total = 0
-        rl.recovery_start_discovery_family_count = 0
+        rl.recovery_start_task_marker_count = 0
     if rl._stage1_only_enabled() and stage_name == rl.STAGE1_STRUCTURE_EXPLORE:
         return
     if stage_name == rl.STAGE1_STRUCTURE_EXPLORE:
@@ -355,7 +355,8 @@ def evaluate_stage_transitions(rl, group_progress_payload):
             return
         force_promotion_snapshot = rl._stage1_force_promotion_ready()
         if force_promotion_snapshot is not None:
-            rl._transition_to_stage(rl.STAGE2_FORMAL_EXPLORE, event='entered', reason=f"stage1_forced_promotion_after_plateau: stage_groups={force_promotion_snapshot['stage_group_count']}, recent_generations={force_promotion_snapshot['recent_generation_count']}, recent_executable_count={force_promotion_snapshot['recent_executable_count']}, recent_trainable_count={force_promotion_snapshot['recent_trainable_count']}, recent_discovery_count={force_promotion_snapshot['recent_discovery_count']}, recent_unique_discovery_families={force_promotion_snapshot['recent_unique_discovery_families']}", group_progress_payload=group_progress_payload)
+            reason = str(force_promotion_snapshot.get("reason") or "stage1_forced_promotion_after_plateau")
+            rl._transition_to_stage(rl.STAGE2_FORMAL_EXPLORE, event='entered', reason=reason, group_progress_payload=group_progress_payload)
             return
         if rl._stage1_gate_ready():
             rl._transition_to_stage(rl.STAGE2_FORMAL_EXPLORE, event='entered', reason='stage1_gate_satisfied', group_progress_payload=group_progress_payload)
@@ -417,9 +418,9 @@ def close_reward_group_if_needed(rl):
     best_target_text = 'n/a' if rl.best_closed_group_mean_reward_target_acc is None else f'{rl.best_closed_group_mean_reward_target_acc:.4f}'
     train_text = 'n/a' if closed_mean_train is None else f'{closed_mean_train:.4f}'
     test_text = 'n/a' if closed_mean_test is None else f'{closed_mean_test:.4f}'
-    dominant_family_hash = task_group_payload.get("dominant_family_hash")
-    dominant_family_share = float(task_group_payload.get("dominant_family_share", 0.0) or 0.0)
-    print(f"[Reward Group] Closed group {rl.current_group_id} after {rl.GROUP_BATCH_SIZE} reward batches: mean_target_acc={target_text}, prev_target={prev_target_text}, best_target={best_target_text}, mean_frozen_train_acc={train_text}, mean_frozen_test_acc={test_text}, trainable_samples={rl.current_group_reward_target_count}, dominant_family={dominant_family_hash or 'n/a'} ({dominant_family_share:.2%})")
+    task_group_summary = str(task_group_payload.get("group_log_summary") or "").strip()
+    task_group_suffix = f", {task_group_summary}" if task_group_summary else ""
+    print(f"[Reward Group] Closed group {rl.current_group_id} after {rl.GROUP_BATCH_SIZE} reward batches: mean_target_acc={target_text}, prev_target={prev_target_text}, best_target={best_target_text}, mean_frozen_train_acc={train_text}, mean_frozen_test_acc={test_text}, trainable_samples={rl.current_group_reward_target_count}{task_group_suffix}")
     rl.current_group_id += 1
     rl.current_group_reward_target_sum = 0.0
     rl.current_group_reward_target_count = 0

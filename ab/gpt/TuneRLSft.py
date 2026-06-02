@@ -2284,12 +2284,12 @@ class BackboneRewardTask:
         entries,
         *,
         group_context: Dict[str, Any],
-        archive_snapshot_family_counts: Dict[str, int],
+        archive_snapshot_counts: Dict[str, int],
     ):
         return BackboneRewardRuntime.score_entries(
             entries,
             group_context=group_context,
-            archive_snapshot_family_counts=archive_snapshot_family_counts,
+            archive_snapshot_family_counts=archive_snapshot_counts,
         )
 
     def entries_from_records(self, records):
@@ -2332,8 +2332,11 @@ class BackboneRewardTask:
     def reset_stage_comparison_state(self) -> None:
         BackboneRewardRuntime.reset_stage_comparison_state()
 
-    def archive_snapshot_family_counts(self) -> Dict[str, int]:
+    def archive_snapshot_counts(self) -> Dict[str, int]:
         return BackboneRewardRuntime.archive_snapshot_family_counts()
+
+    def recovery_marker_count(self) -> int:
+        return BackboneRewardRuntime.recovery_marker_count()
 
     def print_metrics(self) -> None:
         BackboneRewardRuntime.print_discovery_metrics()
@@ -2343,18 +2346,39 @@ class BackboneRewardTask:
         *,
         goal_key: str,
         res: Dict[str, Any],
-        graph_info,
+        candidate_info,
         reward_group_id: int,
     ) -> Dict[str, Any]:
         return BackboneRewardRuntime.build_group_feedback_summary(
             goal_key=goal_key,
             res=res,
-            graph_info=graph_info,
+            graph_info=candidate_info,
             reward_group_id=reward_group_id,
         )
 
     def render_prompt_feedback_text(self, *, feedback_char_budget: int = 1200) -> str:
         return BackboneRewardRuntime.render_prompt_feedback_text(feedback_char_budget=feedback_char_budget)
+
+    def training_context_guidance(self, summary: Dict[str, Any]) -> str:
+        return BackboneRewardRuntime.training_context_guidance(summary)
+
+    def stage1_gate_ready(self) -> bool:
+        return BackboneRewardRuntime.stage1_gate_ready(TuneRL)
+
+    def stage1_trainable_stable_ready(self):
+        return BackboneRewardRuntime.stage1_trainable_stable_ready(TuneRL)
+
+    def stage1_force_promotion_ready(self):
+        return BackboneRewardRuntime.stage1_force_promotion_ready(TuneRL)
+
+    def stage2_gate_ready(self) -> bool:
+        return BackboneRewardRuntime.stage2_gate_ready(TuneRL)
+
+    def stage_gate_snapshot(self) -> Dict[str, Any]:
+        return BackboneRewardRuntime.stage_gate_snapshot(TuneRL)
+
+    def log_reward_failure_trace(self, entry: Dict[str, Any], res: Dict[str, Any]) -> None:
+        BackboneRewardRuntime.log_reward_failure_trace(entry, res)
 
     def run_log_dir(self) -> str:
         return resolve_sft_log_dir()

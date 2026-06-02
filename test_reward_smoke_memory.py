@@ -368,12 +368,13 @@ def forward(self, x, is_probing=False):
         sft_reward = _function_source("ab/gpt/TuneRLSft.py", "sft_reward_fn")
         sft_raw_reward = _function_source("ab/gpt/TuneRLSft.py", "raw_reward_fn")
 
+        self.assertIn("def reward_fn(*args, **kwargs)", tunerl_reward)
+        self.assertIn("reward_task_reward_fn(*args, **kwargs)", tunerl_reward)
         for parameter_name in (
             "batch_backbone_block_signatures",
             "archive_snapshot_backbone_block_pair_counts",
             "archive_snapshot_backbone_block_best_quality",
         ):
-            self.assertIn(parameter_name, tunerl_reward)
             self.assertIn(parameter_name, sft_reward)
             self.assertIn(parameter_name, sft_raw_reward)
 
@@ -534,6 +535,10 @@ def forward(self, x, is_probing=False):
             "cnn",
             "block",
             "descriptor",
+            "family_hash",
+            "discovery_family",
+            "dominant_family",
+            "recent_unique_discovery",
             "archive_counts",
             "signature_counts",
             "current_group_reward_target_sum_by_backbone",
@@ -561,6 +566,12 @@ def forward(self, x, is_probing=False):
             "backbone_cnn_pair_archive_counts =",
             "current_group_reward_target_sum_by_backbone =",
             "prev_closed_group_mean_reward_target_by_backbone:",
+            "graph_info",
+            "family_hash",
+            "descriptor_key",
+            "cnn_signature",
+            "archive_snapshot_family_counts",
+            "freeze_backbones",
         ):
             self.assertNotIn(token, tunerl_source)
 
@@ -616,6 +627,11 @@ def forward(self, x, is_probing=False):
             "_backbone_reward_runtime",
             "BackboneRewardRuntime",
             "class OpenDiscoveryRewardTask",
+            "graph_info",
+            "family_hash",
+            "descriptor_key",
+            "cnn_signature",
+            "archive_snapshot_family_counts",
         ):
             self.assertNotIn(token, tunerl_source)
         self.assertIn("create_default_reward_task", tunerl_source)
