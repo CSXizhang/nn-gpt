@@ -351,6 +351,13 @@ def forward(self, x, is_probing=False):
         self.assertGreater(result["reward"], 0.68)
         self.assertAlmostEqual(scored_results[0]["score"], result["reward"])
 
+    def test_live_entries_do_not_invent_empty_precomputed_eval_result(self):
+        body = _function_source(REWARD_RUNTIME_PATH, "_entry_from_record")
+        self.assertIn("api_result = _record_api_result(record)", body)
+        self.assertIn("if api_result:", body)
+        self.assertIn('entry["precomputed_eval_result"] = dict(api_result)', body)
+        self.assertNotIn('"precomputed_eval_result": dict(_record_api_result(record))', body)
+
     def test_loss_drop_is_not_a_reward_gate(self):
         gated_functions = [
             _function_source(REWARD_RUNTIME_PATH, "_stage1_validity_reward"),
