@@ -284,44 +284,70 @@ _TASK_STATE_NAMES = {
 }
 
 
-def _tunerl():
-    import ab.gpt.TuneRL as TuneRL
-
-    return TuneRL
+_runtime_services: Optional[Any] = None
 
 
-_TUNERL_DEPENDENCY_NAMES = (
-    "B_index",
-    "_record_current_group_trainable_sample",
-    "_training_context_guidance",
-    "best_closed_group_mean_reward_target_acc",
-    "best_closed_group_mean_test_acc",
-    "best_closed_group_mean_train_acc",
-    "best_reward_target_by_goal",
-    "code_logger",
-    "current_stage_name",
-    "prev_closed_group_mean_reward_target_acc",
-    "summarize_stage_training_context",
-    "update_current_group_metrics",
-)
+def configure_runtime_services(services: Any) -> None:
+    global _runtime_services
+    _runtime_services = services
 
 
-def _bind_tunerl_dependencies():
-    TuneRL = _tunerl()
-    globals().update({name: getattr(TuneRL, name) for name in _TUNERL_DEPENDENCY_NAMES})
-    return TuneRL
+def _services() -> Any:
+    if _runtime_services is None:
+        raise RuntimeError("Backbone reward runtime services have not been configured")
+    return _runtime_services
+
+
+class _TuneRLCodeLoggerProxy:
+    def __getattr__(self, name: str):
+        return getattr(_services().code_logger, name)
+
+
+code_logger = _TuneRLCodeLoggerProxy()
+
+
+def _current_stage_name() -> str:
+    return str(getattr(_services(), "current_stage_name", STAGE1_STRUCTURE_EXPLORE))
+
+
+def _prev_closed_group_mean_reward_target_acc() -> Optional[float]:
+    return getattr(_services(), "prev_closed_group_mean_reward_target_acc", None)
+
+
+def _best_closed_group_mean_reward_target_acc() -> Optional[float]:
+    return getattr(_services(), "best_closed_group_mean_reward_target_acc", None)
+
+
+def _best_closed_group_mean_train_acc() -> Optional[float]:
+    return getattr(_services(), "best_closed_group_mean_train_acc", None)
+
+
+def _best_closed_group_mean_test_acc() -> Optional[float]:
+    return getattr(_services(), "best_closed_group_mean_test_acc", None)
+
+
+def _best_reward_target_by_goal() -> Dict[str, float]:
+    return getattr(_services(), "best_reward_target_by_goal", {})
+
+
+def _archive_index() -> int:
+    return int(getattr(_services(), "archive_index", 0) or 0)
+
+
+def _set_archive_index(value: int) -> None:
+    _services().set_archive_index(int(value))
 
 
 def _current_generation_total() -> int:
-    return StageState.current_generation_total(_tunerl())
+    return _services().current_generation_total()
 
 
 def _record_generation_event(payload: Dict[str, Any]) -> Dict[str, Any]:
-    return StageState.record_generation_event(_tunerl(), payload)
+    return _services().record_generation_event(payload)
 
 
 def close_reward_group_if_needed() -> Optional[Dict[str, Any]]:
-    return StageState.close_reward_group_if_needed(_tunerl())
+    return _services().close_reward_group_if_needed()
 
 
 def get_goal_counter(store: Dict[str, Counter], goal_key: str) -> Counter:
@@ -331,19 +357,35 @@ def get_goal_counter(store: Dict[str, Counter], goal_key: str) -> Counter:
 
 
 def evaluate_reward_code(*args, **kwargs):
-    return _tunerl().evaluate_reward_code(*args, **kwargs)
+    return _services().evaluate_reward_code(*args, **kwargs)
 
 
 def reward_eval_cfg_builder():
-    return _tunerl().reward_eval_cfg_builder()
+    return _services().reward_eval_cfg_builder()
 
 
 def reward_run_epoch_dir(*args):
-    return _tunerl().reward_run_epoch_dir(*args)
+    return _services().reward_run_epoch_dir(*args)
+
+
+def _record_current_group_trainable_sample(goal_key: str, res: Dict[str, Any], graph_info) -> None:
+    _services().record_current_group_trainable_sample(goal_key, res, graph_info)
+
+
+def _training_context_guidance(summary: Dict[str, Any]) -> str:
+    return _services().training_context_guidance(summary)
+
+
+def summarize_stage_training_context(stage_name: str, *, window_size: int = 50) -> Dict[str, Any]:
+    return _services().summarize_stage_training_context(stage_name, window_size=window_size)
+
+
+def update_current_group_metrics(results: List[Dict[str, Any]]) -> None:
+    _services().update_current_group_metrics(results)
 
 
 def extract_seed_context(kwargs: Dict[str, Any], expected_count: int):
-    return _tunerl().require_sample_accuracy_baselines(kwargs, expected_count)
+    return _services().extract_seed_context(kwargs, expected_count)
 
 
 def clean_block(text: str) -> str:
@@ -363,7 +405,7 @@ def extract_completion_blocks(completion: str) -> Tuple[str, str, str]:
 
 
 def extract_reward_completion_blocks(completion: str) -> Tuple[str, str, str]:
-    return _tunerl()._reward_task_callable("extract_completion_blocks", extract_completion_blocks)(completion)
+    return _services().extract_completion_blocks(completion)
 
 
 def has_structural_motif(graph_info) -> bool:
@@ -604,6 +646,32 @@ def primary_goal_key(prompt_goal_tags: List[str], prompt_target_pattern: str = "
     return normalized_target or "open"
 
 
+def extract_prompt_goal_tags(prompt_text: str) -> List[str]:
+    if not prompt_text:
+        return []
+    match = re.search(
+        r"(?:^|\n)\s*(?:-\s*)?(?:(?:Discovery|Optimization)\s+)?Target Tags:\s*([A-Za-z0-9_, \-]+)",
+        prompt_text,
+        flags=re.IGNORECASE,
+    )
+    if not match:
+        return []
+    return [tag.strip() for tag in match.group(1).split(",") if tag.strip()]
+
+
+def extract_prompt_target_pattern(prompt_text: str) -> str:
+    if not prompt_text:
+        return ""
+    match = re.search(
+        r"(?:^|\n)\s*(?:-\s*)?Target pattern:\s*`?([A-Za-z0-9_-]+)`?",
+        prompt_text,
+        flags=re.IGNORECASE,
+    )
+    if not match:
+        return ""
+    return match.group(1).strip()
+
+
 def _clip(value: float, lower: float, upper: float) -> float:
     return max(lower, min(upper, float(value)))
 
@@ -657,7 +725,7 @@ def _coerce_accuracy_baseline(value: Any, *, context: str) -> float:
 
 
 def _current_stage_index() -> int:
-    return RL_STAGE_TO_INDEX.get(current_stage_name, 0)
+    return RL_STAGE_TO_INDEX.get(_current_stage_name(), 0)
 
 
 def _truncate_text(text: str, max_chars: int) -> str:
@@ -958,11 +1026,11 @@ def _discovery_failure_result(
         "eval_limit_seconds": None,
         "warmup_dense_reward": None,
         "backbone_model_names": list(backbone_model_names or []),
-        "reward_target_metric": _stage_reward_target_metric(current_stage_name),
+        "reward_target_metric": _stage_reward_target_metric(_current_stage_name()),
         "reward_target_value": None,
-        "best_closed_group_mean_reward_target_acc": best_closed_group_mean_reward_target_acc,
-        "best_closed_group_mean_train_acc": best_closed_group_mean_train_acc,
-        "best_closed_group_mean_test_acc": best_closed_group_mean_test_acc,
+        "best_closed_group_mean_reward_target_acc": _best_closed_group_mean_reward_target_acc(),
+        "best_closed_group_mean_train_acc": _best_closed_group_mean_train_acc(),
+        "best_closed_group_mean_test_acc": _best_closed_group_mean_test_acc(),
         "best_reward_target_for_goal": None,
         "r_dense": 0.0,
         "r_prev_group": 0.0,
@@ -1016,17 +1084,17 @@ def _discovery_failure_result(
             "novel_vs_trainset_graph": False,
             "archive_snapshot_family_freq": 0,
             "batch_same_family_count": 0,
-            "reward_target_metric": _stage_reward_target_metric(current_stage_name),
+            "reward_target_metric": _stage_reward_target_metric(_current_stage_name()),
             "reward_target_value": None,
             "goal_tag_hit_count": 0,
             "goal_tag_total_count": 0,
             "goal_tag_hit_rate": 0.0,
         },
         "error": error,
-        "current_stage_name": current_stage_name,
+        "current_stage_name": _current_stage_name(),
         "current_stage_index": _current_stage_index(),
-        "stage_uses_formal_eval": _stage_uses_formal_eval(current_stage_name),
-        "stage_uses_static_only": _stage_uses_static_only(current_stage_name),
+        "stage_uses_formal_eval": _stage_uses_formal_eval(_current_stage_name()),
+        "stage_uses_static_only": _stage_uses_static_only(_current_stage_name()),
     }
 
 
@@ -1297,7 +1365,7 @@ def _structure_progress_components(
         r_structure_group += STRUCTURE_BATCH_DIVERSITY_BONUS
     elif batch_same_family_count == 2:
         r_structure_group += STRUCTURE_BATCH_DIVERSITY_BONUS * 0.5
-    task_context = _tunerl().reward_task_group_context_fields()
+    task_context = _services().group_context_fields()
     current_dominant_family_hash = task_context.get("dominant_family_hash")
     current_dominant_family_share = task_context.get("dominant_family_share")
     if (
@@ -1361,13 +1429,12 @@ def reconstruct_code(
 
 
 def load_rl_dataset(tokenizer):
-    TuneRL = _bind_tunerl_dependencies()
     data = api.data(task="img-classification", nn_prefixes=("rl-bb-test1",))
     if data.empty:
         raise RuntimeError("No 'rl-bb-test1' data found for RL; sync the dataset prefix before training.")
 
     print(f"Loaded {len(data)} examples for RL")
-    TuneRL.bootstrap_trainset_reference_library(data)
+    _services().bootstrap_trainset_reference_library(data)
 
     prompts = []
     legacy_patterns = ", ".join(SFTUtil.legacy_patterns)
@@ -1584,9 +1651,8 @@ def group_context_fields() -> Dict[str, Any]:
 
 
 def update_group_metrics(results: List[Dict[str, Any]]) -> None:
-    TuneRL = _tunerl()
     for res in results:
-        reward_target_value = TuneRL._result_reward_target_value(res)
+        reward_target_value = _result_reward_target_value(res)
         backbone_signature = _result_backbone_signature(res)
         if reward_target_value is not None and backbone_signature:
             current_group_reward_target_sum_by_backbone[backbone_signature] = (
@@ -1676,11 +1742,11 @@ def archive_snapshot_family_counts() -> Dict[str, int]:
 
 
 def render_prompt_feedback_text(*, feedback_char_budget: int = 1200) -> str:
-    TuneRL = _bind_tunerl_dependencies()
-    state = TuneRL.get_prompt_feedback_state()
-    current_metric = _stage_reward_target_metric(current_stage_name)
+    state = _services().get_prompt_feedback_state()
+    stage_name = _current_stage_name()
+    current_metric = _stage_reward_target_metric(stage_name)
     header_lines = [
-        f"- Current Stage: {current_stage_name}",
+        f"- Current Stage: {stage_name}",
         f"- Reward Target Metric: {current_metric}",
         f"- Previous Closed Group Mean Target Acc: {_format_optional_metric(state['prev_closed_group_mean_reward_target_acc'])}",
         f"- Current Best Closed Group Mean Target Acc: {_format_optional_metric(state['best_closed_group_mean_reward_target_acc'])}",
@@ -1698,7 +1764,7 @@ def render_prompt_feedback_text(*, feedback_char_budget: int = 1200) -> str:
             "- Rule: within the same backbone pair, change stem/project/fuse CNN layout, not just widths, ordering, or formatting"
         ),
     ]
-    if current_stage_name != STAGE1_STRUCTURE_EXPLORE:
+    if stage_name != STAGE1_STRUCTURE_EXPLORE:
         header_lines.extend(
             [
                 f"- Meaningful Reward Target: >= {_format_target_metric(state['prev_closed_group_mean_reward_target_acc'], GROUP_IMPROVEMENT_DELTA)}",
@@ -1707,7 +1773,7 @@ def render_prompt_feedback_text(*, feedback_char_budget: int = 1200) -> str:
                 "- Rule: dominant-family reuse or plain classifier-only fuse below target is penalized",
             ]
         )
-    if current_stage_name == STAGE2_FORMAL_EXPLORE:
+    if stage_name == STAGE2_FORMAL_EXPLORE:
         training_context = dict(state.get("training_context") or {})
         context_guidance = _training_context_guidance(training_context)
         header_lines.extend(
@@ -1804,7 +1870,7 @@ def _base_discovery_reward_fn(
     batch_last_item: bool = False,
 ) -> Dict[str, Any]:
     reward_variant = resolve_reward_variant()
-    stage_name = str(current_stage_name)
+    stage_name = _current_stage_name()
     stage_profile = _stage_reward_profile(stage_name)
     stage_reward_metric = _stage_reward_target_metric(stage_name)
     prm = {
@@ -1977,7 +2043,7 @@ def _base_discovery_reward_fn(
     global_group_baseline_reward_target_acc = (
         group_baseline_reward_target_acc
         if group_baseline_reward_target_acc is not None
-        else prev_closed_group_mean_reward_target_acc
+        else _prev_closed_group_mean_reward_target_acc()
     )
     use_backbone_baseline = bool(
         graph_info.parse_ok
@@ -2027,7 +2093,7 @@ def _base_discovery_reward_fn(
     if quality_acc_value is None:
         quality_acc_value = _optional_float(reward_target_value)
     goal_key = primary_goal_key(prompt_goal_tags or [], prompt_target_pattern)
-    best_reward_target_for_goal = best_reward_target_by_goal.get(goal_key)
+    best_reward_target_for_goal = _best_reward_target_by_goal().get(goal_key)
     group_train_acc_gain = None
     group_train_acc_improved = False
     group_reward_target_gain = None
@@ -2339,8 +2405,9 @@ def _base_discovery_reward_fn(
                     r_formal_success_signal += TARGET_STRUCTURE_MATCH_BONUS
             if (not group_warmup) and (group_baseline_train_acc is not None):
                 prev_target_train_acc = float(group_baseline_train_acc) + GROUP_IMPROVEMENT_DELTA
-            if (not group_warmup) and (best_closed_group_mean_train_acc is not None):
-                best_target_train_acc = float(best_closed_group_mean_train_acc) + BEST_GROUP_REFRESH_DELTA
+            best_group_train_acc = _best_closed_group_mean_train_acc()
+            if (not group_warmup) and (best_group_train_acc is not None):
+                best_target_train_acc = float(best_group_train_acc) + BEST_GROUP_REFRESH_DELTA
             if (not group_warmup) and (global_group_baseline_reward_target_acc is not None):
                 prev_target_reward_target_acc = float(global_group_baseline_reward_target_acc) + GROUP_IMPROVEMENT_DELTA
                 beat_prev_target = reward_target_float >= prev_target_reward_target_acc
@@ -2361,8 +2428,9 @@ def _base_discovery_reward_fn(
                         -1.8,
                         1.8,
                     )
-            if (not group_warmup) and (best_closed_group_mean_reward_target_acc is not None):
-                best_target_reward_target_acc = float(best_closed_group_mean_reward_target_acc) + BEST_GROUP_REFRESH_DELTA
+            best_group_reward_target_acc = _best_closed_group_mean_reward_target_acc()
+            if (not group_warmup) and (best_group_reward_target_acc is not None):
+                best_target_reward_target_acc = float(best_group_reward_target_acc) + BEST_GROUP_REFRESH_DELTA
                 beat_best_target = reward_target_float >= best_target_reward_target_acc
                 global_best_group_reward = stage_profile["best_group_scale"] * _clip(
                     12.0 * (reward_target_float - best_target_reward_target_acc),
@@ -2785,9 +2853,9 @@ def _base_discovery_reward_fn(
     res['current_stage_index'] = RL_STAGE_TO_INDEX.get(stage_name, 0)
     res['stage_uses_formal_eval'] = _stage_uses_formal_eval(stage_name)
     res['stage_uses_static_only'] = _stage_uses_static_only(stage_name)
-    res['best_closed_group_mean_reward_target_acc'] = best_closed_group_mean_reward_target_acc
-    res['best_closed_group_mean_train_acc'] = best_closed_group_mean_train_acc
-    res['best_closed_group_mean_test_acc'] = best_closed_group_mean_test_acc
+    res['best_closed_group_mean_reward_target_acc'] = _best_closed_group_mean_reward_target_acc()
+    res['best_closed_group_mean_train_acc'] = _best_closed_group_mean_train_acc()
+    res['best_closed_group_mean_test_acc'] = _best_closed_group_mean_test_acc()
     res['best_backbone_group_mean_reward_target_acc'] = best_backbone_group_mean_reward_target_acc
     res['best_reward_target_for_goal'] = best_reward_target_for_goal
     res['r_dense'] = r_dense
@@ -2915,9 +2983,9 @@ def _base_discovery_reward_fn(
         'group_backbone_baseline_reward_target_acc': backbone_group_baseline_reward_target_acc,
         'reward_target_metric': reward_metric_for_payload,
         'reward_target_value': reward_target_value_for_payload,
-        'best_closed_group_mean_reward_target_acc': best_closed_group_mean_reward_target_acc,
-        'best_closed_group_mean_train_acc': best_closed_group_mean_train_acc,
-        'best_closed_group_mean_test_acc': best_closed_group_mean_test_acc,
+        'best_closed_group_mean_reward_target_acc': _best_closed_group_mean_reward_target_acc(),
+        'best_closed_group_mean_train_acc': _best_closed_group_mean_train_acc(),
+        'best_closed_group_mean_test_acc': _best_closed_group_mean_test_acc(),
         'best_backbone_group_mean_reward_target_acc': best_backbone_group_mean_reward_target_acc,
         'best_reward_target_for_goal': best_reward_target_for_goal,
         'goal_tag_hit_count': goal_tag_hit_count,
@@ -3015,7 +3083,6 @@ def _base_discovery_reward_fn(
 
 
 def base_discovery_reward_fn(*args, **kwargs):
-    _bind_tunerl_dependencies()
     return _base_discovery_reward_fn(*args, **kwargs)
 
 
@@ -3035,7 +3102,7 @@ def prepare_entries(
             "seed_accuracy_baseline": seed_context,
         }
         entry = _entry_from_record(record, index=index)
-        entry["rank"] = _tunerl()._distributed_rank()
+        entry["rank"] = _services().distributed_rank()
         entries.append(entry)
     if precompute_eval:
         precompute_entries(entries, group_context=group_context)
@@ -3049,9 +3116,8 @@ def precompute_entries(entries, *, group_context: Dict[str, Any]) -> None:
     )
     if not batched_eval_specs:
         return
-    TuneRL = _tunerl()
-    rank = TuneRL._distributed_rank()
-    local_rank = TuneRL.env_int("LOCAL_RANK", 0)
+    rank = _services().distributed_rank()
+    local_rank = _services().env_int("LOCAL_RANK", 0)
     started_at = time.time()
     print(
         "[Reward Precompute Local] start "
@@ -3063,7 +3129,7 @@ def precompute_entries(entries, *, group_context: Dict[str, Any]) -> None:
     )
     if torch.cuda.is_available():
         torch.cuda.empty_cache()
-    batched_eval_results = TuneRL.evaluate_reward_code_batch(batched_eval_specs)
+    batched_eval_results = _services().evaluate_reward_code_batch(batched_eval_specs)
     if torch.cuda.is_available():
         torch.cuda.empty_cache()
     ended_at = time.time()
@@ -3087,7 +3153,6 @@ def score_entries(
     group_context: Dict[str, Any],
     archive_snapshot_family_counts: Dict[str, int],
 ):
-    TuneRL = _tunerl()
     archive_snapshot_descriptor_counts = dict(descriptor_archive_counts)
     archive_snapshot_backbone_signature_counts = dict(backbone_signature_archive_counts)
     archive_snapshot_cnn_signature_counts = dict(cnn_signature_archive_counts)
@@ -3120,9 +3185,9 @@ def score_entries(
     for position, entry in enumerate(entries):
         index = int(entry["local_index"])
         completion_index = int(entry.get("global_index", index))
-        TuneRL.code_logger.log_to_file("=" * 50)
+        _services().code_logger.log_to_file("=" * 50)
         try:
-            res = TuneRL.reward_task_reward_fn(
+            res = _services().reward_task_reward_fn(
                 entry["completion"],
                 seed_accuracy_baseline=entry["seed_accuracy_baseline"],
                 precomputed_eval_result=entry.get("precomputed_eval_result"),
@@ -3153,7 +3218,7 @@ def score_entries(
                 completion_index=completion_index,
                 batch_last_item=position == (len(entries) - 1),
             )
-            res = TuneRL._attach_group_context(
+            res = _services().attach_group_context(
                 res,
                 seed_accuracy_baseline=entry["seed_accuracy_baseline"],
                 group_context=group_context,
@@ -3166,16 +3231,16 @@ def score_entries(
             if res.get("worker_device") is not None:
                 dispatch_parts.append(f"worker_device={res.get('worker_device')}")
             if dispatch_parts:
-                TuneRL.code_logger.log_to_file(
+                _services().code_logger.log_to_file(
                     f"[Reward Dispatch] rank={entry['rank']} batch_index={index}, " + ", ".join(dispatch_parts)
                 )
-            TuneRL._log_reward_failure_trace(entry, res)
+            _services().log_reward_failure_trace(entry, res)
             score = float(res.get("reward", -2.0))
-        except TuneRL.PersistentEvalWorkerError:
+        except _services().persistent_eval_worker_error:
             raise
         except Exception as exc:
-            TuneRL.code_logger.log_to_file(f"Reward calculation failed at rank={entry['rank']} index={index}: {exc}")
-            res = TuneRL._reward_failure_result(
+            _services().code_logger.log_to_file(f"Reward calculation failed at rank={entry['rank']} index={index}: {exc}")
+            res = _services().reward_failure_result(
                 error=str(exc),
                 seed_accuracy_baseline=entry["seed_accuracy_baseline"],
                 group_context=group_context,
@@ -3238,7 +3303,7 @@ def _recompute_discovery_reward(
     res: Dict[str, Any],
     graph_info,
 ) -> Tuple[float, float, float]:
-    stage_name = str(res.get("current_stage_name") or current_stage_name)
+    stage_name = str(res.get("current_stage_name") or _current_stage_name())
     r_primary = (
         float(res.get("r_dense", 0.0) or 0.0)
         + float(res.get("r_prev_group", 0.0) or 0.0)
@@ -3363,10 +3428,8 @@ def _apply_batch_elite_bonuses(scored_results: List[Dict[str, Any]], group_conte
 
 
 def _finalize_scored_results(scored_results: List[Dict[str, Any]]) -> None:
-    global B_index
-
     current_batch_results: List[Dict[str, Any]] = []
-    stage_name = str(current_stage_name)
+    stage_name = _current_stage_name()
     for item in scored_results:
         index = int(item["local_index"])
         prompt = item["prompt"]
@@ -3426,7 +3489,7 @@ def _finalize_scored_results(scored_results: List[Dict[str, Any]]) -> None:
             if bool(res.get("discovery_candidate")):
                 discovery_family_hashes_seen.add(str(graph_info.family_hash))
 
-        _tunerl().code_logger.log_to_file(
+        _services().code_logger.log_to_file(
             f"Rank {item['rank']} batch index {index}, Motif: {res.get('pattern_name')}, Signature: {sig}, Result: {res}"
         )
 
@@ -3462,7 +3525,8 @@ def _finalize_scored_results(scored_results: List[Dict[str, Any]]) -> None:
             final_code = reconstruct_code(completion, pattern_name_override=pattern_override)
             normalized_completion = render_completion_xml(block_code, init_code, forward_code)
             out_path = reward_run_epoch_dir(0)
-            model_dir = synth_dir(out_path) / f"B{B_index}"
+            archive_index = _archive_index()
+            model_dir = synth_dir(out_path) / f"B{archive_index}"
             model_dir.mkdir(exist_ok=True, parents=True)
 
             code_file = model_dir / new_nn_file
@@ -3470,7 +3534,7 @@ def _finalize_scored_results(scored_results: List[Dict[str, Any]]) -> None:
                 handle.write(final_code)
 
             create_file(model_dir, new_out_file, normalized_completion)
-            _tunerl().code_logger.log_to_file(f"[INFO] Saved successful code to B{B_index} (Signature: {sig})")
+            _services().code_logger.log_to_file(f"[INFO] Saved successful code to B{archive_index} (Signature: {sig})")
             saved_graph_counts[graph_info.graph_hash] += 1
             saved_family_hash_counts[graph_info.family_hash] += 1
             if backbone_signature:
@@ -3486,7 +3550,7 @@ def _finalize_scored_results(scored_results: List[Dict[str, Any]]) -> None:
             if backbone_signature and block_signature and block_signature != "incomplete_block":
                 saved_backbone_block_pair_counts[backbone_block_pair_key] += 1
             get_goal_counter(saved_goal_family_hash_counts, goal_key)[graph_info.family_hash] += 1
-            B_index += 1
+            _set_archive_index(archive_index + 1)
         elif (
             bool(graph_info)
             and graph_info.parse_ok
@@ -3495,7 +3559,7 @@ def _finalize_scored_results(scored_results: List[Dict[str, Any]]) -> None:
             and res.get("backward_ok")
             and _has_completed_formal_epoch(res)
         ):
-            _tunerl().code_logger.log_to_file(
+            _services().code_logger.log_to_file(
                 f"[INFO] Skipped save for signature={sig} backbone={backbone_signature} cnn={cnn_signature} "
                 f"reason={save_gate_reason} reward_target={reward_target_value!r}"
             )
@@ -3506,8 +3570,8 @@ def _finalize_scored_results(scored_results: List[Dict[str, Any]]) -> None:
                 "generation_total": generation_total,
                 "reward_batch_index": res.get("reward_batch_index"),
                 "reward_group_id": res.get("reward_group_id"),
-                "stage_name": str(res.get("current_stage_name") or current_stage_name),
-                "stage_index": int(res.get("current_stage_index") or RL_STAGE_TO_INDEX.get(current_stage_name, 0)),
+                "stage_name": str(res.get("current_stage_name") or _current_stage_name()),
+                "stage_index": int(res.get("current_stage_index") or RL_STAGE_TO_INDEX.get(_current_stage_name(), 0)),
                 "family_hash": str(res.get("family_hash") or getattr(graph_info, "family_hash", "") or ""),
                 "graph_hash": str(res.get("graph_hash") or getattr(graph_info, "graph_hash", "") or ""),
                 "descriptor_key": str(res.get("descriptor_key") or getattr(graph_info, "descriptor_key", "") or ""),
@@ -3546,23 +3610,20 @@ def _finalize_scored_results(scored_results: List[Dict[str, Any]]) -> None:
             }
         )
 
-        _tunerl().code_logger.log_generation(prompt, completion, score, res)
+        _services().code_logger.log_generation(prompt, completion, score, res)
 
     update_current_group_metrics(current_batch_results)
     group_close_result = close_reward_group_if_needed()
     if group_close_result is not None:
-        _tunerl().code_logger.log_to_file(f"[Reward Group] {group_close_result}")
+        _services().code_logger.log_to_file(f"[Reward Group] {group_close_result}")
 
 
 def apply_batch_elite_bonuses(scored_results, group_context: Dict[str, Any]) -> None:
-    _bind_tunerl_dependencies()
     _apply_batch_elite_bonuses(scored_results, group_context)
 
 
 def finalize_scored_results(scored_results) -> None:
-    TuneRL = _bind_tunerl_dependencies()
     _finalize_scored_results(scored_results)
-    TuneRL.B_index = globals().get("B_index", getattr(TuneRL, "B_index", 0))
 
 
 def print_discovery_metrics() -> None:
@@ -3725,7 +3786,6 @@ def _record_api_result(record: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def _record_seed_accuracy(record: Dict[str, Any]) -> float:
-    TuneRL = _tunerl()
     api_result = _record_api_result(record)
     sources = (
         record,
@@ -3741,12 +3801,11 @@ def _record_seed_accuracy(record: Dict[str, Any]) -> float:
             else source.get("accuracy")
         )
         if value is not None:
-            return TuneRL._coerce_accuracy_baseline(value, context="replay record accuracy")
+            return _coerce_accuracy_baseline(value, context="replay record accuracy")
     return 0.10
 
 
 def _entry_from_record(record: Dict[str, Any], *, index: int) -> Dict[str, Any]:
-    TuneRL = _tunerl()
     completion = _record_completion(record)
     block_code, init_code, forward_code = extract_completion_blocks_strict(completion)
     section_info = describe_code_sections(
@@ -3755,8 +3814,8 @@ def _entry_from_record(record: Dict[str, Any], *, index: int) -> Dict[str, Any]:
         forward_code=forward_code,
     )
     prompt = str(record.get("prompt") or "")
-    prompt_goal_tags = TuneRL.extract_prompt_goal_tags(prompt)
-    prompt_target_pattern = TuneRL.extract_prompt_target_pattern(prompt)
+    prompt_goal_tags = extract_prompt_goal_tags(prompt)
+    prompt_target_pattern = extract_prompt_target_pattern(prompt)
     return {
         "rank": 0,
         "local_index": index,
@@ -3848,8 +3907,7 @@ def _invoke_eval_cfg_builder(eval_cfg_builder, **kwargs):
 
 
 def _build_batched_eval_specs(entries, *, group_context: Dict[str, Any]):
-    TuneRL = _tunerl()
-    eval_cfg_builder = TuneRL.reward_eval_cfg_builder()
+    eval_cfg_builder = reward_eval_cfg_builder()
     batched_eval_entries = []
     batched_eval_specs = []
 
@@ -3876,7 +3934,7 @@ def _build_batched_eval_specs(entries, *, group_context: Dict[str, Any]):
             "batch": 64,
             "dropout": 0.3,
             "momentum": 0.9,
-            "transform": TuneRL.FORMAL_REWARD_TRANSFORM,
+            "transform": FORMAL_REWARD_TRANSFORM,
             "epoch": 1,
         }
         spec = {
@@ -3893,7 +3951,7 @@ def _build_batched_eval_specs(entries, *, group_context: Dict[str, Any]):
         if callable(eval_cfg_builder):
             spec["cfg"] = _invoke_eval_cfg_builder(
                 eval_cfg_builder,
-                stage_name=str(group_context.get("current_stage_name") or TuneRL.current_stage_name),
+                stage_name=str(group_context.get("current_stage_name") or _current_stage_name()),
                 in_shape=formal_input_shape,
                 out_shape=(10,),
                 prm=spec["prm"],
@@ -3911,7 +3969,7 @@ def _build_batched_eval_specs(entries, *, group_context: Dict[str, Any]):
 
 
 def _formal_reward_input_shape(batch: int = 1) -> tuple[int, int, int, int]:
-    transform = str(_tunerl().FORMAL_REWARD_TRANSFORM)
+    transform = str(FORMAL_REWARD_TRANSFORM)
     match = re.search(r"(?:^|_)norm_(\d+)(?:_|$)", transform)
     resize = 128
     if match:

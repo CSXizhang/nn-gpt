@@ -490,8 +490,13 @@ def forward(self, x, is_probing=False):
             "TuneRL._precompute_eval_results(",
             "TuneRL._score_reward_entries(",
             "_sync_tunerl_globals",
+            "_TUNERL_DEPENDENCY_NAMES",
+            "_bind_tunerl_dependencies",
             "vars(TuneRL).items()",
+            "globals().update",
             "globals()[name]",
+            "_tunerl()",
+            "TuneRL.",
             "_tunerl().base_discovery_reward_fn(",
             "_tunerl()._apply_batch_elite_bonuses(",
             "_tunerl()._finalize_scored_results(",
@@ -503,8 +508,6 @@ def forward(self, x, is_probing=False):
             "TuneRL.build_backbone_signature(",
         ):
             self.assertNotIn(token, runtime_source)
-        self.assertIn("_TUNERL_DEPENDENCY_NAMES", runtime_source)
-        self.assertIn("_bind_tunerl_dependencies()", runtime_source)
         for token in (
             "def _prepare_local_reward_entries(",
             "def _precompute_eval_results(",

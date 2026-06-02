@@ -125,6 +125,9 @@ FORMAL_REWARD_TRANSFORM = "norm_128_flip"
 def register_reward_task(task: Optional[RewardTask]) -> None:
     global active_reward_task
     active_reward_task = task
+    from ab.gpt.rl_pipeline import backbone_reward_runtime as BackboneRewardRuntime
+
+    BackboneRewardRuntime.configure_runtime_services(TuneRLBackboneRuntimeServices())
 
 
 def current_reward_task() -> Optional[RewardTask]:
@@ -135,6 +138,121 @@ def _reward_task_callable(name: str, default):
     task = current_reward_task()
     method = getattr(task, name, None) if task is not None else None
     return method if callable(method) else default
+
+
+class TuneRLBackboneRuntimeServices:
+    @property
+    def code_logger(self):
+        return code_logger
+
+    @property
+    def current_stage_name(self) -> str:
+        return current_stage_name
+
+    @property
+    def prev_closed_group_mean_reward_target_acc(self) -> Optional[float]:
+        return prev_closed_group_mean_reward_target_acc
+
+    @property
+    def best_closed_group_mean_reward_target_acc(self) -> Optional[float]:
+        return best_closed_group_mean_reward_target_acc
+
+    @property
+    def best_closed_group_mean_train_acc(self) -> Optional[float]:
+        return best_closed_group_mean_train_acc
+
+    @property
+    def best_closed_group_mean_test_acc(self) -> Optional[float]:
+        return best_closed_group_mean_test_acc
+
+    @property
+    def best_reward_target_by_goal(self) -> Dict[str, float]:
+        return best_reward_target_by_goal
+
+    @property
+    def archive_index(self) -> int:
+        return B_index
+
+    @property
+    def persistent_eval_worker_error(self):
+        return PersistentEvalWorkerError
+
+    def set_archive_index(self, value: int) -> None:
+        global B_index
+        B_index = int(value)
+
+    def current_generation_total(self) -> int:
+        return StageState.current_generation_total(sys.modules[__name__])
+
+    def record_generation_event(self, payload: Dict[str, Any]) -> Dict[str, Any]:
+        return StageState.record_generation_event(sys.modules[__name__], payload)
+
+    def close_reward_group_if_needed(self) -> Optional[Dict[str, Any]]:
+        return StageState.close_reward_group_if_needed(sys.modules[__name__])
+
+    def evaluate_reward_code(self, *args, **kwargs):
+        return evaluate_reward_code(*args, **kwargs)
+
+    def evaluate_reward_code_batch(self, specs):
+        return evaluate_reward_code_batch(specs)
+
+    def reward_eval_cfg_builder(self):
+        return reward_eval_cfg_builder()
+
+    def reward_run_epoch_dir(self, *args):
+        return reward_run_epoch_dir(*args)
+
+    def record_current_group_trainable_sample(self, goal_key: str, res: Dict[str, Any], graph_info) -> None:
+        _record_current_group_trainable_sample(goal_key, res, graph_info)
+
+    def training_context_guidance(self, summary: Dict[str, Any]) -> str:
+        return _training_context_guidance(summary)
+
+    def summarize_stage_training_context(self, stage_name: str, *, window_size: int = 50) -> Dict[str, Any]:
+        return summarize_stage_training_context(stage_name, window_size=window_size)
+
+    def update_current_group_metrics(self, results: List[Dict[str, Any]]) -> None:
+        update_current_group_metrics(results)
+
+    def extract_seed_context(self, kwargs: Dict[str, Any], expected_count: int):
+        return require_sample_accuracy_baselines(kwargs, expected_count)
+
+    def extract_completion_blocks(self, completion: str) -> Tuple[str, str, str]:
+        return _reward_task_callable(
+            "extract_completion_blocks",
+            _backbone_reward_runtime().extract_completion_blocks,
+        )(completion)
+
+    def group_context_fields(self) -> Dict[str, Any]:
+        return reward_task_group_context_fields()
+
+    def bootstrap_trainset_reference_library(self, data) -> None:
+        bootstrap_trainset_reference_library(data)
+
+    def get_prompt_feedback_state(self) -> Dict[str, Any]:
+        return get_prompt_feedback_state()
+
+    def distributed_rank(self) -> int:
+        return _distributed_rank()
+
+    def env_int(self, name: str, default: int) -> int:
+        return env_int(name, default)
+
+    def reward_task_reward_fn(self, *args, **kwargs):
+        return reward_task_reward_fn(*args, **kwargs)
+
+    def attach_group_context(self, res: Dict[str, Any], *, seed_accuracy_baseline: float, group_context: Dict[str, Any]) -> Dict[str, Any]:
+        return _attach_group_context(res, seed_accuracy_baseline=seed_accuracy_baseline, group_context=group_context)
+
+    def log_reward_failure_trace(self, entry: Dict[str, Any], res: Dict[str, Any]) -> None:
+        _log_reward_failure_trace(entry, res)
+
+    def reward_failure_result(self, *, error: str, seed_accuracy_baseline: float, group_context: Dict[str, Any]) -> Dict[str, Any]:
+        return _reward_failure_result(
+            error=error,
+            seed_accuracy_baseline=seed_accuracy_baseline,
+            group_context=group_context,
+        )
 
 
 def reward_model_source() -> str:

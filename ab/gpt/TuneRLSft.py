@@ -121,9 +121,9 @@ _REWARD_GPU_TOKENS_ENV = "NNGPT_REWARD_GPU_TOKENS"
 
 
 def _stage1_fixed_failure_reward(res: Dict[str, Any], meta: Dict[str, Any], graph_info) -> Optional[float]:
-    if str(res.get("current_stage_name") or "") != TuneRL.STAGE1_STRUCTURE_EXPLORE:
+    if str(res.get("current_stage_name") or "") != BackboneRewardRuntime.STAGE1_STRUCTURE_EXPLORE:
         return None
-    if TuneRL._is_trainable_candidate(res, graph_info):
+    if BackboneRewardRuntime._is_trainable_candidate(res, graph_info):
         return None
 
     if (
@@ -307,7 +307,7 @@ def raw_reward_fn(
             raw_delta -= 1.75
 
     shape_contract_delta = 0.0
-    if str(res.get("current_stage_name") or TuneRL.current_stage_name) != TuneRL.STAGE1_STRUCTURE_EXPLORE:
+    if str(res.get("current_stage_name") or TuneRL.current_stage_name) != BackboneRewardRuntime.STAGE1_STRUCTURE_EXPLORE:
         if res.get("built_ok") and res.get("forward_ok") and res.get("forward_shape_ok"):
             shape_contract_delta = 0.12
         elif res.get("built_ok") and res.get("forward_ok"):
@@ -316,7 +316,7 @@ def raw_reward_fn(
             shape_contract_delta = -0.08
     raw_delta += shape_contract_delta
 
-    res["reward"] = TuneRL._apply_trainability_clamp(
+    res["reward"] = BackboneRewardRuntime._apply_trainability_clamp(
         res,
         float(res.get("reward", -2.0)) + raw_delta,
         graph_info,
@@ -342,15 +342,15 @@ def raw_reward_fn(
 
     if not meta.get("dual_backbone_ok"):
         res["reward"] = min(float(res["reward"]), -3.5)
-    elif group_warmup and TuneRL._is_trainable_candidate(res, graph_info):
+    elif group_warmup and BackboneRewardRuntime._is_trainable_candidate(res, graph_info):
         res["reward"] = float(res.get("warmup_dense_reward") or 0.0)
 
     fixed_failure_reward = _stage1_fixed_failure_reward(res, meta, graph_info)
     if fixed_failure_reward is not None:
         res["reward"] = fixed_failure_reward
         res["stage1_fixed_failure_reward"] = True
-    elif str(res.get("current_stage_name") or "") == TuneRL.STAGE1_STRUCTURE_EXPLORE:
-        if TuneRL._is_trainable_candidate(res, graph_info):
+    elif str(res.get("current_stage_name") or "") == BackboneRewardRuntime.STAGE1_STRUCTURE_EXPLORE:
+        if BackboneRewardRuntime._is_trainable_candidate(res, graph_info):
             trainability_bonus = 0.10
             res["reward"] = float(res["reward"]) + trainability_bonus
             res["stage1_trainability_bonus"] = trainability_bonus
@@ -364,9 +364,9 @@ def raw_reward_fn(
     )
     if compactness["xml_incomplete_length_cap"]:
         res["reward"] = min(float(res["reward"]), -0.8)
-    if TuneRL._reward_variant_is_strong_repeat_penalty() and bool(res.get("strong_repeat_penalty_applied")):
+    if BackboneRewardRuntime._reward_variant_is_strong_repeat_penalty() and bool(res.get("strong_repeat_penalty_applied")):
         res["reward"] = min(float(res["reward"]), 0.0)
-    res["reward"] = TuneRL._apply_target_structure_reward_gate(
+    res["reward"] = BackboneRewardRuntime._apply_target_structure_reward_gate(
         res,
         float(res.get("reward", -2.0)),
     )
@@ -1471,7 +1471,7 @@ def _reapply_trainability_clamp(res: Dict[str, Any], reward_value: float, graph_
         stage_name == TuneRL.STAGE1_STRUCTURE_EXPLORE
         and bool(res.get("static_only") or res.get("stage_uses_static_only"))
     ):
-        reward_value = TuneRL._apply_executability_clamp(res, reward_value, graph_info)
+        reward_value = BackboneRewardRuntime._apply_executability_clamp(res, reward_value, graph_info)
         if bool(res.get("forward_shape_ok")):
             return max(reward_value, 0.05)
         return reward_value
@@ -1555,7 +1555,7 @@ def sft_reward_fn(
     )
     res["reward"] = _reapply_trainability_clamp(res, float(res.get("reward", -2.0)), graph_info)
     res["anti_collapse"] = {
-        "goal_key": TuneRL.primary_goal_key(prompt_goal_tags, prompt_target_pattern),
+        "goal_key": BackboneRewardRuntime.primary_goal_key(prompt_goal_tags, prompt_target_pattern),
         "trainable_ok": _is_trainable_architecture(res, graph_info),
         "anti_collapse_delta": 0.0,
     }
@@ -1693,7 +1693,7 @@ def load_rl_dataset_sft(tokenizer):
             if not target_pattern:
                 print(f"Skipping row {row_index} due to missing target_pattern")
                 continue
-            accuracy = TuneRL._coerce_accuracy_baseline(row.get("accuracy"), context="seed row accuracy")
+            accuracy = BackboneRewardRuntime._coerce_accuracy_baseline(row.get("accuracy"), context="seed row accuracy")
             rows.append(
                 {
                     "accuracy": accuracy,
@@ -1706,7 +1706,7 @@ def load_rl_dataset_sft(tokenizer):
             )
     else:
         for _, row in data.iterrows():
-            accuracy = TuneRL._coerce_accuracy_baseline(row.get("accuracy"), context="seed row accuracy")
+            accuracy = BackboneRewardRuntime._coerce_accuracy_baseline(row.get("accuracy"), context="seed row accuracy")
             for profile_id, profile in enumerate(SFTUtil.open_discovery_goal_profiles):
                 rows.append(
                     {
