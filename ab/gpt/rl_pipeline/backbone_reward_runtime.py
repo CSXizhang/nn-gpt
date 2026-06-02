@@ -4320,7 +4320,7 @@ def _entry_from_record(record: Dict[str, Any], *, index: int) -> Dict[str, Any]:
     prompt = str(record.get("prompt") or "")
     prompt_goal_tags = extract_prompt_goal_tags(prompt)
     prompt_target_pattern = extract_prompt_target_pattern(prompt)
-    entry = {
+    return {
         "rank": 0,
         "local_index": index,
         "global_index": index,
@@ -4334,11 +4334,8 @@ def _entry_from_record(record: Dict[str, Any], *, index: int) -> Dict[str, Any]:
         "prompt_target_pattern": prompt_target_pattern,
         "goal_key": primary_goal_key(prompt_goal_tags, prompt_target_pattern),
         "seed_accuracy_baseline": _record_seed_accuracy(record),
+        "precomputed_eval_result": dict(_record_api_result(record)),
     }
-    api_result = _record_api_result(record)
-    if api_result:
-        entry["precomputed_eval_result"] = dict(api_result)
-    return entry
 
 
 def _entry_backbone_model_names(entry: Dict[str, Any]) -> list[str]:
