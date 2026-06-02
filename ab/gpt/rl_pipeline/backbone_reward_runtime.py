@@ -47,6 +47,7 @@ saved_goal_family_hash_counts: Dict[str, Counter] = {}
 train_graph_hashes: Set[str] = set()
 train_family_hashes: Set[str] = set()
 train_descriptor_keys: Set[str] = set()
+train_reference_stats: Dict[str, int] = {}
 current_group_reward_target_sum_by_backbone: Dict[str, float] = {}
 current_group_reward_target_count_by_backbone = Counter()
 prev_closed_group_mean_reward_target_by_backbone: Dict[str, float] = {}
@@ -1497,13 +1498,152 @@ def reconstruct_code(
     return code
 
 
+def _iter_text_candidates(value: Any) -> List[str]:
+    if value is None:
+        return []
+    if isinstance(value, str):
+        return [value]
+    if isinstance(value, dict):
+        out: List[str] = []
+        for item in value.values():
+            out.extend(_iter_text_candidates(item))
+        return out
+    if isinstance(value, (list, tuple, set)):
+        out: List[str] = []
+        for item in value:
+            out.extend(_iter_text_candidates(item))
+        return out
+    return []
+
+
+def _score_seed_source_candidate(field_name: str, text: str) -> int:
+    lowered_field = (field_name or "").lower()
+    lowered_text = text.lower()
+    score = 0
+    if "<init>" in lowered_text and "<forward>" in lowered_text:
+        score += 100
+    if "class net" in lowered_text and "def forward" in lowered_text:
+        score += 80
+    if "def __init__" in lowered_text and "def forward" in lowered_text:
+        score += 60
+    if any(token in lowered_field for token in ("completion", "response", "output", "assistant", "xml")):
+        score += 25
+    if any(token in lowered_field for token in ("code", "nn", "model", "content", "text")):
+        score += 10
+    if len(text) > 200:
+        score += 5
+    return score
+
+
+def _extract_method_from_module_text(source_text: str, class_name: str, method_name: str) -> str:
+    try:
+        tree = ast.parse(source_text)
+    except Exception:
+        return ""
+
+    lines = source_text.splitlines()
+    for node in tree.body:
+        if isinstance(node, ast.ClassDef) and node.name == class_name:
+            for item in node.body:
+                if isinstance(item, ast.FunctionDef) and item.name == method_name:
+                    if item.end_lineno is None:
+                        return ""
+                    snippet = "\n".join(lines[item.lineno - 1:item.end_lineno])
+                    return textwrap.dedent(snippet).strip()
+    return ""
+
+
+def _extract_seed_init_forward_from_text(text: str) -> Tuple[str, str]:
+    candidate = clean_block(text)
+    if not candidate:
+        return "", ""
+
+    _, init_code, forward_code = extract_reward_completion_blocks(candidate)
+    if init_code and forward_code:
+        return init_code, forward_code
+
+    stripped = candidate.replace("```python", "").replace("```", "").strip()
+    init_code = _extract_method_from_module_text(stripped, "Net", "__init__")
+    forward_code = _extract_method_from_module_text(stripped, "Net", "forward")
+    return init_code, forward_code
+
+
+def _extract_seed_candidates_from_row(row: Any) -> List[str]:
+    row_dict = row.to_dict() if hasattr(row, "to_dict") else dict(row)
+    ranked: List[Tuple[int, str]] = []
+    seen: Set[str] = set()
+
+    for key, value in row_dict.items():
+        for text in _iter_text_candidates(value):
+            stripped = text.strip()
+            if not stripped or stripped in seen:
+                continue
+            score = _score_seed_source_candidate(str(key), stripped)
+            if score <= 0:
+                continue
+            ranked.append((score, stripped))
+            seen.add(stripped)
+
+    ranked.sort(key=lambda item: (-item[0], -len(item[1])))
+    return [text for _, text in ranked]
+
+
+def bootstrap_trainset_reference_library(data) -> None:
+    train_graph_hashes.clear()
+    train_family_hashes.clear()
+    train_descriptor_keys.clear()
+
+    stats = {
+        "rows_seen": 0,
+        "rows_parsed": 0,
+        "rows_skipped": 0,
+        "candidate_texts": 0,
+    }
+
+    for _, row in data.iterrows():
+        stats["rows_seen"] += 1
+        candidates = _extract_seed_candidates_from_row(row)
+        stats["candidate_texts"] += len(candidates)
+        parsed_ok = False
+
+        for candidate in candidates:
+            init_code, forward_code = _extract_seed_init_forward_from_text(candidate)
+            if not init_code or not forward_code:
+                continue
+            graph_info = extract_graph_info(
+                init_code,
+                forward_code,
+                legacy_patterns=SFTUtil.legacy_patterns,
+            )
+            if graph_info and graph_info.parse_ok:
+                train_graph_hashes.add(graph_info.graph_hash)
+                train_family_hashes.add(graph_info.family_hash)
+                train_descriptor_keys.add(graph_info.descriptor_key)
+                parsed_ok = True
+                break
+
+        if parsed_ok:
+            stats["rows_parsed"] += 1
+        else:
+            stats["rows_skipped"] += 1
+
+    train_reference_stats.clear()
+    train_reference_stats.update(stats)
+    print(
+        "[Trainset Reference] "
+        f"rows={stats['rows_seen']}, parsed={stats['rows_parsed']}, skipped={stats['rows_skipped']}, "
+        f"graph_hashes={len(train_graph_hashes)}, family_hashes={len(train_family_hashes)}, "
+        f"descriptor_keys={len(train_descriptor_keys)}"
+    )
+
+
 def load_rl_dataset(tokenizer):
     data = api.data(task="img-classification", nn_prefixes=("rl-bb-test1",))
     if data.empty:
         raise RuntimeError("No 'rl-bb-test1' data found for RL; sync the dataset prefix before training.")
 
     print(f"Loaded {len(data)} examples for RL")
-    _services().bootstrap_trainset_reference_library(data)
+    bootstrap_trainset_reference_library(data)
 
     prompts = []
     legacy_patterns = ", ".join(SFTUtil.legacy_patterns)

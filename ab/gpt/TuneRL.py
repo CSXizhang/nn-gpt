@@ -103,9 +103,6 @@ import ab.gpt.util.training_runtime as TrainingRuntime
 from typing import Tuple, Any, List, Dict, Optional, Set
 from collections import Counter, deque
 
-train_reference_stats: Dict[str, int] = {}
-
-
 # ===== Configuration Options =====
 base_model = "ABrain/NNGPT-Backbone-deepseek-coder-6.7b-instruct" # 使用新的 Backbone 模型
 tokenizer_source = base_model
@@ -123,22 +120,29 @@ FORMAL_REWARD_TRANSFORM = "norm_128_flip"
 def register_reward_task(task: Optional[RewardTask]) -> None:
     global active_reward_task
     active_reward_task = task
-    from ab.gpt.rl_pipeline import backbone_reward_runtime as BackboneRewardRuntime
-
-    BackboneRewardRuntime.configure_runtime_services(TuneRLBackboneRuntimeServices())
+    configure_services = getattr(task, "configure_runtime_services", None) if task is not None else None
+    if callable(configure_services):
+        configure_services(TuneRLRewardRuntimeServices())
 
 
 def current_reward_task() -> Optional[RewardTask]:
     return active_reward_task
 
 
-def _reward_task_callable(name: str, default):
+def _reward_task_callable(name: str, default=None):
     task = current_reward_task()
     method = getattr(task, name, None) if task is not None else None
     return method if callable(method) else default
 
 
-class TuneRLBackboneRuntimeServices:
+def _require_reward_task_callable(name: str):
+    method = _reward_task_callable(name)
+    if callable(method):
+        return method
+    raise RuntimeError(f"Reward task hook is not configured: {name}")
+
+
+class TuneRLRewardRuntimeServices:
     @property
     def code_logger(self):
         return code_logger
@@ -216,10 +220,7 @@ class TuneRLBackboneRuntimeServices:
         return require_sample_accuracy_baselines(kwargs, expected_count)
 
     def extract_completion_blocks(self, completion: str) -> Tuple[str, str, str]:
-        return _reward_task_callable(
-            "extract_completion_blocks",
-            _backbone_reward_runtime().extract_completion_blocks,
-        )(completion)
+        return _require_reward_task_callable("extract_completion_blocks")(completion)
 
     def group_context_fields(self) -> Dict[str, Any]:
         return reward_task_group_context_fields()
@@ -928,10 +929,7 @@ def _format_target_metric(base_value: Optional[float], delta: float) -> str:
 
 
 def render_prompt_feedback_text(*, feedback_char_budget: int = 1200) -> str:
-    return _reward_task_callable(
-        "render_prompt_feedback_text",
-        _backbone_reward_runtime().render_prompt_feedback_text,
-    )(feedback_char_budget=feedback_char_budget)
+    return _require_reward_task_callable("render_prompt_feedback_text")(feedback_char_budget=feedback_char_budget)
 
 def reset_reward_runtime_state() -> None:
     StageState.reset_reward_runtime_state(
@@ -2068,144 +2066,8 @@ def _stage_uses_static_only(stage_name: str) -> bool:
     return str(stage_name) == STAGE1_STRUCTURE_EXPLORE
 
 
-def _iter_text_candidates(value: Any) -> List[str]:
-    if isinstance(value, str):
-        return [value]
-    if isinstance(value, dict):
-        out: List[str] = []
-        for item in value.values():
-            out.extend(_iter_text_candidates(item))
-        return out
-    if isinstance(value, (list, tuple, set)):
-        out: List[str] = []
-        for item in value:
-            out.extend(_iter_text_candidates(item))
-        return out
-    return []
-
-
-def _score_seed_source_candidate(field_name: str, text: str) -> int:
-    lowered_field = (field_name or "").lower()
-    lowered_text = text.lower()
-    score = 0
-    if "<init>" in lowered_text and "<forward>" in lowered_text:
-        score += 100
-    if "class net" in lowered_text and "def forward" in lowered_text:
-        score += 80
-    if "def __init__" in lowered_text and "def forward" in lowered_text:
-        score += 60
-    if any(token in lowered_field for token in ("completion", "response", "output", "assistant", "xml")):
-        score += 25
-    if any(token in lowered_field for token in ("code", "nn", "model", "content", "text")):
-        score += 10
-    if len(text) > 200:
-        score += 5
-    return score
-
-
-def _extract_method_from_module_text(source_text: str, class_name: str, method_name: str) -> str:
-    try:
-        tree = ast.parse(source_text)
-    except Exception:
-        return ""
-
-    lines = source_text.splitlines()
-    for node in tree.body:
-        if isinstance(node, ast.ClassDef) and node.name == class_name:
-            for item in node.body:
-                if isinstance(item, ast.FunctionDef) and item.name == method_name:
-                    if item.end_lineno is None:
-                        return ""
-                    snippet = "\n".join(lines[item.lineno - 1:item.end_lineno])
-                    return textwrap.dedent(snippet).strip()
-    return ""
-
-
-def _extract_seed_init_forward_from_text(text: str) -> Tuple[str, str]:
-    reward_runtime = _backbone_reward_runtime()
-    candidate = reward_runtime.clean_block(text)
-    if not candidate:
-        return "", ""
-
-    _, init_code, forward_code = reward_runtime.extract_reward_completion_blocks(candidate)
-    if init_code and forward_code:
-        return init_code, forward_code
-
-    stripped = candidate.replace("```python", "").replace("```", "").strip()
-    init_code = _extract_method_from_module_text(stripped, "Net", "__init__")
-    forward_code = _extract_method_from_module_text(stripped, "Net", "forward")
-    return init_code, forward_code
-
-
-def _extract_seed_candidates_from_row(row: Any) -> List[str]:
-    row_dict = row.to_dict() if hasattr(row, "to_dict") else dict(row)
-    ranked: List[Tuple[int, str]] = []
-    seen: Set[str] = set()
-
-    for key, value in row_dict.items():
-        for text in _iter_text_candidates(value):
-            stripped = text.strip()
-            if not stripped or stripped in seen:
-                continue
-            score = _score_seed_source_candidate(str(key), stripped)
-            if score <= 0:
-                continue
-            ranked.append((score, stripped))
-            seen.add(stripped)
-
-    ranked.sort(key=lambda item: (-item[0], -len(item[1])))
-    return [text for _, text in ranked]
-
-
 def bootstrap_trainset_reference_library(data) -> None:
-    reward_runtime = _backbone_reward_runtime()
-    reward_runtime.train_graph_hashes.clear()
-    reward_runtime.train_family_hashes.clear()
-    reward_runtime.train_descriptor_keys.clear()
-
-    stats = {
-        "rows_seen": 0,
-        "rows_parsed": 0,
-        "rows_skipped": 0,
-        "candidate_texts": 0,
-    }
-
-    for _, row in data.iterrows():
-        stats["rows_seen"] += 1
-        candidates = _extract_seed_candidates_from_row(row)
-        stats["candidate_texts"] += len(candidates)
-        parsed_ok = False
-
-        for candidate in candidates:
-            init_code, forward_code = _extract_seed_init_forward_from_text(candidate)
-            if not init_code or not forward_code:
-                continue
-            graph_info = extract_graph_info(
-                init_code,
-                forward_code,
-                legacy_patterns=SFTUtil.legacy_patterns,
-            )
-            if not graph_info.parse_ok:
-                continue
-            reward_runtime.train_graph_hashes.add(graph_info.graph_hash)
-            reward_runtime.train_family_hashes.add(graph_info.family_hash)
-            reward_runtime.train_descriptor_keys.add(graph_info.descriptor_key)
-            parsed_ok = True
-            break
-
-        if parsed_ok:
-            stats["rows_parsed"] += 1
-        else:
-            stats["rows_skipped"] += 1
-
-    train_reference_stats.clear()
-    train_reference_stats.update(stats)
-    print(
-        "[Trainset Reference] "
-        f"rows={stats['rows_seen']}, parsed={stats['rows_parsed']}, skipped={stats['rows_skipped']}, "
-        f"graph_hashes={len(reward_runtime.train_graph_hashes)}, family_hashes={len(reward_runtime.train_family_hashes)}, "
-        f"descriptor_keys={len(reward_runtime.train_descriptor_keys)}"
-    )
+    _require_reward_task_callable("bootstrap_trainset_reference_library")(data)
 
 
 def build_stage_eval_cfg(
@@ -2268,29 +2130,23 @@ def _invoke_eval_cfg_builder(eval_cfg_builder, **kwargs) -> EvalConfig:
 
 
 def reward_eval_cfg_builder():
-    return _reward_task_callable("build_eval_cfg", build_stage_eval_cfg)
+    return _require_reward_task_callable("build_eval_cfg")
 
 
 def evaluate_reward_code(*args, **kwargs):
-    return _reward_task_callable("evaluate_code_and_reward", evaluate_code_and_reward)(*args, **kwargs)
+    return _require_reward_task_callable("evaluate_code_and_reward")(*args, **kwargs)
 
 
 def evaluate_reward_code_batch(specs):
-    return _reward_task_callable("evaluate_code_and_reward_batch", evaluate_code_and_reward_batch)(specs)
+    return _require_reward_task_callable("evaluate_code_and_reward_batch")(specs)
 
 
 def reward_task_reward_fn(*args, **kwargs):
-    return _reward_task_callable("reward_fn", reward_fn)(*args, **kwargs)
+    return _require_reward_task_callable("reward_fn")(*args, **kwargs)
 
 
 def load_reward_dataset(tokenizer):
-    return _reward_task_callable("load_rl_dataset", load_rl_dataset)(tokenizer)
-
-
-def _backbone_reward_runtime():
-    from ab.gpt.rl_pipeline import backbone_reward_runtime as BackboneRewardRuntime
-
-    return BackboneRewardRuntime
+    return _require_reward_task_callable("load_rl_dataset")(tokenizer)
 
 
 def extract_reward_seed_context(kwargs: Dict[str, Any], expected_count: int):
@@ -2305,17 +2161,7 @@ def prepare_reward_entries(
     group_context: Dict[str, Any],
     precompute_eval: bool,
 ) -> List[Dict[str, Any]]:
-    task = current_reward_task()
-    method = getattr(task, "prepare_entries", None) if task is not None else None
-    if callable(method):
-        return method(
-            prompts,
-            completions,
-            seed_contexts=seed_contexts,
-            group_context=group_context,
-            precompute_eval=precompute_eval,
-        )
-    return _backbone_reward_runtime().prepare_entries(
+    return _require_reward_task_callable("prepare_entries")(
         prompts,
         completions,
         seed_contexts=seed_contexts,
@@ -2325,29 +2171,29 @@ def prepare_reward_entries(
 
 
 def precompute_reward_entries(entries: List[Dict[str, Any]], *, group_context: Dict[str, Any]) -> None:
-    _reward_task_callable("precompute_entries", _backbone_reward_runtime().precompute_entries)(
+    _require_reward_task_callable("precompute_entries")(
         entries,
         group_context=group_context,
     )
 
 
 def apply_reward_batch_elite_bonuses(scored_results: List[Dict[str, Any]], group_context: Dict[str, Any]) -> None:
-    _reward_task_callable("apply_batch_elite_bonuses", _backbone_reward_runtime().apply_batch_elite_bonuses)(
+    _require_reward_task_callable("apply_batch_elite_bonuses")(
         scored_results,
         group_context,
     )
 
 
 def finalize_reward_scored_results(scored_results: List[Dict[str, Any]]) -> None:
-    _reward_task_callable("finalize_scored_results", _backbone_reward_runtime().finalize_scored_results)(scored_results)
+    _require_reward_task_callable("finalize_scored_results")(scored_results)
 
 
 def reward_entries_from_records(records: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-    return _reward_task_callable("entries_from_records", _backbone_reward_runtime().entries_from_records)(records)
+    return _require_reward_task_callable("entries_from_records")(records)
 
 
 def describe_reward_code_sections(*, block_code: str, init_code: str, forward_code: str) -> Dict[str, Any]:
-    return _reward_task_callable("describe_code_sections", _backbone_reward_runtime().describe_code_sections)(
+    return _require_reward_task_callable("describe_code_sections")(
         block_code=block_code,
         init_code=init_code,
         forward_code=forward_code,
@@ -2355,39 +2201,39 @@ def describe_reward_code_sections(*, block_code: str, init_code: str, forward_co
 
 
 def reward_task_capture_runtime_state() -> Dict[str, Any]:
-    return _reward_task_callable("capture_runtime_state", _backbone_reward_runtime().capture_runtime_state)()
+    return _require_reward_task_callable("capture_runtime_state")()
 
 
 def reward_task_restore_runtime_state(state: Optional[Dict[str, Any]]) -> None:
-    _reward_task_callable("restore_runtime_state", _backbone_reward_runtime().restore_runtime_state)(state)
+    _require_reward_task_callable("restore_runtime_state")(state)
 
 
 def reward_task_reset_runtime_state() -> None:
-    _reward_task_callable("reset_runtime_state", _backbone_reward_runtime().reset_runtime_state)()
+    _require_reward_task_callable("reset_runtime_state")()
 
 
 def reward_task_group_context_fields() -> Dict[str, Any]:
-    return _reward_task_callable("group_context_fields", _backbone_reward_runtime().group_context_fields)()
+    return _require_reward_task_callable("group_context_fields")()
 
 
 def reward_task_update_group_metrics(results: List[Dict[str, Any]]) -> None:
-    _reward_task_callable("update_group_metrics", _backbone_reward_runtime().update_group_metrics)(results)
+    _require_reward_task_callable("update_group_metrics")(results)
 
 
 def reward_task_close_group_payload() -> Dict[str, Any]:
-    return _reward_task_callable("close_group_payload", _backbone_reward_runtime().close_group_payload)()
+    return _require_reward_task_callable("close_group_payload")()
 
 
 def reward_task_reset_current_group_state() -> None:
-    _reward_task_callable("reset_current_group_state", _backbone_reward_runtime().reset_current_group_state)()
+    _require_reward_task_callable("reset_current_group_state")()
 
 
 def reward_task_reset_stage_comparison_state() -> None:
-    _reward_task_callable("reset_stage_comparison_state", _backbone_reward_runtime().reset_stage_comparison_state)()
+    _require_reward_task_callable("reset_stage_comparison_state")()
 
 
 def reward_task_archive_snapshot_family_counts() -> Dict[str, int]:
-    return _reward_task_callable("archive_snapshot_family_counts", _backbone_reward_runtime().archive_snapshot_family_counts)()
+    return _require_reward_task_callable("archive_snapshot_family_counts")()
 
 
 def reward_task_build_group_feedback_summary(
@@ -2397,10 +2243,7 @@ def reward_task_build_group_feedback_summary(
     graph_info,
     reward_group_id: int,
 ) -> Dict[str, Any]:
-    return _reward_task_callable(
-        "build_group_feedback_summary",
-        _backbone_reward_runtime().build_group_feedback_summary,
-    )(
+    return _require_reward_task_callable("build_group_feedback_summary")(
         goal_key=goal_key,
         res=res,
         graph_info=graph_info,
@@ -2454,9 +2297,7 @@ def reward_fn(
     batch_last_item: bool = False,
 ) -> Dict[str, Any]:
     """Reward open-ended motif discovery while keeping the existing XML output ABI."""
-    from ab.gpt.rl_pipeline import backbone_reward_runtime as BackboneRewardRuntime
-
-    return BackboneRewardRuntime.base_discovery_reward_fn(
+    return reward_task_reward_fn(
         completion,
         seed_accuracy_baseline=seed_accuracy_baseline,
         precomputed_eval_result=precomputed_eval_result,
@@ -2638,7 +2479,7 @@ def score_reward_entries(
     group_context: Dict[str, Any],
     archive_snapshot_family_counts: Dict[str, int],
 ) -> List[Dict[str, Any]]:
-    return _reward_task_callable("score_entries", _backbone_reward_runtime().score_entries)(
+    return _require_reward_task_callable("score_entries")(
         entries,
         group_context=group_context,
         archive_snapshot_family_counts=archive_snapshot_family_counts,
@@ -2646,7 +2487,7 @@ def score_reward_entries(
 
 
 def print_reward_metrics() -> None:
-    _backbone_reward_runtime().print_discovery_metrics()
+    _require_reward_task_callable("print_metrics")()
 
 
 def compute_reward(prompts, completions, **kwargs):
@@ -2792,136 +2633,14 @@ def compute_reward(prompts, completions, **kwargs):
         clear_reward_extraction_meta_cache()
 
 def load_rl_dataset(tokenizer):
-    return _backbone_reward_runtime().load_rl_dataset(tokenizer)
-
-
-class OpenDiscoveryRewardTask:
-    name = "open_discovery"
-
-    @property
-    def model_source(self) -> str:
-        return base_model
-
-    @property
-    def tokenizer_source(self) -> str:
-        return tokenizer_source
-
-    @property
-    def load_existing_model(self) -> bool:
-        return LOAD_EXISTING_MODEL
-
-    @property
-    def saved_model_path(self) -> str:
-        return SAVED_MODEL_PATH
-
-    @property
-    def prompt_template(self) -> str:
-        return _backbone_reward_runtime().PROMPT_TEMPLATE
-
-    def extract_completion_blocks(self, completion: str) -> Tuple[str, str, str]:
-        return _backbone_reward_runtime().extract_completion_blocks(completion)
-
-    def clear_extraction_meta_cache(self) -> None:
-        clear_extraction_meta_cache()
-
-    def evaluate_code_and_reward(self, *args, **kwargs):
-        return evaluate_code_and_reward(*args, **kwargs)
-
-    def evaluate_code_and_reward_batch(self, specs):
-        return evaluate_code_and_reward_batch(specs)
-
-    def build_eval_cfg(self, *args, **kwargs):
-        return build_stage_eval_cfg(*args, **kwargs)
-
-    def reward_fn(self, *args, **kwargs):
-        return reward_fn(*args, **kwargs)
-
-    def load_rl_dataset(self, tokenizer):
-        return _backbone_reward_runtime().load_rl_dataset(tokenizer)
-
-    def extract_seed_context(self, kwargs: Dict[str, Any], expected_count: int):
-        return require_sample_accuracy_baselines(kwargs, expected_count)
-
-    def prepare_entries(
-        self,
-        prompts,
-        completions,
-        *,
-        seed_contexts,
-        group_context: Dict[str, Any],
-        precompute_eval: bool,
-    ) -> List[Dict[str, Any]]:
-        return _backbone_reward_runtime().prepare_entries(
-            prompts,
-            completions,
-            seed_contexts=seed_contexts,
-            group_context=group_context,
-            precompute_eval=precompute_eval,
-        )
-
-    def precompute_entries(self, entries: List[Dict[str, Any]], *, group_context: Dict[str, Any]) -> None:
-        _backbone_reward_runtime().precompute_entries(entries, group_context=group_context)
-
-    def score_entries(
-        self,
-        entries: List[Dict[str, Any]],
-        *,
-        group_context: Dict[str, Any],
-        archive_snapshot_family_counts: Dict[str, int],
-    ) -> List[Dict[str, Any]]:
-        return _backbone_reward_runtime().score_entries(
-            entries,
-            group_context=group_context,
-            archive_snapshot_family_counts=archive_snapshot_family_counts,
-        )
-
-    def entries_from_records(self, records: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-        return _backbone_reward_runtime().entries_from_records(records)
-
-    def describe_code_sections(self, *, block_code: str, init_code: str, forward_code: str) -> Dict[str, Any]:
-        return _backbone_reward_runtime().describe_code_sections(
-            block_code=block_code,
-            init_code=init_code,
-            forward_code=forward_code,
-        )
-
-    def apply_batch_elite_bonuses(self, scored_results: List[Dict[str, Any]], group_context: Dict[str, Any]) -> None:
-        _backbone_reward_runtime().apply_batch_elite_bonuses(scored_results, group_context)
-
-    def finalize_scored_results(self, scored_results: List[Dict[str, Any]]) -> None:
-        _backbone_reward_runtime().finalize_scored_results(scored_results)
-
-    def build_group_feedback_summary(
-        self,
-        *,
-        goal_key: str,
-        res: Dict[str, Any],
-        graph_info,
-        reward_group_id: int,
-    ) -> Dict[str, Any]:
-        return _backbone_reward_runtime().build_group_feedback_summary(
-            goal_key=goal_key,
-            res=res,
-            graph_info=graph_info,
-            reward_group_id=reward_group_id,
-        )
-
-    def render_prompt_feedback_text(self, *, feedback_char_budget: int = 1200) -> str:
-        return _backbone_reward_runtime().render_prompt_feedback_text(feedback_char_budget=feedback_char_budget)
-
-    def run_log_dir(self) -> str:
-        return run_log_dir()
-
-    def run_model_out(self) -> str:
-        return run_model_out()
-
-    def run_epoch_dir(self, *args):
-        return run_epoch_dir(*args)
+    return load_reward_dataset(tokenizer)
 
 
 def ensure_default_reward_task() -> None:
     if current_reward_task() is None:
-        register_reward_task(OpenDiscoveryRewardTask())
+        from ab.gpt.rl_pipeline.default_reward_task import create_default_reward_task
+
+        register_reward_task(create_default_reward_task(sys.modules[__name__]))
 
 
 ensure_default_reward_task()

@@ -11,6 +11,9 @@ class RewardTask(Protocol):
     saved_model_path: str
     prompt_template: str
 
+    def configure_runtime_services(self, services: Any) -> None:
+        ...
+
     def extract_completion_blocks(self, completion: str) -> Tuple[str, str, str]:
         ...
 
@@ -33,6 +36,9 @@ class RewardTask(Protocol):
         ...
 
     def extract_seed_context(self, kwargs: Dict[str, Any], expected_count: int) -> Any:
+        ...
+
+    def bootstrap_trainset_reference_library(self, data: Any) -> None:
         ...
 
     def prepare_entries(
@@ -95,6 +101,9 @@ class RewardTask(Protocol):
         ...
 
     def archive_snapshot_family_counts(self) -> Dict[str, int]:
+        ...
+
+    def print_metrics(self) -> None:
         ...
 
     def build_group_feedback_summary(

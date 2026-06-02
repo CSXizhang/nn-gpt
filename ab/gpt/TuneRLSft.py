@@ -2229,6 +2229,9 @@ class BackboneRewardTask:
     saved_model_path: str
     prompt_template: str = SFT_DISCOVERY_PROMPT_TEMPLATE
 
+    def configure_runtime_services(self, services) -> None:
+        BackboneRewardRuntime.configure_runtime_services(services)
+
     def extract_completion_blocks(self, completion: str):
         return extract_completion_blocks_strict(completion)
 
@@ -2252,6 +2255,9 @@ class BackboneRewardTask:
 
     def extract_seed_context(self, kwargs: dict, expected_count: int):
         return BackboneRewardRuntime.extract_seed_context(kwargs, expected_count)
+
+    def bootstrap_trainset_reference_library(self, data) -> None:
+        BackboneRewardRuntime.bootstrap_trainset_reference_library(data)
 
     def prepare_entries(
         self,
@@ -2328,6 +2334,9 @@ class BackboneRewardTask:
 
     def archive_snapshot_family_counts(self) -> Dict[str, int]:
         return BackboneRewardRuntime.archive_snapshot_family_counts()
+
+    def print_metrics(self) -> None:
+        BackboneRewardRuntime.print_discovery_metrics()
 
     def build_group_feedback_summary(
         self,

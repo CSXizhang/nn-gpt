@@ -12,6 +12,7 @@ from ab.gpt.util.ArchDiscovery import normalize_pattern_name
 
 REPO_ROOT = Path(__file__).resolve().parent
 REWARD_RUNTIME_PATH = "ab/gpt/rl_pipeline/backbone_reward_runtime.py"
+DEFAULT_REWARD_TASK_PATH = "ab/gpt/rl_pipeline/default_reward_task.py"
 
 
 def _source(path: str) -> str:
@@ -569,7 +570,7 @@ def forward(self, x, is_probing=False):
         tunerl_feedback = _function_source("ab/gpt/TuneRL.py", "render_prompt_feedback_text")
         runtime_feedback_summary = _function_source(REWARD_RUNTIME_PATH, "build_group_feedback_summary")
 
-        self.assertIn("_reward_task_callable(", tunerl_feedback)
+        self.assertIn("_require_reward_task_callable(", tunerl_feedback)
         self.assertIn('"render_prompt_feedback_text"', tunerl_feedback)
         self.assertIn("reward_task_build_group_feedback_summary", tunerl_source)
         for token in (
@@ -592,9 +593,13 @@ def forward(self, x, is_probing=False):
     def test_default_open_discovery_dataset_prompt_is_task_owned(self):
         tunerl_source = _source("ab/gpt/TuneRL.py")
         runtime_source = _source(REWARD_RUNTIME_PATH)
+        default_task_source = _source(DEFAULT_REWARD_TASK_PATH)
         load_body = _function_source("ab/gpt/TuneRL.py", "load_rl_dataset")
 
-        self.assertIn("_backbone_reward_runtime().load_rl_dataset(tokenizer)", load_body)
+        self.assertIn("load_reward_dataset(tokenizer)", load_body)
+        self.assertIn("class OpenDiscoveryRewardTask", default_task_source)
+        self.assertIn("BackboneRewardRuntime.load_rl_dataset(tokenizer)", default_task_source)
+        self.assertIn("BackboneRewardRuntime.PROMPT_TEMPLATE", default_task_source)
         for token in (
             "open_discovery_prompt_template",
             "open_discovery_skeleton_code",
@@ -602,6 +607,18 @@ def forward(self, x, is_probing=False):
         ):
             self.assertNotIn(token, tunerl_source)
             self.assertIn(token, runtime_source)
+
+    def test_tunerl_does_not_import_backbone_reward_runtime(self):
+        tunerl_source = _source("ab/gpt/TuneRL.py")
+
+        for token in (
+            "backbone_reward_runtime",
+            "_backbone_reward_runtime",
+            "BackboneRewardRuntime",
+            "class OpenDiscoveryRewardTask",
+        ):
+            self.assertNotIn(token, tunerl_source)
+        self.assertIn("create_default_reward_task", tunerl_source)
 
     def test_completion_codec_is_task_owned(self):
         runtime_source = _source(REWARD_RUNTIME_PATH)
