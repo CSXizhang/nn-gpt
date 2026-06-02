@@ -65,6 +65,8 @@ def _feedback_summaries_from_payload(
     items: Optional[List[Dict[str, Any]]],
     feedback_summary_cls: Type[Any],
 ) -> List[Any]:
+    if feedback_summary_cls is dict:
+        return [dict(item) for item in (items or [])]
     return [feedback_summary_cls(**dict(item)) for item in (items or [])]
 
 
@@ -406,7 +408,7 @@ def close_reward_group_if_needed(rl):
     group_progress_payload.update(rl._stage_gate_snapshot())
     rl._append_jsonl(progress_path, group_progress_payload)
     for summary in rl.prev_group_feedback:
-        sample_payload = {'group_id': rl.current_group_id, 'group_warmup': rl.current_group_id == 0, 'summary': rl.asdict(summary), 'closed_mean_reward_target_acc': closed_mean_reward_target, 'closed_mean_train_acc': closed_mean_train, 'closed_mean_test_acc': closed_mean_test}
+        sample_payload = {'group_id': rl.current_group_id, 'group_warmup': rl.current_group_id == 0, 'summary': rl._feedback_summary_payload([summary])[0], 'closed_mean_reward_target_acc': closed_mean_reward_target, 'closed_mean_train_acc': closed_mean_train, 'closed_mean_test_acc': closed_mean_test}
         rl._append_jsonl(feedback_path, sample_payload)
     if rl.best_closed_group_id == rl.current_group_id and rl.best_closed_group_mean_reward_target_acc is not None:
         rl._write_json(best_feedback_path, {'group_id': rl.best_closed_group_id, 'best_closed_group_mean_reward_target_acc': rl.best_closed_group_mean_reward_target_acc, 'best_closed_group_mean_train_acc': rl.best_closed_group_mean_train_acc, 'best_closed_group_mean_test_acc': rl.best_closed_group_mean_test_acc, 'feedback': rl._feedback_summary_payload(rl.best_group_feedback)})

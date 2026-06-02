@@ -567,16 +567,27 @@ def forward(self, x, is_probing=False):
         tunerl_source = _source("ab/gpt/TuneRL.py")
         runtime_source = _source(REWARD_RUNTIME_PATH)
         tunerl_feedback = _function_source("ab/gpt/TuneRL.py", "render_prompt_feedback_text")
+        runtime_feedback_summary = _function_source(REWARD_RUNTIME_PATH, "build_group_feedback_summary")
 
         self.assertIn("_reward_task_callable(", tunerl_feedback)
         self.assertIn('"render_prompt_feedback_text"', tunerl_feedback)
+        self.assertIn("reward_task_build_group_feedback_summary", tunerl_source)
         for token in (
             "same backbone pair",
             "stem/project/fuse CNN layout",
             "dominant-family reuse",
+            "backbones=[",
+            "backbone_bucket=",
+            "cnn=",
         ):
             self.assertNotIn(token, tunerl_source)
             self.assertIn(token, runtime_source)
+        for token in (
+            "backbones=[",
+            "backbone_bucket=",
+            "cnn=",
+        ):
+            self.assertIn(token, runtime_feedback_summary)
 
     def test_default_open_discovery_dataset_prompt_is_task_owned(self):
         tunerl_source = _source("ab/gpt/TuneRL.py")

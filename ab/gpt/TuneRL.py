@@ -97,7 +97,6 @@ import textwrap
 import shutil
 import json
 from pathlib import Path
-from dataclasses import dataclass, asdict
 
 from ab.gpt.util.simple_logger import SimpleCodeLogger
 import ab.gpt.util.training_runtime as TrainingRuntime
@@ -295,8 +294,6 @@ def _formal_reward_input_shape(batch: int = 1) -> Tuple[int, int, int, int]:
 
 
 REWARD_TARGET_METRIC = "frozen_test_acc"
-FEEDBACK_GRAPH_EXPR_MAX_CHARS = 160
-FEEDBACK_SUMMARY_MAX_CHARS = 240
 FEEDBACK_SUMMARY_LIMIT = 2
 RL_DEEPSPEED_DEFAULT_CONFIG = str(Path(__file__).resolve().parent / "conf" / "DeepSpeedSftGrpo.json")
 STAGE1_STRUCTURE_EXPLORE = "stage1_structure_explore"
@@ -393,9 +390,9 @@ prev_closed_group_mean_test_acc: Optional[float] = None
 best_closed_group_mean_test_acc: Optional[float] = None
 best_closed_group_id: Optional[int] = None
 best_reward_target_by_goal: Dict[str, float] = {}
-prev_group_feedback: List["GroupFeedbackSummary"] = []
-best_group_feedback: List["GroupFeedbackSummary"] = []
-current_group_top_feedback: List["GroupFeedbackSummary"] = []
+prev_group_feedback: List[Dict[str, Any]] = []
+best_group_feedback: List[Dict[str, Any]] = []
+current_group_top_feedback: List[Dict[str, Any]] = []
 current_group_goal_best_candidates: Dict[str, float] = {}
 current_stage_name = STAGE1_STRUCTURE_EXPLORE
 stage_closed_group_counts = Counter()
@@ -436,34 +433,6 @@ def clear_extraction_meta_cache() -> None:
 def clear_reward_extraction_meta_cache() -> None:
     _reward_task_callable("clear_extraction_meta_cache", clear_extraction_meta_cache)()
 
-SHALLOW_COLLAPSE_FAMILIES = {
-    "ParallelTriple_Shallow",
-    "DualBackboneFuse_Shallow",
-    "TripleBackboneFuse_Shallow",
-}
-
-
-@dataclass
-class GroupFeedbackSummary:
-    goal_key: str
-    pattern_name: str
-    graph_expr_short: str
-    reward_target_value: float
-    frozen_train_acc: float
-    frozen_test_acc: float
-    unfrozen_train_acc: Optional[float]
-    unfrozen_test_acc: Optional[float]
-    backbone_model_names: List[str]
-    stats_short: str
-    summary: str
-    family_hash: str
-    signature: str
-    reward_group_id: int
-    backbone_signature: str = ""
-    cnn_signature: str = ""
-    cnn_expr_short: str = ""
-
-
 def _current_generation_total() -> int:
     return StageState.current_generation_total(sys.modules[__name__])
 
@@ -487,7 +456,7 @@ def restore_reward_runtime_state(state: Optional[Dict[str, Any]]) -> None:
         max_stage_sample_history=MAX_STAGE_SAMPLE_HISTORY,
         max_stage_group_history=MAX_STAGE_GROUP_HISTORY,
         stage1_structure_explore=STAGE1_STRUCTURE_EXPLORE,
-        feedback_summary_cls=GroupFeedbackSummary,
+        feedback_summary_cls=dict,
     )
     reward_task_restore_runtime_state(state)
 
@@ -589,26 +558,6 @@ def _broadcast_object(payload: Any, *, src: int = 0) -> Any:
     objects = [payload if _distributed_rank() == src else None]
     torch.distributed.broadcast_object_list(objects, src=src, group=_get_object_sync_group())
     return objects[0]
-
-
-def has_structural_motif(graph_info) -> bool:
-    return _backbone_reward_runtime().has_structural_motif(graph_info)
-
-
-def is_multi_stage_architecture(graph_info) -> bool:
-    return _backbone_reward_runtime().is_multi_stage_architecture(graph_info)
-
-
-def passes_macro_structure_gate(graph_info) -> bool:
-    return _backbone_reward_runtime().passes_macro_structure_gate(graph_info)
-
-
-def is_shallow_one_shot_fuse(graph_info) -> bool:
-    return _backbone_reward_runtime().is_shallow_one_shot_fuse(graph_info)
-
-
-def family_save_cap(graph_info) -> int:
-    return 4
 
 
 def env_int(name: str, default: int) -> int:
@@ -879,29 +828,6 @@ def _mean_from_accumulator(sum_value: float, count_value: int) -> Optional[float
     return float(sum_value) / float(count_value)
 
 
-def _truncate_text(text: str, max_chars: int) -> str:
-    text = (text or "").strip()
-    if len(text) <= max_chars:
-        return text
-    if max_chars <= 3:
-        return text[:max_chars]
-    return text[: max_chars - 3].rstrip() + "..."
-
-
-def _feedback_stats_short(open_discovery: Dict[str, Any]) -> str:
-    structure_progress = float(open_discovery.get("r_structure_group", 0.0) or 0.0) + float(
-        open_discovery.get("r_structure_archive", 0.0) or 0.0
-    )
-    return (
-        f"depth:{int(open_discovery.get('depth', 0))} "
-        f"merges:{int(open_discovery.get('merges', 0))} "
-        f"stem:{int(open_discovery.get('stem_calls', 0))} "
-        f"project:{int(open_discovery.get('project_calls', 0))} "
-        f"fuse:{int(open_discovery.get('fuse_calls', 0))} "
-        f"struct:{structure_progress:.2f}"
-    )
-
-
 def _group_feedback_paths() -> Tuple[Path, Path, Path]:
     log_dir = Path(reward_run_log_dir())
     log_dir.mkdir(parents=True, exist_ok=True)
@@ -932,69 +858,16 @@ def _reward_runtime_hooks() -> TrainingRuntime.RuntimeStateHooks:
 
 
 def _current_group_top_feedback_payload() -> List[Dict[str, Any]]:
-    return [asdict(item) for item in current_group_top_feedback[:FEEDBACK_SUMMARY_LIMIT]]
+    return [dict(item) for item in current_group_top_feedback[:FEEDBACK_SUMMARY_LIMIT]]
 
 
-def _feedback_summary_payload(items: List[GroupFeedbackSummary]) -> List[Dict[str, Any]]:
-    return [asdict(item) for item in items[:FEEDBACK_SUMMARY_LIMIT]]
+def _feedback_summary_payload(items: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    return [dict(item) for item in items[:FEEDBACK_SUMMARY_LIMIT]]
 
 
-def _build_group_feedback_summary(
-    *,
-    goal_key: str,
-    res: Dict[str, Any],
-    graph_info,
-    reward_group_id: int,
-) -> GroupFeedbackSummary:
-    graph_expr_short = _truncate_text(str(res.get("graph_expr") or ""), FEEDBACK_GRAPH_EXPR_MAX_CHARS)
-    pattern_name = str(res.get("pattern_name") or res.get("suggested_pattern_name") or "unknown")
-    reward_target_value = float(_result_reward_target_value(res) or 0.0)
-    frozen_train_acc = float(_optional_float(res.get("frozen_train_acc", res.get("train_acc"))) or 0.0)
-    frozen_test_acc = float(_optional_float(res.get("frozen_test_acc", res.get("test_acc", res.get("val_metric")))) or 0.0)
-    unfrozen_train_acc = _optional_float(res.get("unfrozen_train_acc"))
-    unfrozen_test_acc = _optional_float(res.get("unfrozen_test_acc"))
-    backbone_names = list(res.get("backbone_model_names") or [])
-    backbone_signature = str(res.get("backbone_signature") or _backbone_reward_runtime().build_backbone_signature(backbone_names))
-    cnn_signature = str(res.get("cnn_signature") or getattr(graph_info, "cnn_signature", "") or "")
-    cnn_expr_short = _truncate_text(str(res.get("cnn_expr") or getattr(graph_info, "cnn_expr", "") or ""), 96)
-    open_discovery = dict(res.get("open_discovery") or {})
-    stats_short = _feedback_stats_short(open_discovery)
-    summary = (
-        f"pattern={pattern_name}; "
-        f"target={reward_target_value:.4f}; "
-        f"frozen_train={frozen_train_acc:.4f}; "
-        f"frozen_test={frozen_test_acc:.4f}; "
-        f"backbones=[{', '.join(backbone_names)}]; "
-        f"backbone_bucket={backbone_signature}; "
-        f"cnn={cnn_expr_short or cnn_signature or 'n/a'}; "
-        f"graph={graph_expr_short}; "
-        f"stats={stats_short}"
-    )
-    summary = _truncate_text(summary, FEEDBACK_SUMMARY_MAX_CHARS)
-    return GroupFeedbackSummary(
-        goal_key=goal_key,
-        pattern_name=pattern_name,
-        graph_expr_short=graph_expr_short,
-        reward_target_value=reward_target_value,
-        frozen_train_acc=frozen_train_acc,
-        frozen_test_acc=frozen_test_acc,
-        unfrozen_train_acc=unfrozen_train_acc,
-        unfrozen_test_acc=unfrozen_test_acc,
-        backbone_model_names=backbone_names,
-        stats_short=stats_short,
-        summary=summary,
-        family_hash=str(getattr(graph_info, "family_hash", "") or res.get("family_hash") or ""),
-        signature=str(res.get("signature") or ""),
-        reward_group_id=reward_group_id,
-        backbone_signature=backbone_signature,
-        cnn_signature=cnn_signature,
-        cnn_expr_short=cnn_expr_short,
-    )
-
-
-def _update_top_feedback(summary: GroupFeedbackSummary) -> None:
+def _update_top_feedback(summary: Dict[str, Any]) -> None:
     current_group_top_feedback.append(summary)
-    current_group_top_feedback.sort(key=lambda item: item.reward_target_value, reverse=True)
+    current_group_top_feedback.sort(key=lambda item: float(item.get("reward_target_value", 0.0) or 0.0), reverse=True)
     del current_group_top_feedback[FEEDBACK_SUMMARY_LIMIT:]
 
 
@@ -1005,7 +878,7 @@ def _record_current_group_trainable_sample(goal_key: str, res: Dict[str, Any], g
     current_best = current_group_goal_best_candidates.get(goal_key)
     if current_best is None or float(reward_target_value) > current_best:
         current_group_goal_best_candidates[goal_key] = float(reward_target_value)
-    summary = _build_group_feedback_summary(
+    summary = reward_task_build_group_feedback_summary(
         goal_key=goal_key,
         res=res,
         graph_info=graph_info,
@@ -2517,6 +2390,24 @@ def reward_task_archive_snapshot_family_counts() -> Dict[str, int]:
     return _reward_task_callable("archive_snapshot_family_counts", _backbone_reward_runtime().archive_snapshot_family_counts)()
 
 
+def reward_task_build_group_feedback_summary(
+    *,
+    goal_key: str,
+    res: Dict[str, Any],
+    graph_info,
+    reward_group_id: int,
+) -> Dict[str, Any]:
+    return _reward_task_callable(
+        "build_group_feedback_summary",
+        _backbone_reward_runtime().build_group_feedback_summary,
+    )(
+        goal_key=goal_key,
+        res=res,
+        graph_info=graph_info,
+        reward_group_id=reward_group_id,
+    )
+
+
 def _attach_group_context(
     res: Dict[str, Any],
     *,
@@ -2999,6 +2890,21 @@ class OpenDiscoveryRewardTask:
 
     def finalize_scored_results(self, scored_results: List[Dict[str, Any]]) -> None:
         _backbone_reward_runtime().finalize_scored_results(scored_results)
+
+    def build_group_feedback_summary(
+        self,
+        *,
+        goal_key: str,
+        res: Dict[str, Any],
+        graph_info,
+        reward_group_id: int,
+    ) -> Dict[str, Any]:
+        return _backbone_reward_runtime().build_group_feedback_summary(
+            goal_key=goal_key,
+            res=res,
+            graph_info=graph_info,
+            reward_group_id=reward_group_id,
+        )
 
     def render_prompt_feedback_text(self, *, feedback_char_budget: int = 1200) -> str:
         return _backbone_reward_runtime().render_prompt_feedback_text(feedback_char_budget=feedback_char_budget)

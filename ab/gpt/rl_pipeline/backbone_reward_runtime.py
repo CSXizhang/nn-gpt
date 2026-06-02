@@ -92,6 +92,8 @@ GENERALIZATION_GAP_TOLERANCE = 0.02
 GENERALIZATION_PENALTY_SCALE = 2.0
 GENERALIZATION_PENALTY_CAP = -0.20
 FEEDBACK_SUMMARY_LIMIT = 2
+FEEDBACK_GRAPH_EXPR_MAX_CHARS = 160
+FEEDBACK_SUMMARY_MAX_CHARS = 240
 STAGE1_STRUCTURE_EXPLORE = "stage1_structure_explore"
 STAGE2_FORMAL_EXPLORE = "stage2_formal_explore"
 STAGE3_FORMAL_OPTIMIZE = "stage3_formal_optimize"
@@ -735,6 +737,73 @@ def _truncate_text(text: str, max_chars: int) -> str:
     if max_chars <= 3:
         return text[:max_chars]
     return text[: max_chars - 3].rstrip() + "..."
+
+
+def _feedback_stats_short(open_discovery: Dict[str, Any]) -> str:
+    structure_progress = float(open_discovery.get("r_structure_group", 0.0) or 0.0) + float(
+        open_discovery.get("r_structure_archive", 0.0) or 0.0
+    )
+    return (
+        f"depth:{int(open_discovery.get('depth', 0))} "
+        f"merges:{int(open_discovery.get('merges', 0))} "
+        f"stem:{int(open_discovery.get('stem_calls', 0))} "
+        f"project:{int(open_discovery.get('project_calls', 0))} "
+        f"fuse:{int(open_discovery.get('fuse_calls', 0))} "
+        f"struct:{structure_progress:.2f}"
+    )
+
+
+def build_group_feedback_summary(
+    *,
+    goal_key: str,
+    res: Dict[str, Any],
+    graph_info,
+    reward_group_id: int,
+) -> Dict[str, Any]:
+    graph_expr_short = _truncate_text(str(res.get("graph_expr") or ""), FEEDBACK_GRAPH_EXPR_MAX_CHARS)
+    pattern_name = str(res.get("pattern_name") or res.get("suggested_pattern_name") or "unknown")
+    reward_target_value = float(_result_reward_target_value(res) or 0.0)
+    frozen_train_acc = float(_optional_float(res.get("frozen_train_acc", res.get("train_acc"))) or 0.0)
+    frozen_test_acc = float(_optional_float(res.get("frozen_test_acc", res.get("test_acc", res.get("val_metric")))) or 0.0)
+    unfrozen_train_acc = _optional_float(res.get("unfrozen_train_acc"))
+    unfrozen_test_acc = _optional_float(res.get("unfrozen_test_acc"))
+    backbone_names = list(res.get("backbone_model_names") or [])
+    backbone_signature = str(res.get("backbone_signature") or build_backbone_signature(backbone_names))
+    cnn_signature = str(res.get("cnn_signature") or getattr(graph_info, "cnn_signature", "") or "")
+    cnn_expr_short = _truncate_text(str(res.get("cnn_expr") or getattr(graph_info, "cnn_expr", "") or ""), 96)
+    open_discovery = dict(res.get("open_discovery") or {})
+    stats_short = _feedback_stats_short(open_discovery)
+    summary = (
+        f"pattern={pattern_name}; "
+        f"target={reward_target_value:.4f}; "
+        f"frozen_train={frozen_train_acc:.4f}; "
+        f"frozen_test={frozen_test_acc:.4f}; "
+        f"backbones=[{', '.join(backbone_names)}]; "
+        f"backbone_bucket={backbone_signature}; "
+        f"cnn={cnn_expr_short or cnn_signature or 'n/a'}; "
+        f"graph={graph_expr_short}; "
+        f"stats={stats_short}"
+    )
+    summary = _truncate_text(summary, FEEDBACK_SUMMARY_MAX_CHARS)
+    return {
+        "goal_key": goal_key,
+        "pattern_name": pattern_name,
+        "graph_expr_short": graph_expr_short,
+        "reward_target_value": reward_target_value,
+        "frozen_train_acc": frozen_train_acc,
+        "frozen_test_acc": frozen_test_acc,
+        "unfrozen_train_acc": unfrozen_train_acc,
+        "unfrozen_test_acc": unfrozen_test_acc,
+        "backbone_model_names": backbone_names,
+        "stats_short": stats_short,
+        "summary": summary,
+        "family_hash": str(getattr(graph_info, "family_hash", "") or res.get("family_hash") or ""),
+        "signature": str(res.get("signature") or ""),
+        "reward_group_id": reward_group_id,
+        "backbone_signature": backbone_signature,
+        "cnn_signature": cnn_signature,
+        "cnn_expr_short": cnn_expr_short,
+    }
 
 
 def _without_positive_bonus(value: float) -> float:

@@ -97,6 +97,16 @@ class RewardTask(Protocol):
     def archive_snapshot_family_counts(self) -> Dict[str, int]:
         ...
 
+    def build_group_feedback_summary(
+        self,
+        *,
+        goal_key: str,
+        res: Dict[str, Any],
+        graph_info: Any,
+        reward_group_id: int,
+    ) -> Dict[str, Any]:
+        ...
+
     def render_prompt_feedback_text(self, *, feedback_char_budget: int = 1200) -> str:
         ...
 

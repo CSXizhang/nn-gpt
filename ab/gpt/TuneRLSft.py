@@ -2329,6 +2329,21 @@ class BackboneRewardTask:
     def archive_snapshot_family_counts(self) -> Dict[str, int]:
         return BackboneRewardRuntime.archive_snapshot_family_counts()
 
+    def build_group_feedback_summary(
+        self,
+        *,
+        goal_key: str,
+        res: Dict[str, Any],
+        graph_info,
+        reward_group_id: int,
+    ) -> Dict[str, Any]:
+        return BackboneRewardRuntime.build_group_feedback_summary(
+            goal_key=goal_key,
+            res=res,
+            graph_info=graph_info,
+            reward_group_id=reward_group_id,
+        )
+
     def render_prompt_feedback_text(self, *, feedback_char_budget: int = 1200) -> str:
         return BackboneRewardRuntime.render_prompt_feedback_text(feedback_char_budget=feedback_char_budget)
 
