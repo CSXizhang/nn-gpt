@@ -5159,7 +5159,7 @@ def _build_batched_eval_specs(
             "batch_last_item": False,
         }
         if callable(eval_cfg_builder):
-            spec["cfg"] = _invoke_eval_cfg_builder(
+            spec_cfg = _invoke_eval_cfg_builder(
                 eval_cfg_builder,
                 stage_name=str(group_context.get("current_stage_name") or current_stage_name),
                 in_shape=formal_input_shape,
@@ -5168,6 +5168,8 @@ def _build_batched_eval_specs(
                 cfg=None,
                 device=spec["device"],
             )
+            spec["cfg"] = spec_cfg
+            spec["out_shape"] = (int(getattr(spec_cfg, "n_classes", spec["out_shape"][0])),)
 
         batched_eval_entries.append(entry)
         batched_eval_specs.append(spec)

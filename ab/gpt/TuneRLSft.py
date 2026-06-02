@@ -81,6 +81,18 @@ SFT_EVAL_SPLIT_PROTOCOL = "721"
 SFT_EVAL_SPLIT_SEED = 42
 SFT_EVAL_SPLIT_ROLE = "reward_eval"
 SFT_VAL_METRIC_BASELINE = 0.10
+SFT_FORMAL_DATASET_CLASS_COUNTS = {
+    "cifar-10": 10,
+    "cifar-100": 100,
+    "imagenette": 10,
+}
+SFT_FORMAL_DATASET_ALIASES = {
+    "cifar10": "cifar-10",
+    "cifar-10": "cifar-10",
+    "cifar100": "cifar-100",
+    "cifar-100": "cifar-100",
+    "imagenette": "imagenette",
+}
 
 # Local desktop cache roots.
 # Keep this block on the local machine if you want Hugging Face downloads/cache on
@@ -116,6 +128,26 @@ SFT_EVAL_TRANSFORM = TuneRL.FORMAL_REWARD_TRANSFORM
 _TRAIN_GPU_TOKENS_ENV = "NNGPT_TRAIN_GPU_TOKENS"
 _AUX_GPU_TOKENS_ENV = "NNGPT_AUX_GPU_TOKENS"
 _REWARD_GPU_TOKENS_ENV = "NNGPT_REWARD_GPU_TOKENS"
+
+
+def normalize_sft_formal_dataset(dataset: str | None = None) -> str:
+    raw = str(dataset or os.getenv("NNGPT_RL_FORMAL_DATASET", "cifar-10")).strip().lower()
+    if raw not in SFT_FORMAL_DATASET_ALIASES:
+        allowed = ", ".join(sorted(SFT_FORMAL_DATASET_CLASS_COUNTS))
+        raise ValueError(f"Unsupported NNGPT_RL_FORMAL_DATASET={raw!r}; expected one of: {allowed}")
+    return SFT_FORMAL_DATASET_ALIASES[raw]
+
+
+def resolve_sft_formal_dataset() -> str:
+    return normalize_sft_formal_dataset()
+
+
+def resolve_sft_formal_n_classes(dataset: str | None = None) -> int:
+    return int(SFT_FORMAL_DATASET_CLASS_COUNTS[normalize_sft_formal_dataset(dataset)])
+
+
+def resolve_sft_formal_out_shape(dataset: str | None = None) -> tuple[int, ...]:
+    return (resolve_sft_formal_n_classes(dataset),)
 
 
 def _stage1_fixed_failure_reward(res: Dict[str, Any], meta: Dict[str, Any], graph_info) -> Optional[float]:
@@ -747,6 +779,7 @@ def _write_sft_run_config(
     reward_env_names = [
         TuneRL.REWARD_VARIANT_ENV,
         "NNGPT_RL_FORMAL_REWARD_EPOCHS",
+        "NNGPT_RL_FORMAL_DATASET",
         "NNGPT_RL_RESUME_STAGE",
         "NNGPT_RL_STAGE1_ONLY",
         "NNGPT_RL_KL_COEF",
@@ -787,6 +820,9 @@ def _write_sft_run_config(
     split_seed = _env_int("NNGPT_SFT_EVAL_SPLIT_SEED", SFT_EVAL_SPLIT_SEED)
     eval_split_role = _env_str("NNGPT_SFT_EVAL_SPLIT_ROLE", SFT_EVAL_SPLIT_ROLE)
     use_721_split = split_protocol.strip().lower() == "721"
+    formal_dataset = resolve_sft_formal_dataset()
+    formal_out_shape = resolve_sft_formal_out_shape(formal_dataset)
+    cifar10_split = use_721_split and formal_dataset == "cifar-10"
     payload = {
         "phase": "four_pattern_reward_ablation",
         "created_at": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
@@ -831,7 +867,9 @@ def _write_sft_run_config(
             "env": _selected_env(archive_env_names),
         },
         "evaluator": {
-            "dataset": "cifar-10",
+            "dataset": formal_dataset,
+            "out_shape": list(formal_out_shape),
+            "n_classes": int(formal_out_shape[0]),
             "transform": SFT_EVAL_TRANSFORM,
             "resize": SFT_EVAL_IMAGE_SIZE,
             "batch": SFT_EVAL_BATCH_SIZE,
@@ -840,9 +878,9 @@ def _write_sft_run_config(
             "eval_split_role": eval_split_role,
             "train_subset_size": SFT_EVAL_TRAIN_SUBSET,
             "val_subset_size": SFT_EVAL_VAL_SUBSET,
-            "train_set": "cifar10-train[70%]" if use_721_split else "official-train",
-            "reward_eval_set": "cifar10-train[20%]" if use_721_split else "official-test",
-            "heldout_test_set": "cifar10-train[10%]" if use_721_split else "none",
+            "train_set": "cifar10-train[70%]" if cifar10_split else "official-train",
+            "reward_eval_set": "cifar10-train[20%]" if cifar10_split else "official-test",
+            "heldout_test_set": "cifar10-train[10%]" if cifar10_split else "none",
             "train_epochs": SFT_EVAL_TRAIN_EPOCHS,
             "formal_epochs": os.getenv("NNGPT_RL_FORMAL_REWARD_EPOCHS", "10"),
             "full_test_acc": SFT_EVAL_FULL_TEST_ACC,
@@ -1327,7 +1365,7 @@ def evaluate_code_and_reward_cifar(
     *,
     stage_name=None,
     in_shape=(1, 3, 256, 256),
-    out_shape=(10,),
+    out_shape=None,
     prm=None,
     device: str = "cpu",
     val_metric_baseline=None,
@@ -1359,11 +1397,12 @@ def evaluate_code_and_reward_cifar(
             cfg=cfg,
             device=eval_device,
         )
+        effective_out_shape = (int(cfg.n_classes),)
 
         return RewardUtil.evaluate_code_and_reward(
             code,
             in_shape=in_shape,
-            out_shape=out_shape,
+            out_shape=effective_out_shape,
             prm=prm,
             device=eval_device,
             val_metric_baseline=val_metric_baseline,
@@ -1381,7 +1420,7 @@ def build_sft_reward_eval_cfg(
     *,
     stage_name=None,
     in_shape=(1, 3, 256, 256),
-    out_shape=(10,),
+    out_shape=None,
     prm=None,
     cfg=None,
     device=None,
@@ -1403,20 +1442,25 @@ def build_sft_reward_eval_cfg(
     }
     prm = {**defaults, **prm}
     effective_stage_name = str(stage_name or TuneRL.current_stage_name)
+    formal_dataset = normalize_sft_formal_dataset(getattr(cfg, "formal_dataset", None))
+    effective_out_shape = resolve_sft_formal_out_shape(formal_dataset) if out_shape is None else tuple(out_shape)
+    if tuple(effective_out_shape) == (10,) and formal_dataset != "cifar-10":
+        effective_out_shape = resolve_sft_formal_out_shape(formal_dataset)
 
     if cfg is None:
         cfg = TuneRL.build_stage_eval_cfg(
             stage_name=effective_stage_name,
             in_shape=tuple(in_shape),
-            out_shape=tuple(out_shape),
+            out_shape=tuple(effective_out_shape),
             prm=prm,
             device=eval_device,
         )
 
+    effective_n_classes = resolve_sft_formal_n_classes(formal_dataset)
     return RewardUtil.EvalConfig(
         device=eval_device,
         input_shape=tuple(getattr(cfg, "input_shape", in_shape)),
-        n_classes=int(getattr(cfg, "n_classes", out_shape[0])),
+        n_classes=effective_n_classes,
         train_epochs=int(prm.get("epoch", getattr(cfg, "train_epochs", SFT_EVAL_TRAIN_EPOCHS)) or SFT_EVAL_TRAIN_EPOCHS),
         train_steps=getattr(cfg, "train_steps", None),
         max_val_batches=SFT_EVAL_VAL_BATCHES,
@@ -1440,7 +1484,7 @@ def build_sft_reward_eval_cfg(
         formal_nn_eval=getattr(cfg, "formal_nn_eval", False),
         static_only=getattr(cfg, "static_only", False),
         formal_task=getattr(cfg, "formal_task", "img-classification"),
-        formal_dataset=getattr(cfg, "formal_dataset", "cifar-10"),
+        formal_dataset=formal_dataset,
         formal_metric=getattr(cfg, "formal_metric", "acc"),
         formal_epoch_limit_minutes=getattr(
             cfg,
@@ -2346,8 +2390,11 @@ def main() -> None:
     print(f"[SFT RL] Top-p: {resolve_sft_top_p()}")
     print(f"[SFT RL] Top-k: {resolve_sft_top_k()}")
     print(f"[SFT RL] KL coef: {TuneRL.env_float('NNGPT_RL_KL_COEF', SFT_KL_COEF):.6f}")
+    formal_dataset = resolve_sft_formal_dataset()
+    formal_out_shape = resolve_sft_formal_out_shape(formal_dataset)
     print(
-        f"[SFT RL] Eval plan: stage1=static_only(no-check_nn), stage2/3=nn-dataset-formal(cifar-10), "
+        f"[SFT RL] Eval plan: stage1=static_only(no-check_nn), stage2/3=nn-dataset-formal({formal_dataset}), "
+        f"out_shape={formal_out_shape}, n_classes={formal_out_shape[0]}, "
         f"transform={SFT_EVAL_TRANSFORM}, resize={SFT_EVAL_IMAGE_SIZE}, batch={SFT_EVAL_BATCH_SIZE}, "
         f"split={_env_str('NNGPT_SFT_EVAL_SPLIT_PROTOCOL', SFT_EVAL_SPLIT_PROTOCOL)}, "
         f"split_seed={_env_int('NNGPT_SFT_EVAL_SPLIT_SEED', SFT_EVAL_SPLIT_SEED)}, "
