@@ -11,6 +11,7 @@ from ab.gpt.util.ArchDiscovery import normalize_pattern_name
 
 
 REPO_ROOT = Path(__file__).resolve().parent
+REWARD_RUNTIME_PATH = "ab/gpt/rl_pipeline/backbone_reward_runtime.py"
 
 
 def _source(path: str) -> str:
@@ -54,8 +55,8 @@ class RewardSmokeMemoryTest(unittest.TestCase):
         self.assertIn("def _formal_reward_input_shape", tunerl_source)
 
         for path, function_name in (
-            ("ab/gpt/rl_pipeline/backbone_reward_runtime.py", "_base_discovery_reward_fn"),
-            ("ab/gpt/rl_pipeline/backbone_reward_runtime.py", "_build_batched_eval_specs"),
+            (REWARD_RUNTIME_PATH, "_base_discovery_reward_fn"),
+            (REWARD_RUNTIME_PATH, "_build_batched_eval_specs"),
         ):
             body = _function_source(path, function_name)
             self.assertIn("_formal_reward_input_shape()", body)
@@ -83,7 +84,7 @@ class RewardSmokeMemoryTest(unittest.TestCase):
         self.assertNotIn("pre_reward_samples", tunerl_source)
 
     def test_block_contribution_detects_fractal_unit_feature_path(self):
-        function_source = _function_source("ab/gpt/rl_pipeline/backbone_reward_runtime.py", "_block_contributes_to_forward")
+        function_source = _function_source(REWARD_RUNTIME_PATH, "_block_contributes_to_forward")
         namespace = {"re": re}
         exec(function_source, namespace)
         contributes = namespace["_block_contributes_to_forward"]
@@ -107,7 +108,7 @@ def forward(self, x, is_probing=False):
         self.assertFalse(contributes(init_code, bypass_forward_code))
 
     def test_prompt_target_pattern_parser_reads_sft_contract(self):
-        function_source = _function_source("ab/gpt/TuneRL.py", "extract_prompt_target_pattern")
+        function_source = _function_source(REWARD_RUNTIME_PATH, "extract_prompt_target_pattern")
         namespace = {"re": re}
         exec(function_source, namespace)
         parse_target = namespace["extract_prompt_target_pattern"]
@@ -125,19 +126,19 @@ def forward(self, x, is_probing=False):
             "Tuple": tuple,
             "normalize_pattern_name": normalize_pattern_name,
             "TARGET_STRUCTURE_DEAD_BLOCK_PENALTY": _constant_float(
-                "ab/gpt/TuneRL.py", "TARGET_STRUCTURE_DEAD_BLOCK_PENALTY"
+                REWARD_RUNTIME_PATH, "TARGET_STRUCTURE_DEAD_BLOCK_PENALTY"
             ),
             "TARGET_STRUCTURE_DUAL_BACKBONE_PENALTY": _constant_float(
-                "ab/gpt/TuneRL.py", "TARGET_STRUCTURE_DUAL_BACKBONE_PENALTY"
+                REWARD_RUNTIME_PATH, "TARGET_STRUCTURE_DUAL_BACKBONE_PENALTY"
             ),
             "TARGET_STRUCTURE_PATH_PENALTY": _constant_float(
-                "ab/gpt/TuneRL.py", "TARGET_STRUCTURE_PATH_PENALTY"
+                REWARD_RUNTIME_PATH, "TARGET_STRUCTURE_PATH_PENALTY"
             ),
             "TARGET_STRUCTURE_PARSE_PENALTY": _constant_float(
-                "ab/gpt/TuneRL.py", "TARGET_STRUCTURE_PARSE_PENALTY"
+                REWARD_RUNTIME_PATH, "TARGET_STRUCTURE_PARSE_PENALTY"
             ),
             "TARGET_STRUCTURE_PENALTY_FLOOR": _constant_float(
-                "ab/gpt/TuneRL.py", "TARGET_STRUCTURE_PENALTY_FLOOR"
+                REWARD_RUNTIME_PATH, "TARGET_STRUCTURE_PENALTY_FLOOR"
             ),
         }
         for function_name in (
@@ -150,7 +151,7 @@ def forward(self, x, is_probing=False):
             "_apply_target_structure_reward_adjustment",
             "_apply_target_structure_final_clamp",
         ):
-            exec(_function_source("ab/gpt/TuneRL.py", function_name), namespace)
+            exec(_function_source(REWARD_RUNTIME_PATH, function_name), namespace)
         detect_target_structure = namespace["detect_target_structure"]
         apply_adjustment = namespace["_apply_target_structure_reward_adjustment"]
         apply_final_clamp = namespace["_apply_target_structure_final_clamp"]
@@ -240,7 +241,7 @@ def forward(self, x, is_probing=False):
         self.assertAlmostEqual(apply_final_clamp(live_result, 0.18, penalty), 0.18)
 
     def test_formal_diversity_is_only_eligible_for_target_structure_match(self):
-        body = _function_source("ab/gpt/rl_pipeline/backbone_reward_runtime.py", "_base_discovery_reward_fn")
+        body = _function_source(REWARD_RUNTIME_PATH, "_base_discovery_reward_fn")
 
         eligibility_index = body.index("quality_diversity_eligible = bool(")
         target_match_index = body.index('pattern_detection.get("target_structure_match") is not False', eligibility_index)
@@ -250,7 +251,7 @@ def forward(self, x, is_probing=False):
         self.assertLess(target_match_index, first_diversity_index)
 
     def test_target_structure_match_adds_formal_success_anchor_signal(self):
-        body = _function_source("ab/gpt/rl_pipeline/backbone_reward_runtime.py", "_base_discovery_reward_fn")
+        body = _function_source(REWARD_RUNTIME_PATH, "_base_discovery_reward_fn")
 
         self.assertIn("TARGET_STRUCTURE_MATCH_BONUS", body)
         success_signal_index = body.index("r_formal_success_signal = FORMAL_SUCCESS_SIGNAL_BONUS")
@@ -265,7 +266,7 @@ def forward(self, x, is_probing=False):
         self.assertLess(target_match_index, anchor_index)
 
     def test_target_structure_clamp_runs_after_warmup_override(self):
-        body = _function_source("ab/gpt/rl_pipeline/backbone_reward_runtime.py", "_base_discovery_reward_fn")
+        body = _function_source(REWARD_RUNTIME_PATH, "_base_discovery_reward_fn")
 
         warmup_index = body.index("warmup_dense_reward = _compute_warmup_dense_reward")
         clamp_index = body.index("_apply_target_structure_final_clamp", warmup_index)
@@ -274,12 +275,12 @@ def forward(self, x, is_probing=False):
         self.assertLess(clamp_index, reward_write_index)
 
     def test_target_structure_gate_covers_reward_postprocessing_exits(self):
-        recompute_body = _function_source("ab/gpt/TuneRL.py", "_recompute_discovery_reward")
+        recompute_body = _function_source(REWARD_RUNTIME_PATH, "_recompute_discovery_reward")
         recompute_gate_index = recompute_body.index("_apply_target_structure_reward_gate")
         recompute_return_index = recompute_body.index("return total_reward")
         self.assertLess(recompute_gate_index, recompute_return_index)
 
-        elite_body = _function_source("ab/gpt/rl_pipeline/backbone_reward_runtime.py", "_apply_batch_elite_bonuses")
+        elite_body = _function_source(REWARD_RUNTIME_PATH, "_apply_batch_elite_bonuses")
         target_skip_index = elite_body.index('res.get("target_structure_match") is False')
         eligible_index = elite_body.index("eligible.append")
         self.assertLess(target_skip_index, eligible_index)
@@ -319,8 +320,8 @@ def forward(self, x, is_probing=False):
             "_apply_target_structure_reward_gate": lambda res, reward: reward,
             "code_logger": SimpleNamespace(log_to_file=lambda message: None),
         }
-        exec(_function_source("ab/gpt/TuneRL.py", "_recompute_discovery_reward"), namespace)
-        exec(_function_source("ab/gpt/rl_pipeline/backbone_reward_runtime.py", "_apply_batch_elite_bonuses"), namespace)
+        exec(_function_source(REWARD_RUNTIME_PATH, "_recompute_discovery_reward"), namespace)
+        exec(_function_source(REWARD_RUNTIME_PATH, "_apply_batch_elite_bonuses"), namespace)
         graph_info = SimpleNamespace(parse_ok=True)
         result = {
             "reward": 0.67,
@@ -351,9 +352,9 @@ def forward(self, x, is_probing=False):
 
     def test_loss_drop_is_not_a_reward_gate(self):
         gated_functions = [
-            _function_source("ab/gpt/TuneRL.py", "_stage1_validity_reward"),
-            _function_source("ab/gpt/TuneRL.py", "_apply_trainability_clamp"),
-            _function_source("ab/gpt/TuneRL.py", "_apply_stage1_trainability_clamp"),
+            _function_source(REWARD_RUNTIME_PATH, "_stage1_validity_reward"),
+            _function_source(REWARD_RUNTIME_PATH, "_apply_trainability_clamp"),
+            _function_source(REWARD_RUNTIME_PATH, "_apply_stage1_trainability_clamp"),
             _function_source("ab/gpt/TuneRLSft.py", "_is_trainable_architecture"),
             _function_source("ab/gpt/TuneRLSft.py", "_reapply_trainability_clamp"),
         ]
@@ -399,7 +400,7 @@ def forward(self, x, is_probing=False):
             self.assertNotIn("RewardUtil.evaluate_code_and_reward_batch(", script_source)
         self.assertNotIn("TuneRL._score_reward_entries(", score_source)
 
-        base_reward = _function_source("ab/gpt/rl_pipeline/backbone_reward_runtime.py", "_base_discovery_reward_fn")
+        base_reward = _function_source(REWARD_RUNTIME_PATH, "_base_discovery_reward_fn")
         self.assertIn("evaluate_reward_code(", base_reward)
         self.assertIn("reward_eval_cfg_builder()", base_reward)
         self.assertNotIn("def base_discovery_reward_fn", _source("ab/gpt/TuneRL.py"))
@@ -472,7 +473,7 @@ def forward(self, x, is_probing=False):
             self.assertNotIn(token, sft_source)
 
     def test_backbone_reward_runtime_owns_entry_construction(self):
-        runtime_source = _source("ab/gpt/rl_pipeline/backbone_reward_runtime.py")
+        runtime_source = _source(REWARD_RUNTIME_PATH)
         tunerl_source = _source("ab/gpt/TuneRL.py")
 
         for token in (
@@ -564,7 +565,7 @@ def forward(self, x, is_probing=False):
 
     def test_prompt_feedback_text_is_task_owned(self):
         tunerl_source = _source("ab/gpt/TuneRL.py")
-        runtime_source = _source("ab/gpt/rl_pipeline/backbone_reward_runtime.py")
+        runtime_source = _source(REWARD_RUNTIME_PATH)
         tunerl_feedback = _function_source("ab/gpt/TuneRL.py", "render_prompt_feedback_text")
 
         self.assertIn("_reward_task_callable(", tunerl_feedback)
@@ -579,7 +580,7 @@ def forward(self, x, is_probing=False):
 
     def test_default_open_discovery_dataset_prompt_is_task_owned(self):
         tunerl_source = _source("ab/gpt/TuneRL.py")
-        runtime_source = _source("ab/gpt/rl_pipeline/backbone_reward_runtime.py")
+        runtime_source = _source(REWARD_RUNTIME_PATH)
         load_body = _function_source("ab/gpt/TuneRL.py", "load_rl_dataset")
 
         self.assertIn("_backbone_reward_runtime().load_rl_dataset(tokenizer)", load_body)
@@ -592,15 +593,21 @@ def forward(self, x, is_probing=False):
             self.assertIn(token, runtime_source)
 
     def test_completion_codec_is_task_owned(self):
-        runtime_source = _source("ab/gpt/rl_pipeline/backbone_reward_runtime.py")
+        runtime_source = _source(REWARD_RUNTIME_PATH)
+        tunerl_source = _source("ab/gpt/TuneRL.py")
         for function_name in (
             "clean_block",
             "extract_completion_blocks",
             "render_completion_xml",
             "reconstruct_code",
         ):
-            body = _function_source("ab/gpt/TuneRL.py", function_name)
-            self.assertIn("_backbone_reward_runtime().", body)
+            self.assertIn(f"def {function_name}(", runtime_source)
+        for function_name in (
+            "clean_block",
+            "render_completion_xml",
+            "reconstruct_code",
+        ):
+            self.assertNotIn(f"def {function_name}(", tunerl_source)
         for token in (
             'extract_str(completion, "<block>"',
             "SFTUtil.skeleton_code",
@@ -684,7 +691,7 @@ def forward(self, x, is_probing=False):
             "STAGE23_HIGH_ACC_ELITE_THRESHOLD": 0.93,
             "STAGE23_HIGH_ACC_ELITE_BONUS": 0.18,
         }
-        exec(_function_source("ab/gpt/TuneRL.py", "_stage23_local_competition_reward"), namespace)
+        exec(_function_source(REWARD_RUNTIME_PATH, "_stage23_local_competition_reward"), namespace)
         adjust = namespace["_stage23_local_competition_reward"]
 
         repeated_low_acc = adjust(
@@ -745,7 +752,7 @@ def forward(self, x, is_probing=False):
             "Dict": dict,
             "STAGE23_POSITIVE_NOVELTY_ACC_THRESHOLD": 0.90,
         }
-        exec(_function_source("ab/gpt/TuneRL.py", "_stage23_gate_positive_novelty_by_quality"), namespace)
+        exec(_function_source(REWARD_RUNTIME_PATH, "_stage23_gate_positive_novelty_by_quality"), namespace)
         gate = namespace["_stage23_gate_positive_novelty_by_quality"]
 
         low_acc_components = gate(
@@ -779,22 +786,22 @@ def forward(self, x, is_probing=False):
         self.assertEqual(high_acc_components["r_block_diversity"], -0.095)
 
     def test_stage23_positive_novelty_gate_runs_before_reward_sum(self):
-        body = _function_source("ab/gpt/rl_pipeline/backbone_reward_runtime.py", "_base_discovery_reward_fn")
+        body = _function_source(REWARD_RUNTIME_PATH, "_base_discovery_reward_fn")
 
         gate_index = body.index("_stage23_gate_positive_novelty_by_quality")
         reward_sum_index = body.index("r_primary = (", gate_index)
         self.assertLess(gate_index, reward_sum_index)
 
     def test_stage2_progress_and_elite_bonuses_stay_tiebreak_sized(self):
-        source = _source("ab/gpt/TuneRL.py")
+        source = _source(REWARD_RUNTIME_PATH)
 
         self.assertIn("BATCH_ELITE_SOFT_BONUSES = (0.02, 0.015, 0.01, 0.005, 0.0)", source)
         self.assertIn("BATCH_ELITE_IMPROVING_BONUSES = (0.04, 0.03, 0.02, 0.01, 0.0)", source)
-        self.assertEqual(_constant_float("ab/gpt/TuneRL.py", "GOAL_REFRESH_BONUS"), 0.08)
-        self.assertEqual(_constant_float("ab/gpt/TuneRL.py", "STAGE2_PREV_GROUP_SCALE"), 0.20)
-        self.assertEqual(_constant_float("ab/gpt/TuneRL.py", "STAGE2_BEST_GROUP_SCALE"), 0.20)
-        self.assertEqual(_constant_float("ab/gpt/TuneRL.py", "STAGE2_BACKBONE_PREV_GROUP_SCALE"), 0.25)
-        self.assertEqual(_constant_float("ab/gpt/TuneRL.py", "STAGE2_BACKBONE_BEST_GROUP_SCALE"), 0.25)
+        self.assertEqual(_constant_float(REWARD_RUNTIME_PATH, "GOAL_REFRESH_BONUS"), 0.08)
+        self.assertEqual(_constant_float(REWARD_RUNTIME_PATH, "STAGE2_PREV_GROUP_SCALE"), 0.20)
+        self.assertEqual(_constant_float(REWARD_RUNTIME_PATH, "STAGE2_BEST_GROUP_SCALE"), 0.20)
+        self.assertEqual(_constant_float(REWARD_RUNTIME_PATH, "STAGE2_BACKBONE_PREV_GROUP_SCALE"), 0.25)
+        self.assertEqual(_constant_float(REWARD_RUNTIME_PATH, "STAGE2_BACKBONE_BEST_GROUP_SCALE"), 0.25)
 
 
 if __name__ == "__main__":
