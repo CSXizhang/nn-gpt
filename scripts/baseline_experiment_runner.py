@@ -256,6 +256,8 @@ def command_gen_only(args: argparse.Namespace) -> None:
             inputs = {key: value.to(device) for key, value in inputs.items()}
             from transformers import GenerationConfig
 
+            eos_id = getattr(tokenizer, "eos_token_id", None)
+            pad_id = getattr(tokenizer, "pad_token_id", None)
             gen_cfg = GenerationConfig(
                 max_new_tokens=int(args.max_new_tokens),
                 do_sample=True,
@@ -263,8 +265,8 @@ def command_gen_only(args: argparse.Namespace) -> None:
                 top_p=float(args.top_p),
                 top_k=int(args.top_k),
                 stop_strings=["</forward>"],
-                eos_token_id=getattr(tokenizer, "eos_token_id", None),
-                pad_token_id=getattr(tokenizer, "pad_token_id", getattr(tokenizer, "eos_token_id", None)),
+                eos_token_id=eos_id,
+                pad_token_id=pad_id if pad_id is not None and pad_id != eos_id else None,
             )
             with torch.no_grad():
                 generated = model.generate(
