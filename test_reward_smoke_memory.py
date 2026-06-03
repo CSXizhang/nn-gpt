@@ -413,7 +413,8 @@ def forward(self, x, is_probing=False):
 
         reward_source = _source("ab/gpt/util/Reward.py")
         self.assertIn("_patch_nn_dataset_load_dataset_for_reward", reward_source)
-        self.assertIn("DatasetSplit.build_formal_reward_split_datasets", reward_source)
+        self.assertIn("DatasetSplit.build_classification_reward_split_datasets", reward_source)
+        self.assertIn("original_loader_load_dataset", reward_source)
         self.assertIn("cifar-100", reward_source)
         self.assertIn("imagenette", reward_source)
         self.assertRegex(reward_source, r"train_subset_size:\s*int\s*=\s*0")

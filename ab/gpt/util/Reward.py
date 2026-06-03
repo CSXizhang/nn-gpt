@@ -2679,7 +2679,6 @@ def _patch_nn_dataset_load_dataset_for_reward(cfg: "EvalConfig") -> Optional[Dic
     try:
         import ab.nn.util.Loader as nn_loader  # type: ignore
         import ab.nn.util.Train as nn_train  # type: ignore
-        import ab.nn.util.Const as nn_const  # type: ignore
     except Exception:
         return None
 
@@ -2691,26 +2690,12 @@ def _patch_nn_dataset_load_dataset_for_reward(cfg: "EvalConfig") -> Optional[Dic
     split_seed = int(getattr(cfg, "split_seed", 42))
     eval_split_role = str(getattr(cfg, "eval_split_role", "reward_eval") or "reward_eval")
     supported_dataset_meta = {
-        "cifar-10": ((10,), 1.0 / 10.0),
-        "cifar10": ((10,), 1.0 / 10.0),
-        "cifar-100": ((100,), 1.0 / 100.0),
-        "cifar100": ((100,), 1.0 / 100.0),
-        "imagenette": ((10,), 1.0 / 10.0),
+        "cifar-10": ((10,), 1.0 / 10.0, 45000, 5000),
+        "cifar10": ((10,), 1.0 / 10.0, 45000, 5000),
+        "cifar-100": ((100,), 1.0 / 100.0, 45000, 5000),
+        "cifar100": ((100,), 1.0 / 100.0, 45000, 5000),
+        "imagenette": ((10,), 1.0 / 10.0, 7500, 1969),
     }
-
-    def _resolve_transform(transform_name, transform_dir=None):
-        if transform_dir and transform_name:
-            transform_file_path = Path(transform_dir) / f"{transform_name}.py"
-            if transform_file_path.exists():
-                spec = importlib.util.spec_from_file_location(transform_name, transform_file_path)
-                if spec is not None and spec.loader is not None:
-                    transform_module = importlib.util.module_from_spec(spec)
-                    spec.loader.exec_module(transform_module)
-                    if hasattr(transform_module, "transform"):
-                        return transform_module.transform
-        if not transform_name:
-            raise ValueError("transform_name is required for formal reward dataset loading")
-        return nn_loader.get_obj(transform_name, "transform")
 
     def _patched_load_dataset(task, dataset_name, transform_name, transform_dir=None):
         normalized_dataset = str(dataset_name or "").strip().lower().replace("_", "-")
@@ -2718,16 +2703,20 @@ def _patch_nn_dataset_load_dataset_for_reward(cfg: "EvalConfig") -> Optional[Dic
         if dataset_meta is None:
             return original_train_load_dataset(task, dataset_name, transform_name, transform_dir)
 
-        transform = _resolve_transform(transform_name, transform_dir)
-        split_datasets = DatasetSplit.build_formal_reward_split_datasets(
-            dataset_name=normalized_dataset,
-            root=str(nn_const.data_dir),
-            transform=transform,
-            download=bool(getattr(cfg, "download", True)),
+        dataset_loader = original_loader_load_dataset or original_train_load_dataset
+        class_shape, min_acc, train_source, heldout_test_source = dataset_loader(
+            task, dataset_name, transform_name, transform_dir
+        )
+        _, _, train_size, val_size = dataset_meta
+        split_datasets = DatasetSplit.build_classification_reward_split_datasets(
+            train_source=train_source,
+            heldout_test_source=heldout_test_source,
+            train_size=train_size,
+            val_size=val_size,
             seed=split_seed,
         )
         eval_set = split_datasets.get(eval_split_role) or split_datasets["reward_eval"]
-        return dataset_meta[0], dataset_meta[1], split_datasets["train"], eval_set
+        return class_shape, min_acc, split_datasets["train"], eval_set
 
     nn_train.load_dataset = _patched_load_dataset
     if original_loader_load_dataset is not None:
