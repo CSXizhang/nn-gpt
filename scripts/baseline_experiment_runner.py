@@ -6,6 +6,7 @@ single-rank generation does not reserve idle evaluation GPUs.
 """
 
 from __future__ import annotations
+import copy
 
 import argparse
 import ast
@@ -254,18 +255,15 @@ def command_gen_only(args: argparse.Namespace) -> None:
         try:
             inputs = tokenizer(prompt, return_tensors="pt")
             inputs = {key: value.to(device) for key, value in inputs.items()}
-            from transformers import GenerationConfig
-
-            gen_cfg = GenerationConfig(
-                max_new_tokens=int(args.max_new_tokens),
-                do_sample=True,
-                temperature=float(args.temperature),
-                top_p=float(args.top_p),
-                top_k=int(args.top_k),
-                stop_strings=["</forward>"],
-                eos_token_id=getattr(tokenizer, "eos_token_id", None),
-                pad_token_id=getattr(tokenizer, "pad_token_id", getattr(tokenizer, "eos_token_id", None)),
-            )
+            gen_cfg = copy.deepcopy(model.generation_config)
+            gen_cfg.max_new_tokens = int(args.max_new_tokens)
+            gen_cfg.do_sample = True
+            gen_cfg.temperature = float(args.temperature)
+            gen_cfg.top_p = float(args.top_p)
+            gen_cfg.top_k = int(args.top_k)
+            gen_cfg.stop_strings = ["</forward>"]
+            gen_cfg.eos_token_id = getattr(tokenizer, "eos_token_id", None)
+            gen_cfg.pad_token_id = getattr(tokenizer, "pad_token_id", getattr(tokenizer, "eos_token_id", None))
             with torch.no_grad():
                 generated = model.generate(
                     **inputs,
