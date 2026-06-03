@@ -81,6 +81,18 @@ def _candidate_id(setting: str, index: int) -> str:
     return f"{setting}-{index:04d}"
 
 
+def _attach_sft_generate_tokenizer(model, tokenizer) -> None:
+    original_generate = model.generate
+
+    def generate(*gen_args, **gen_kwargs):
+        generation_config = gen_kwargs.get("generation_config")
+        if generation_config is not None and getattr(generation_config, "stop_strings", None):
+            gen_kwargs["tokenizer"] = tokenizer
+        return original_generate(*gen_args, **gen_kwargs)
+
+    model.generate = generate
+
+
 def _truncate_completion(completion: str) -> str:
     end_tag = "</forward>"
     if end_tag in completion:
@@ -199,6 +211,7 @@ def command_gen_only(args: argparse.Namespace) -> None:
 
     model, tokenizer, model_config = _load_generation_model(args)
     dataset = _load_prompt_dataset(tokenizer, int(args.budget))
+    _attach_sft_generate_tokenizer(model, tokenizer)
 
     generation_config = {
         "temperature": float(args.temperature),
@@ -241,18 +254,23 @@ def command_gen_only(args: argparse.Namespace) -> None:
         try:
             inputs = tokenizer(prompt, return_tensors="pt")
             inputs = {key: value.to(device) for key, value in inputs.items()}
+            from transformers import GenerationConfig
+
+            gen_cfg = GenerationConfig(
+                max_new_tokens=int(args.max_new_tokens),
+                do_sample=True,
+                temperature=float(args.temperature),
+                top_p=float(args.top_p),
+                top_k=int(args.top_k),
+                stop_strings=["</forward>"],
+                eos_token_id=getattr(tokenizer, "eos_token_id", None),
+                pad_token_id=getattr(tokenizer, "pad_token_id", getattr(tokenizer, "eos_token_id", None)),
+            )
             with torch.no_grad():
                 generated = model.generate(
                     **inputs,
-                    max_new_tokens=int(args.max_new_tokens),
-                    do_sample=True,
-                    temperature=float(args.temperature),
-                    top_p=float(args.top_p),
-                    top_k=int(args.top_k),
-                    stop_strings=["</forward>"],
-                    tokenizer=tokenizer,
-                    eos_token_id=getattr(tokenizer, "eos_token_id", None),
-                    pad_token_id=getattr(tokenizer, "pad_token_id", getattr(tokenizer, "eos_token_id", None)),
+                    generation_config=gen_cfg,
+                    disable_compile=True,
                 )
             prompt_len = int(inputs["input_ids"].shape[-1])
             raw_completion = tokenizer.decode(generated[0][prompt_len:], skip_special_tokens=True)
