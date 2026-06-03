@@ -77,7 +77,7 @@ SFT_EVAL_LIMIT_SECONDS = 900
 SFT_EVAL_FORMAL_EPOCH_LIMIT_MINUTES = 30
 SFT_EVAL_DATA_ROOT = "data_v2"
 SFT_EVAL_DOWNLOAD = True
-SFT_EVAL_SPLIT_PROTOCOL = "721"
+SFT_EVAL_SPLIT_PROTOCOL = "trainvaltest"
 SFT_EVAL_SPLIT_SEED = 42
 SFT_EVAL_SPLIT_ROLE = "reward_eval"
 SFT_VAL_METRIC_BASELINE = 0.10
@@ -148,6 +148,33 @@ def resolve_sft_formal_n_classes(dataset: str | None = None) -> int:
 
 def resolve_sft_formal_out_shape(dataset: str | None = None) -> tuple[int, ...]:
     return (resolve_sft_formal_n_classes(dataset),)
+
+
+def _normalize_sft_eval_split_protocol(split_protocol: str | None) -> str:
+    normalized = str(split_protocol or "").strip().lower().replace("-", "").replace("_", "").replace(" ", "")
+    if normalized in {
+        "721",
+        "7/2/1",
+        "702010",
+        "70/20/10",
+        "trainval",
+        "trainvaltest",
+        "trainvaltestsplit",
+    }:
+        return "trainvaltest"
+    return "official"
+
+
+def _describe_sft_eval_split(formal_dataset: str, split_protocol: str) -> tuple[str, str, str]:
+    dataset = normalize_sft_formal_dataset(formal_dataset)
+    if _normalize_sft_eval_split_protocol(split_protocol) == "trainvaltest":
+        if dataset == "cifar-10":
+            return "cifar10-train[45k]", "cifar10-train[5k]", "cifar10-test[10k]"
+        if dataset == "cifar-100":
+            return "cifar100-train[45k]", "cifar100-train[5k]", "cifar100-test[10k]"
+        if dataset == "imagenette":
+            return "imagenette-train[7500]", "imagenette-train[1969]", "imagenette-test[3925]"
+    return "official-train", "official-test", "none"
 
 
 def _stage1_fixed_failure_reward(res: Dict[str, Any], meta: Dict[str, Any], graph_info) -> Optional[float]:
@@ -819,10 +846,12 @@ def _write_sft_run_config(
     split_protocol = _env_str("NNGPT_SFT_EVAL_SPLIT_PROTOCOL", SFT_EVAL_SPLIT_PROTOCOL)
     split_seed = _env_int("NNGPT_SFT_EVAL_SPLIT_SEED", SFT_EVAL_SPLIT_SEED)
     eval_split_role = _env_str("NNGPT_SFT_EVAL_SPLIT_ROLE", SFT_EVAL_SPLIT_ROLE)
-    use_721_split = split_protocol.strip().lower() == "721"
     formal_dataset = resolve_sft_formal_dataset()
     formal_out_shape = resolve_sft_formal_out_shape(formal_dataset)
-    cifar10_split = use_721_split and formal_dataset == "cifar-10"
+    train_set_label, reward_eval_label, heldout_test_label = _describe_sft_eval_split(
+        formal_dataset,
+        split_protocol,
+    )
     payload = {
         "phase": "four_pattern_reward_ablation",
         "created_at": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
@@ -878,9 +907,9 @@ def _write_sft_run_config(
             "eval_split_role": eval_split_role,
             "train_subset_size": SFT_EVAL_TRAIN_SUBSET,
             "val_subset_size": SFT_EVAL_VAL_SUBSET,
-            "train_set": "cifar10-train[70%]" if cifar10_split else "official-train",
-            "reward_eval_set": "cifar10-train[20%]" if cifar10_split else "official-test",
-            "heldout_test_set": "cifar10-train[10%]" if cifar10_split else "none",
+            "train_set": train_set_label,
+            "reward_eval_set": reward_eval_label,
+            "heldout_test_set": heldout_test_label,
             "train_epochs": SFT_EVAL_TRAIN_EPOCHS,
             "formal_epochs": os.getenv("NNGPT_RL_FORMAL_REWARD_EPOCHS", "10"),
             "full_test_acc": SFT_EVAL_FULL_TEST_ACC,
@@ -2392,6 +2421,10 @@ def main() -> None:
     print(f"[SFT RL] KL coef: {TuneRL.env_float('NNGPT_RL_KL_COEF', SFT_KL_COEF):.6f}")
     formal_dataset = resolve_sft_formal_dataset()
     formal_out_shape = resolve_sft_formal_out_shape(formal_dataset)
+    train_set_label, reward_eval_label, heldout_test_label = _describe_sft_eval_split(
+        formal_dataset,
+        _env_str("NNGPT_SFT_EVAL_SPLIT_PROTOCOL", SFT_EVAL_SPLIT_PROTOCOL),
+    )
     print(
         f"[SFT RL] Eval plan: stage1=static_only(no-check_nn), stage2/3=nn-dataset-formal({formal_dataset}), "
         f"out_shape={formal_out_shape}, n_classes={formal_out_shape[0]}, "
@@ -2399,8 +2432,8 @@ def main() -> None:
         f"split={_env_str('NNGPT_SFT_EVAL_SPLIT_PROTOCOL', SFT_EVAL_SPLIT_PROTOCOL)}, "
         f"split_seed={_env_int('NNGPT_SFT_EVAL_SPLIT_SEED', SFT_EVAL_SPLIT_SEED)}, "
         f"eval_split_role={_env_str('NNGPT_SFT_EVAL_SPLIT_ROLE', SFT_EVAL_SPLIT_ROLE)}, "
-        f"train_set=full 70%, "
-        f"reward_eval_set=20%, heldout_test_set=10%, train_epochs={SFT_EVAL_TRAIN_EPOCHS}, "
+        f"train_set={train_set_label}, "
+        f"reward_eval_set={reward_eval_label}, heldout_test_set={heldout_test_label}, train_epochs={SFT_EVAL_TRAIN_EPOCHS}, "
         f"freeze_only_backbone_eval=True, formal_epoch_limit_minutes={SFT_EVAL_FORMAL_EPOCH_LIMIT_MINUTES}, "
         f"worker_eval_limit_seconds={SFT_EVAL_LIMIT_SECONDS}, "
         f"baseline={SFT_VAL_METRIC_BASELINE:.2f}"

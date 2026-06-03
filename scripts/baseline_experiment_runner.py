@@ -81,6 +81,19 @@ def _candidate_id(setting: str, index: int) -> str:
     return f"{setting}-{index:04d}"
 
 
+def _describe_eval_split(dataset: str, split_protocol: str) -> tuple[str, str, str]:
+    normalized_dataset = str(dataset or "").strip().lower().replace("_", "-")
+    normalized_protocol = str(split_protocol or "").strip().lower().replace("-", "").replace("_", "").replace(" ", "")
+    if normalized_protocol in {"721", "7/2/1", "702010", "70/20/10", "trainval", "trainvaltest", "trainvaltestsplit"}:
+        if normalized_dataset in {"cifar-10", "cifar10"}:
+            return "cifar10-train[45k]", "cifar10-train[5k]", "cifar10-test[10k]"
+        if normalized_dataset in {"cifar-100", "cifar100"}:
+            return "cifar100-train[45k]", "cifar100-train[5k]", "cifar100-test[10k]"
+        if normalized_dataset == "imagenette":
+            return "imagenette-train[7500]", "imagenette-train[1969]", "imagenette-test[3925]"
+    return "official-train", "official-test", "none"
+
+
 def _attach_sft_generate_tokenizer(model, tokenizer) -> None:
     original_generate = model.generate
 
@@ -922,10 +935,10 @@ def command_eval_only(args: argparse.Namespace) -> None:
     if not candidates:
         raise RuntimeError("No candidates provided for eval-only")
     source_format_counts = Counter(_candidate_source_format(candidate) for candidate in candidates)
-    split_protocol = DatasetSplit.normalize_split_protocol(os.environ.get("NNGPT_SFT_EVAL_SPLIT_PROTOCOL", "721"))
+    split_protocol = DatasetSplit.normalize_split_protocol(os.environ.get("NNGPT_SFT_EVAL_SPLIT_PROTOCOL", "trainvaltest"))
     split_seed = int(os.environ.get("NNGPT_SFT_EVAL_SPLIT_SEED", "42") or 42)
     eval_split_role = str(os.environ.get("NNGPT_SFT_EVAL_SPLIT_ROLE", "reward_eval") or "reward_eval")
-    use_721_split = split_protocol == "721"
+    train_set_label, reward_eval_label, heldout_test_label = _describe_eval_split("cifar-10", split_protocol)
 
     run_config = {
         "phase": "eval_only",
@@ -943,9 +956,9 @@ def command_eval_only(args: argparse.Namespace) -> None:
             "split_protocol": split_protocol,
             "split_seed": split_seed,
             "eval_split_role": eval_split_role,
-            "train_set": "cifar10-train[70%]" if use_721_split else "official-train",
-            "reward_eval_set": "cifar10-train[20%]" if use_721_split else "official-test",
-            "heldout_test_set": "cifar10-train[10%]" if use_721_split else "none",
+            "train_set": train_set_label,
+            "reward_eval_set": reward_eval_label,
+            "heldout_test_set": heldout_test_label,
             "workers_per_gpu": os.environ.get("NNGPT_REWARD_WORKERS_PER_GPU", ""),
             "eval_concurrency": int(args.eval_concurrency),
         },
@@ -1303,20 +1316,20 @@ def build_parser() -> argparse.ArgumentParser:
     eval_parser.add_argument("--feedback-char-budget", type=int)
     eval_parser.add_argument(
         "--eval-split-protocol",
-        default=os.getenv("NNGPT_SFT_EVAL_SPLIT_PROTOCOL", "721"),
-        help="Shared CIFAR-10 split protocol for final/baseline eval; default: 721.",
+        default=os.getenv("NNGPT_SFT_EVAL_SPLIT_PROTOCOL", "trainvaltest"),
+        help="Shared train/val/test split protocol for final/baseline eval; default: trainvaltest.",
     )
     eval_parser.add_argument(
         "--eval-split-seed",
         type=int,
         default=int(os.getenv("NNGPT_SFT_EVAL_SPLIT_SEED", "42") or 42),
-        help="Seed for the shared CIFAR-10 7/2/1 split.",
+        help="Seed for the shared train/val/test split.",
     )
     eval_parser.add_argument(
         "--eval-split-role",
         default=os.getenv("NNGPT_SFT_EVAL_SPLIT_ROLE", "reward_eval"),
         choices=("reward_eval", "heldout_test"),
-        help="Which shared split to score on; training defaults to reward_eval, paper final eval should use heldout_test.",
+        help="Which shared split to score on; reward_eval is validation, heldout_test is the final test split.",
     )
     eval_parser.add_argument(
         "--eval-concurrency",

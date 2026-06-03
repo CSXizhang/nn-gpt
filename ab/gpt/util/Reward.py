@@ -2672,12 +2672,14 @@ def _restore_nn_dataset_dataroll_patch(patch_token: Optional[Tuple[type, Any, An
 
 
 def _patch_nn_dataset_load_dataset_for_reward(cfg: "EvalConfig") -> Optional[Dict[str, Any]]:
-    if DatasetSplit.normalize_split_protocol(getattr(cfg, "split_protocol", "official")) != "721":
+    split_protocol = DatasetSplit.normalize_split_protocol(getattr(cfg, "split_protocol", "official"))
+    if split_protocol == "official":
         return None
 
     try:
         import ab.nn.util.Loader as nn_loader  # type: ignore
         import ab.nn.util.Train as nn_train  # type: ignore
+        import ab.nn.util.Const as nn_const  # type: ignore
     except Exception:
         return None
 
@@ -2688,25 +2690,44 @@ def _patch_nn_dataset_load_dataset_for_reward(cfg: "EvalConfig") -> Optional[Dic
 
     split_seed = int(getattr(cfg, "split_seed", 42))
     eval_split_role = str(getattr(cfg, "eval_split_role", "reward_eval") or "reward_eval")
+    supported_dataset_meta = {
+        "cifar-10": ((10,), 1.0 / 10.0),
+        "cifar10": ((10,), 1.0 / 10.0),
+        "cifar-100": ((100,), 1.0 / 100.0),
+        "cifar100": ((100,), 1.0 / 100.0),
+        "imagenette": ((10,), 1.0 / 10.0),
+    }
+
+    def _resolve_transform(transform_name, transform_dir=None):
+        if transform_dir and transform_name:
+            transform_file_path = Path(transform_dir) / f"{transform_name}.py"
+            if transform_file_path.exists():
+                spec = importlib.util.spec_from_file_location(transform_name, transform_file_path)
+                if spec is not None and spec.loader is not None:
+                    transform_module = importlib.util.module_from_spec(spec)
+                    spec.loader.exec_module(transform_module)
+                    if hasattr(transform_module, "transform"):
+                        return transform_module.transform
+        if not transform_name:
+            raise ValueError("transform_name is required for formal reward dataset loading")
+        return nn_loader.get_obj(transform_name, "transform")
 
     def _patched_load_dataset(task, dataset_name, transform_name, transform_dir=None):
-        out_shape, minimum_accuracy, train_set, test_set = original_train_load_dataset(
-            task,
-            dataset_name,
-            transform_name,
-            transform_dir,
-        )
         normalized_dataset = str(dataset_name or "").strip().lower().replace("_", "-")
-        if normalized_dataset not in {"cifar-10", "cifar10"}:
-            return out_shape, minimum_accuracy, train_set, test_set
+        dataset_meta = supported_dataset_meta.get(normalized_dataset)
+        if dataset_meta is None:
+            return original_train_load_dataset(task, dataset_name, transform_name, transform_dir)
 
-        split_datasets = DatasetSplit.split_existing_dataset_721(
-            train_set,
+        transform = _resolve_transform(transform_name, transform_dir)
+        split_datasets = DatasetSplit.build_formal_reward_split_datasets(
+            dataset_name=normalized_dataset,
+            root=str(nn_const.data_dir),
+            transform=transform,
+            download=bool(getattr(cfg, "download", True)),
             seed=split_seed,
-            eval_source=train_set,
         )
         eval_set = split_datasets.get(eval_split_role) or split_datasets["reward_eval"]
-        return out_shape, minimum_accuracy, split_datasets["train"], eval_set
+        return dataset_meta[0], dataset_meta[1], split_datasets["train"], eval_set
 
     nn_train.load_dataset = _patched_load_dataset
     if original_loader_load_dataset is not None:
