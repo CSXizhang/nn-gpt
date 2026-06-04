@@ -2697,6 +2697,12 @@ def _patch_nn_dataset_load_dataset_for_reward(cfg: "EvalConfig") -> Optional[Dic
         "imagenette": ((10,), 1.0 / 10.0, 7500, 1969),
     }
 
+
+    # Cache: avoid rebuilding split datasets on every single model evaluation.
+    # Each call triggers torch.utils.data.random_split + Subset construction,
+    # which adds up over 1000+ reward evaluations and causes timeouts.
+    _split_datasets_cache: Dict[tuple, tuple] = {}
+
     def _patched_load_dataset(task, dataset_name, transform_name, transform_dir=None):
         normalized_dataset = str(dataset_name or "").strip().lower().replace("_", "-")
         dataset_meta = supported_dataset_meta.get(normalized_dataset)
@@ -2704,17 +2710,21 @@ def _patch_nn_dataset_load_dataset_for_reward(cfg: "EvalConfig") -> Optional[Dic
             return original_train_load_dataset(task, dataset_name, transform_name, transform_dir)
 
         dataset_loader = original_loader_load_dataset or original_train_load_dataset
-        class_shape, min_acc, train_source, heldout_test_source = dataset_loader(
-            task, dataset_name, transform_name, transform_dir
-        )
         _, _, train_size, val_size = dataset_meta
-        split_datasets = DatasetSplit.build_classification_reward_split_datasets(
-            train_source=train_source,
-            heldout_test_source=heldout_test_source,
-            train_size=train_size,
-            val_size=val_size,
-            seed=split_seed,
-        )
+        cache_key = (normalized_dataset, split_seed)
+        if cache_key not in _split_datasets_cache:
+            class_shape, min_acc, train_source, heldout_test_source = dataset_loader(
+                task, dataset_name, transform_name, transform_dir
+            )
+            split_datasets = DatasetSplit.build_classification_reward_split_datasets(
+                train_source=train_source,
+                heldout_test_source=heldout_test_source,
+                train_size=train_size,
+                val_size=val_size,
+                seed=split_seed,
+            )
+            _split_datasets_cache[cache_key] = (class_shape, min_acc, split_datasets)
+        class_shape, min_acc, split_datasets = _split_datasets_cache[cache_key]
         eval_set = split_datasets.get(eval_split_role) or split_datasets["reward_eval"]
         return class_shape, min_acc, split_datasets["train"], eval_set
 
