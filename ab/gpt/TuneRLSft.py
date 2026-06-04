@@ -399,8 +399,11 @@ def raw_reward_fn(
 
     if not meta.get("dual_backbone_ok"):
         res["reward"] = min(float(res["reward"]), -3.5)
-    elif group_warmup and TuneRL._is_trainable_candidate(res, graph_info):
-        res["reward"] = float(res.get("warmup_dense_reward") or 0.0)
+    elif group_warmup:
+        if TuneRL._is_trainable_candidate(res, graph_info):
+            res["reward"] = float(res.get("warmup_dense_reward") or 0.0)
+        else:
+            res["reward"] = -float(res.get("warmup_dense_reward") or 0.18)
 
     fixed_failure_reward = _stage1_fixed_failure_reward(res, meta, graph_info)
     if fixed_failure_reward is not None:
