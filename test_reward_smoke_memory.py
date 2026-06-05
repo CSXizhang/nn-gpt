@@ -52,10 +52,12 @@ class RewardSmokeMemoryTest(unittest.TestCase):
         tunerl_source = _source("ab/gpt/TuneRL.py")
         self.assertRegex(tunerl_source, r'FORMAL_REWARD_TRANSFORM\s*=\s*"norm_128_flip"')
         self.assertIn("def _formal_reward_input_shape", tunerl_source)
+        self.assertIn("def _formal_reward_out_shape", tunerl_source)
 
         for function_name in ("base_discovery_reward_fn", "_build_batched_eval_specs"):
             body = _function_source("ab/gpt/TuneRL.py", function_name)
             self.assertIn("_formal_reward_input_shape()", body)
+            self.assertIn("_formal_reward_out_shape()", body)
             self.assertNotIn("(1, 3, 224, 224)", body)
 
     def test_cpu_smoke_keeps_forward_check_but_cleans_memory(self):
@@ -348,6 +350,32 @@ def forward(self, x, is_probing=False):
         self.assertLess(warmup_index, gate_index)
         self.assertLess(compactness_index, gate_index)
         self.assertLess(gate_index, raw_meta_index)
+
+    def test_parallel_triple_block_dead_suppresses_accuracy_components_before_reward_sum(self):
+        namespace = {"Dict": dict, "Any": object}
+        exec(_function_source("ab/gpt/TuneRL.py", "_is_target_parallel_triple_block_dead"), namespace)
+        is_block_dead = namespace["_is_target_parallel_triple_block_dead"]
+
+        detection = {
+            "normalized_prompt_target_pattern": "Parallel_Triple",
+            "target_structure_match": False,
+            "target_structure_mismatch_reasons": ["target_parallel_triple_but_block_dead"],
+        }
+        self.assertTrue(is_block_dead(detection, False))
+        self.assertFalse(is_block_dead(detection, True))
+        self.assertFalse(is_block_dead({**detection, "normalized_prompt_target_pattern": "B_to_Fractal_plus_A"}, False))
+
+        body = _function_source("ab/gpt/TuneRL.py", "base_discovery_reward_fn")
+        novelty_gate_index = body.index("_stage23_gate_positive_novelty_by_quality")
+        suppress_index = body.index("_is_target_parallel_triple_block_dead", novelty_gate_index)
+        reward_sum_index = body.index("r_primary = (", suppress_index)
+        self.assertLess(suppress_index, reward_sum_index)
+        self.assertIn("r_dense = 0.0", body[suppress_index:reward_sum_index])
+        self.assertIn("r_formal_success_signal = 0.0", body[suppress_index:reward_sum_index])
+        self.assertIn("r_goal_best = 0.0", body[suppress_index:reward_sum_index])
+        self.assertIn("r_batch_elite = 0.0", body[suppress_index:reward_sum_index])
+        self.assertIn("beat_best_target = False", body[suppress_index:reward_sum_index])
+        self.assertIn("target_block_dead_accuracy_components_suppressed", body)
 
     def test_batch_elite_preserves_existing_reward_postprocessing_delta(self):
         namespace = {

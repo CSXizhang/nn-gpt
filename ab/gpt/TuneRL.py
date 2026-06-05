@@ -168,6 +168,13 @@ def _formal_reward_input_shape(batch: int = 1) -> Tuple[int, int, int, int]:
     return (int(batch), 3, resize, resize)
 
 
+def _formal_reward_out_shape() -> Tuple[int, ...]:
+    dataset = os.getenv("NNGPT_RL_FORMAL_DATASET", "cifar-10").strip().lower().replace("_", "-")
+    if dataset in {"cifar-100", "cifar100"}:
+        return (100,)
+    return (10,)
+
+
 BACKBONE_BASELINE_MIN_ARCHIVE_SAMPLES = 3
 SAVE_DUPLICATE_BACKBONE_CNN_DELTA = 0.002
 BATCH_ELITE_SOFT_BONUSES = (0.02, 0.015, 0.01, 0.005, 0.0)
@@ -2741,6 +2748,22 @@ def _apply_target_structure_reward_gate(res: Dict[str, Any], reward_value: float
     )
 
 
+def _is_target_parallel_triple_block_dead(
+    pattern_detection: Dict[str, Any],
+    block_contributes_to_forward: bool,
+) -> bool:
+    if bool(block_contributes_to_forward):
+        return False
+    if pattern_detection.get("normalized_prompt_target_pattern") != "Parallel_Triple":
+        return False
+    if pattern_detection.get("target_structure_match") is not False:
+        return False
+    return "target_parallel_triple_but_block_dead" in set(
+        str(reason)
+        for reason in list(pattern_detection.get("target_structure_mismatch_reasons") or [])
+    )
+
+
 def _stage23_local_competition_reward(
     total_reward: float,
     *,
@@ -3656,17 +3679,18 @@ def base_discovery_reward_fn(
         res = dict(precomputed_eval_result)
     else:
         formal_input_shape = _formal_reward_input_shape()
+        formal_out_shape = _formal_reward_out_shape()
         res = evaluate_code_and_reward(
             final_code,
             in_shape=formal_input_shape,
-            out_shape=(10,),
+            out_shape=formal_out_shape,
             prm=prm,
             device="cuda" if torch.cuda.is_available() else "cpu",
             seed_accuracy_baseline=seed_accuracy_baseline,
             cfg=build_stage_eval_cfg(
                 stage_name=stage_name,
                 in_shape=formal_input_shape,
-                out_shape=(10,),
+                out_shape=formal_out_shape,
                 prm=prm,
                 device="cuda" if torch.cuda.is_available() else "cpu",
             ),
@@ -3836,6 +3860,8 @@ def base_discovery_reward_fn(
     r_plain_fuse_penalty = 0.0
     r_target_structure_penalty = 0.0
     target_structure_positive_suppressed = 0.0
+    target_block_dead_accuracy_components_suppressed = False
+    target_block_dead_accuracy_suppressed_total = 0.0
     r_template_penalty = 0.0
     r_history_context = 0.0
     r_no_progress_penalty = 0.0
@@ -4442,6 +4468,35 @@ def base_discovery_reward_fn(
         r_descriptor_diversity = gated_novelty_components["r_descriptor_diversity"]
         r_cnn_diversity = gated_novelty_components["r_cnn_diversity"]
         r_block_diversity = gated_novelty_components["r_block_diversity"]
+        if _is_target_parallel_triple_block_dead(pattern_detection, block_contributes_to_forward):
+            target_block_dead_accuracy_components_suppressed = True
+            target_block_dead_accuracy_suppressed_total = sum(
+                max(0.0, float(component or 0.0))
+                for component in (
+                    r_dense,
+                    r_formal_success_signal,
+                    r_prev_group,
+                    r_best_group,
+                    r_prev_backbone_group,
+                    r_best_backbone_group,
+                    r_goal_best,
+                    r_generalization,
+                    r_batch_elite,
+                )
+            )
+            r_dense = 0.0
+            r_formal_success_signal = 0.0
+            r_prev_group = 0.0
+            r_best_group = 0.0
+            r_prev_backbone_group = 0.0
+            r_best_backbone_group = 0.0
+            r_goal_best = 0.0
+            r_generalization = 0.0
+            r_batch_elite = 0.0
+            beat_prev_target = False
+            beat_best_target = False
+            beat_prev_backbone_target = False
+            beat_best_backbone_target = False
         r_primary = (
             r_dense
             + r_formal_success_signal
@@ -4596,6 +4651,8 @@ def base_discovery_reward_fn(
     res['r_plain_fuse_penalty'] = r_plain_fuse_penalty
     res['r_target_structure_penalty'] = r_target_structure_penalty
     res['target_structure_positive_suppressed'] = target_structure_positive_suppressed
+    res['target_block_dead_accuracy_components_suppressed'] = target_block_dead_accuracy_components_suppressed
+    res['target_block_dead_accuracy_suppressed_total'] = target_block_dead_accuracy_suppressed_total
     res['r_template_penalty'] = r_template_penalty
     res['r_history_context'] = r_history_context
     res['r_no_progress_penalty'] = r_no_progress_penalty
@@ -4689,6 +4746,8 @@ def base_discovery_reward_fn(
         'r_plain_fuse_penalty': r_plain_fuse_penalty,
         'r_target_structure_penalty': r_target_structure_penalty,
         'target_structure_positive_suppressed': target_structure_positive_suppressed,
+        'target_block_dead_accuracy_components_suppressed': target_block_dead_accuracy_components_suppressed,
+        'target_block_dead_accuracy_suppressed_total': target_block_dead_accuracy_suppressed_total,
         'r_template_penalty': r_template_penalty,
         'r_history_context': r_history_context,
         'r_no_progress_penalty': r_no_progress_penalty,
@@ -5157,10 +5216,11 @@ def _build_batched_eval_specs(
             continue
 
         formal_input_shape = _formal_reward_input_shape()
+        formal_out_shape = _formal_reward_out_shape()
         spec = {
             "code": final_code,
             "in_shape": formal_input_shape,
-            "out_shape": (10,),
+            "out_shape": formal_out_shape,
             "prm": {
                 "lr": 0.01,
                 "batch": 64,
@@ -5180,7 +5240,7 @@ def _build_batched_eval_specs(
                 eval_cfg_builder,
                 stage_name=str(group_context.get("current_stage_name") or current_stage_name),
                 in_shape=formal_input_shape,
-                out_shape=(10,),
+                out_shape=formal_out_shape,
                 prm=spec["prm"],
                 cfg=None,
                 device=spec["device"],
