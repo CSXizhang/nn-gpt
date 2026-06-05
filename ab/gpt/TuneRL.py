@@ -531,6 +531,12 @@ def _block_contributes_to_forward(init_code: str, forward_code: str) -> bool:
     return False
 
 
+def _block_truly_contributes_to_forward(init_code: str, forward_code: str, graph_info) -> bool:
+    if graph_info is not None and getattr(graph_info, "parse_ok", False):
+        return int(getattr(graph_info, "fractal_calls", 0) or 0) > 0
+    return _block_contributes_to_forward(init_code, forward_code)
+
+
 def _is_plain_dual_backbone_concat(forward_code: str) -> bool:
     source = str(forward_code or "")
     if not ("self.backbone_a" in source and "self.backbone_b" in source):
@@ -576,7 +582,14 @@ def _result_block_signature(res: Dict[str, Any], completion: str = "") -> str:
     if signature:
         return signature
     block_code, init_code, forward_code = extract_completion_blocks(str(completion or ""))
-    if not _block_contributes_to_forward(init_code, forward_code):
+    graph_info = res.get("graph_info") if isinstance(res, dict) else None
+    if graph_info is None and block_code and init_code and forward_code:
+        graph_info = extract_graph_info(
+            init_code,
+            forward_code,
+            legacy_patterns=SFTUtil.legacy_patterns,
+        )
+    if not _block_truly_contributes_to_forward(init_code, forward_code, graph_info):
         return "incomplete_block"
     return _block_signature_from_code(block_code)
 
@@ -2613,9 +2626,12 @@ def detect_target_structure(
     normalized_target = normalize_pattern_name(prompt_target_pattern) if prompt_target_pattern else ""
     declared_pattern = str(getattr(graph_info, "pattern_name", "") or "") if graph_info is not None else ""
     actual_pattern = str(getattr(graph_info, "suggested_pattern_name", "") or "") if graph_info is not None else ""
+    actual_block_live = bool(block_contributes_to_forward)
+    if graph_info is not None and getattr(graph_info, "parse_ok", False):
+        actual_block_live = int(getattr(graph_info, "fractal_calls", 0) or 0) > 0
     actual_signature = build_actual_structure_signature(
         graph_info,
-        block_contributes_to_forward=bool(block_contributes_to_forward),
+        block_contributes_to_forward=actual_block_live,
         block_signature=block_signature,
     )
     result = {
@@ -2632,7 +2648,7 @@ def detect_target_structure(
         "target_structure_match": True,
         "target_structure_mismatch_reasons": [],
         "actual_backbone_calls": int(getattr(graph_info, "backbone_calls", 0) or 0) if graph_info is not None else 0,
-        "actual_block_live": bool(block_contributes_to_forward),
+        "actual_block_live": actual_block_live,
         "actual_block_before_backbone": False,
         "actual_backbone_before_block": False,
     }
@@ -2662,7 +2678,7 @@ def detect_target_structure(
         or normalized_target.endswith("_plus_A")
         or target_needs_parallel_triple
     )
-    if target_needs_block and not block_contributes_to_forward:
+    if target_needs_block and not actual_block_live:
         if target_needs_parallel_triple:
             reasons.append("target_parallel_triple_but_block_dead")
         else:
@@ -2939,7 +2955,14 @@ def _entry_block_signature(entry: Dict[str, Any]) -> str:
     if signature:
         return signature
     block_code, init_code, forward_code = extract_completion_blocks(str(entry.get("completion") or ""))
-    if not _block_contributes_to_forward(init_code, forward_code):
+    graph_info = entry.get("graph_info")
+    if graph_info is None and block_code and init_code and forward_code:
+        graph_info = extract_graph_info(
+            init_code,
+            forward_code,
+            legacy_patterns=SFTUtil.legacy_patterns,
+        )
+    if not _block_truly_contributes_to_forward(init_code, forward_code, graph_info):
         return "incomplete_block"
     return _block_signature_from_code(block_code)
 
@@ -3627,12 +3650,6 @@ def base_discovery_reward_fn(
         'epoch': 1,
     }
     block_code, init_code, forward_code = extract_completion_blocks(completion)
-    block_contributes_to_forward = _block_contributes_to_forward(init_code, forward_code)
-    block_signature = (
-        _block_signature_from_code(block_code)
-        if block_contributes_to_forward
-        else "incomplete_block"
-    )
     plain_dual_backbone_concat = _is_plain_dual_backbone_concat(forward_code)
     backbone_model_names = _extract_backbone_model_names(init_code)
     if not block_code or not init_code or not forward_code:
@@ -3655,6 +3672,16 @@ def base_discovery_reward_fn(
         init_code,
         forward_code,
         legacy_patterns=SFTUtil.legacy_patterns,
+    )
+    block_contributes_to_forward = _block_truly_contributes_to_forward(
+        init_code,
+        forward_code,
+        graph_info,
+    )
+    block_signature = (
+        _block_signature_from_code(block_code)
+        if block_contributes_to_forward
+        else "incomplete_block"
     )
     prompt_target_pattern = str(prompt_target_pattern or "").strip()
     pattern_detection = detect_target_structure(

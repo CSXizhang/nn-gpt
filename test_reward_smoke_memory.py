@@ -7,7 +7,7 @@ from types import SimpleNamespace
 from typing import Optional
 
 from ab.gpt.util import SFTUtil
-from ab.gpt.util.ArchDiscovery import normalize_pattern_name
+from ab.gpt.util.ArchDiscovery import extract_graph_info, normalize_pattern_name
 
 
 REPO_ROOT = Path(__file__).resolve().parent
@@ -105,6 +105,41 @@ def forward(self, x, is_probing=False):
         self.assertTrue(contributes(init_code, forward_code))
         self.assertFalse(contributes(init_code, bypass_forward_code))
 
+    def test_ast_block_liveness_requires_return_dataflow(self):
+        namespace = {"re": re}
+        exec(_function_source("ab/gpt/TuneRL.py", "_block_contributes_to_forward"), namespace)
+        exec(_function_source("ab/gpt/TuneRL.py", "_block_truly_contributes_to_forward"), namespace)
+        heuristic_contributes = namespace["_block_contributes_to_forward"]
+        ast_contributes = namespace["_block_truly_contributes_to_forward"]
+
+        init_code = """
+def __init__(self, in_shape, out_shape, prm, device):
+    self.features = nn.Sequential()
+    unit = FractalUnit(3, 64, 2, 0.15, 0.1)
+    self.features.add_module("unit1", unit)
+    self.backbone_a = TorchVision('resnet18', weights=None)
+"""
+        live_forward_code = """
+def forward(self, x, is_probing=False):
+    x_f_map = self.features(x)
+    return adaptive_pool_flatten(x_f_map)
+"""
+        dead_forward_code = """
+def forward(self, x, is_probing=False):
+    _ = self.features(x)
+    return adaptive_pool_flatten(self.backbone_a(x))
+"""
+        live_graph = extract_graph_info(init_code, live_forward_code)
+        dead_graph = extract_graph_info(init_code, dead_forward_code)
+
+        self.assertTrue(live_graph.parse_ok)
+        self.assertEqual(live_graph.fractal_calls, 1)
+        self.assertTrue(ast_contributes(init_code, live_forward_code, live_graph))
+        self.assertTrue(dead_graph.parse_ok)
+        self.assertEqual(dead_graph.fractal_calls, 0)
+        self.assertTrue(heuristic_contributes(init_code, dead_forward_code))
+        self.assertFalse(ast_contributes(init_code, dead_forward_code, dead_graph))
+
     def test_prompt_target_pattern_parser_reads_sft_contract(self):
         function_source = _function_source("ab/gpt/TuneRL.py", "extract_prompt_target_pattern")
         namespace = {"re": re}
@@ -161,6 +196,7 @@ def forward(self, x, is_probing=False):
             pattern_name="B_to_Fractal_plus_A",
             suggested_pattern_name="DualBackbone_Fuse_Deep_123abc",
             parse_ok=True,
+            fractal_calls=0,
             family_id="DualBackboneFuse_Shallow",
             descriptor_key="d4|m1|bb2|fr0|st0|pr0|fu1|fan2",
             backbone_calls=2,
@@ -193,6 +229,7 @@ def forward(self, x, is_probing=False):
             pattern_name="A_to_Fractal_plus_B",
             suggested_pattern_name="SingleBackbone_Fractal_789abc",
             parse_ok=True,
+            fractal_calls=1,
             family_id="SingleBackbone_Fractal",
             descriptor_key="d3|m1|bb1|fr0|st0|pr0|fu1|fan1",
             backbone_calls=1,
@@ -217,6 +254,7 @@ def forward(self, x, is_probing=False):
             pattern_name="Parallel_Triple",
             suggested_pattern_name="DualBackbone_Fuse_123abc",
             parse_ok=True,
+            fractal_calls=0,
             family_id="DualBackboneFuse_Shallow",
             descriptor_key="d4|m1|bb2|fr0|st0|pr0|fu1|fan2",
             backbone_calls=2,
@@ -245,6 +283,7 @@ def forward(self, x, is_probing=False):
             pattern_name="",
             suggested_pattern_name="DualBackbone_Fractal_Fuse_456def",
             parse_ok=True,
+            fractal_calls=1,
             family_id="Fractal_DualBackbone_Fuse",
             descriptor_key="d7|m2|bb2|fr1|st0|pr0|fu2|fan3",
             backbone_calls=2,
@@ -273,6 +312,7 @@ def forward(self, x, is_probing=False):
             pattern_name="A_to_Fractal_plus_B",
             suggested_pattern_name="DualBackbone_Fractal_Fuse_456def",
             parse_ok=True,
+            fractal_calls=1,
             family_id="Fractal_DualBackbone_Fuse",
             descriptor_key="d7|m2|bb2|fr0|st0|pr0|fu2|fan3",
             backbone_calls=2,
