@@ -52,10 +52,7 @@ class SFTGenPrompt(Prompt):
         print(f"extracted {len(df)} samples.")
         
         if n_training_prompts:
-            limit = max(0, int(n_training_prompts))
-            if 0 < limit < len(df):
-                df = df.head(limit)
-                print(f"limited SFT samples to {len(df)} rows.")
+             df = df.sample(n=min(len(df), n_training_prompts))
         
         formatted_data = []
         for _, row in df.iterrows():
