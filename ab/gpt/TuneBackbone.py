@@ -16,6 +16,7 @@ def main():
     parser.add_argument('--sft_max_length', type=int, default=6144, help='Maximum SFT sequence length')
     parser.add_argument('--sft_batch_size', type=int, default=2, help='Per-device SFT batch size')
     parser.add_argument('--sft_gradient_accumulation', type=int, default=4, help='SFT gradient accumulation steps')
+    parser.add_argument('--sft_dataset_limit', type=int, default=None, help='Maximum number of SFT training samples; unset uses all available rows')
     parser.add_argument('--epoch_root', type=str, default=None, help='Output root for A* cycle directories')
     parser.add_argument('--sft_dataset', type=str, default='cifar-10', help='Dataset used for SFT seed/query data')
     parser.add_argument(
@@ -70,7 +71,7 @@ def main():
         llm_conf=args.llm_conf,
         training_args=training_args,
         peft_config=peft_config,
-        # max_prompts=1000,
+        max_prompts=args.sft_dataset_limit,
         use_backbone=True,
         sft_nn_prefixes=args.sft_nn_prefixes,
         sft_dataset=args.sft_dataset,

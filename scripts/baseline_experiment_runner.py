@@ -235,6 +235,8 @@ def command_gen_only(args: argparse.Namespace) -> None:
         "do_sample": True,
         **TuneRLSft._resolve_sft_generation_kwargs(tokenizer),
     }
+    if int(args.min_new_tokens or 0) > 0:
+        generation_config["min_new_tokens"] = int(args.min_new_tokens)
     run_config = {
         "phase": "gen_only",
         "setting": args.setting,
@@ -928,7 +930,8 @@ def command_eval_only(args: argparse.Namespace) -> None:
     split_protocol = DatasetSplit.normalize_split_protocol(os.environ.get("NNGPT_SFT_EVAL_SPLIT_PROTOCOL", "trainvaltest"))
     split_seed = int(os.environ.get("NNGPT_SFT_EVAL_SPLIT_SEED", "42") or 42)
     eval_split_role = str(os.environ.get("NNGPT_SFT_EVAL_SPLIT_ROLE", "reward_eval") or "reward_eval")
-    train_set_label, reward_eval_label, heldout_test_label = _describe_eval_split("cifar-10", split_protocol)
+    eval_dataset = str(os.environ.get("NNGPT_RL_FORMAL_DATASET", "cifar-10") or "cifar-10")
+    train_set_label, reward_eval_label, heldout_test_label = _describe_eval_split(eval_dataset, split_protocol)
 
     run_config = {
         "phase": "eval_only",
@@ -938,7 +941,7 @@ def command_eval_only(args: argparse.Namespace) -> None:
         "source_formats": dict(source_format_counts),
         "gpu_count": gpu_count,
         "eval_config": {
-            "dataset": "cifar-10",
+            "dataset": eval_dataset,
             "transform": "norm_128_flip",
             "resize": 128,
             "batch": 64,
@@ -1268,6 +1271,7 @@ def build_parser() -> argparse.ArgumentParser:
     gen.add_argument("--top-p", type=float, default=float(os.getenv("NNGPT_SFT_TOP_P", "0.95") or 0.95))
     gen.add_argument("--top-k", type=int, default=int(os.getenv("NNGPT_SFT_TOP_K", "50") or 50))
     gen.add_argument("--max-new-tokens", type=int, default=int(os.getenv("NNGPT_SFT_MAX_COMPLETION_LENGTH", "1536") or 1536))
+    gen.add_argument("--min-new-tokens", type=int, default=int(os.getenv("NNGPT_SFT_MIN_COMPLETION_LENGTH", "0") or 0))
     gen.set_defaults(func=command_gen_only)
 
     brute = sub.add_parser("brute-gen-only")
