@@ -995,6 +995,7 @@ def tune(
     unsloth_load_in_4bit = config.get("load_in_4bit", True)
     max_new_tokens = config.get("max_new_tokens", max_new_tokens)
     use_backbone = config.get("backbone", use_backbone)
+    chat_template_path = config.get("chat_template_path")
 
     access_token = None
     if token_from_file:
@@ -1028,6 +1029,7 @@ def tune(
         training_args=training_args,
         use_unsloth=use_unsloth,
         load_in_4bit=unsloth_load_in_4bit,
+        chat_template_path=chat_template_path,
     )
 
     model = model_loader.get_model()
