@@ -961,6 +961,8 @@ def _resolve_sft_mode(visible_gpu_tokens: List[str]) -> Dict[str, str]:
 
 
 def resolve_sft_reward_exclude_train_gpu() -> bool:
+    if "NNGPT_SFT_REWARD_EXCLUDE_TRAIN_GPU" not in os.environ and "NNGPT_RL_REWARD_EXCLUDE_TRAIN_GPU" in os.environ:
+        return _env_flag("NNGPT_RL_REWARD_EXCLUDE_TRAIN_GPU", SFT_REWARD_EXCLUDE_TRAIN_GPU)
     return _env_flag("NNGPT_SFT_REWARD_EXCLUDE_TRAIN_GPU", SFT_REWARD_EXCLUDE_TRAIN_GPU)
 
 

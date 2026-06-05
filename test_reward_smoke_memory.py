@@ -81,6 +81,36 @@ class RewardSmokeMemoryTest(unittest.TestCase):
         self.assertNotIn("raw_pre_reward", tunerl_source)
         self.assertNotIn("pre_reward_samples", tunerl_source)
 
+    def test_reward_worker_pool_defaults_to_static_one_worker_per_gpu(self):
+        body = _function_source("ab/gpt/util/Reward.py", "get_reward_worker_plan")
+        runtime_body = _function_source("ab/gpt/util/Reward.py", "get_distributed_runtime_info")
+
+        self.assertIn('_safe_bool_env("NNGPT_REWARD_ENABLE_DYNAMIC_SCALING", False)', body)
+        self.assertIn('per_gpu_worker_counts[int(reward_gpu_index)] = 1', body)
+        self.assertIn('configured_reward_gpu_tokens = _configured_cuda_device_tokens("NNGPT_REWARD_GPU_INDICES")', runtime_body)
+
+    def test_reward_worker_pool_signature_tracks_worker_counts(self):
+        body = _function_source("ab/gpt/util/Reward.py", "_reward_worker_plan_signature")
+
+        self.assertIn('tuple(int(count) for count in plan.get("per_gpu_worker_counts", []))', body)
+        self.assertIn('int(plan.get("pool_size", 0))', body)
+        self.assertIn('bool(plan.get("dynamic_scaling", False))', body)
+
+    def test_reward_worker_wait_does_not_create_cpu_fallback_pool(self):
+        body = _function_source("ab/gpt/util/Reward.py", "_await_eval_worker_pool")
+
+        plan_index = body.index("desired_plan = get_reward_worker_plan()")
+        create_index = body.index("pool = _get_or_create_eval_worker_pool()")
+        self.assertLess(plan_index, create_index)
+        self.assertIn("if not desired_has_gpu_worker:", body)
+        self.assertIn("continue", body[plan_index:create_index])
+
+    def test_tunerlsft_accepts_rl_reward_exclude_train_gpu_alias(self):
+        body = _function_source("ab/gpt/TuneRLSft.py", "resolve_sft_reward_exclude_train_gpu")
+
+        self.assertIn("NNGPT_RL_REWARD_EXCLUDE_TRAIN_GPU", body)
+        self.assertIn("NNGPT_SFT_REWARD_EXCLUDE_TRAIN_GPU", body)
+
     def test_block_contribution_detects_fractal_unit_feature_path(self):
         function_source = _function_source("ab/gpt/TuneRL.py", "_block_contributes_to_forward")
         namespace = {"re": re}

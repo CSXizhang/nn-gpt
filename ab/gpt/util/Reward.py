@@ -214,6 +214,8 @@ def get_distributed_runtime_info() -> Dict[str, Any]:
     configured_train_gpu_tokens = _configured_cuda_device_tokens("NNGPT_TRAIN_GPU_TOKENS")
     configured_reward_gpu_tokens = _configured_cuda_device_tokens("NNGPT_REWARD_GPU_TOKENS")
     if configured_reward_gpu_tokens is None:
+        configured_reward_gpu_tokens = _configured_cuda_device_tokens("NNGPT_REWARD_GPU_INDICES")
+    if configured_reward_gpu_tokens is None:
         configured_reward_gpu_tokens = _configured_cuda_device_tokens("NNGPT_AUX_GPU_TOKENS")
 
     train_gpu = local_rank if visible_gpu_count > 0 else None
@@ -643,7 +645,7 @@ def get_reward_worker_plan() -> Dict[str, Any]:
             reason="fixed_workers_override",
         )
 
-    dynamic_scaling = _safe_bool_env("NNGPT_REWARD_ENABLE_DYNAMIC_SCALING", True)
+    dynamic_scaling = _safe_bool_env("NNGPT_REWARD_ENABLE_DYNAMIC_SCALING", False)
     if not dynamic_scaling:
         reward_gpu_indices = list(configured_reward_gpu_indices)
         gpu_memory_snapshots = [
@@ -752,6 +754,9 @@ def _reward_worker_plan_signature(plan: Dict[str, Any]) -> Tuple[Any, ...]:
         int(plan.get("world_size", 1)),
         tuple(int(index) for index in plan.get("reward_gpu_indices", [])),
         tuple(str(token) for token in plan.get("reward_gpu_tokens", [])),
+        tuple(int(count) for count in plan.get("per_gpu_worker_counts", [])),
+        int(plan.get("pool_size", 0)),
+        bool(plan.get("dynamic_scaling", False)),
     )
 
 
@@ -4264,6 +4269,23 @@ def _await_eval_worker_pool(*, require_gpu: bool, timeout: float) -> Optional[_E
     deadline = time.time() + max(0.0, float(timeout))
     logged_wait = False
     while True:
+        desired_plan = get_reward_worker_plan()
+        desired_has_gpu_worker = any(index is not None for index in desired_plan.get("reward_gpu_indices", []))
+        if not desired_has_gpu_worker:
+            remaining = max(0.0, deadline - time.time())
+            if remaining <= 0.0:
+                return None
+            if not logged_wait:
+                print(
+                    "[Reward Worker Pool] Waiting "
+                    f"mode={desired_plan.get('mode')} "
+                    f"reason={desired_plan.get('reason', '')!r} "
+                    f"timeout_seconds={timeout:.0f}"
+                )
+                logged_wait = True
+            time.sleep(min(5.0, remaining))
+            continue
+
         pool = _get_or_create_eval_worker_pool()
         diagnostics = pool.diagnostics()
         has_gpu_worker = any(worker.get("assigned_gpu") is not None for worker in diagnostics.get("workers", []))
