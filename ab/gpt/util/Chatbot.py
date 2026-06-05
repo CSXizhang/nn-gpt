@@ -1,6 +1,7 @@
 # ab/gpt/util/Chatbot.py
 
 import os
+import re
 
 from transformers import PreTrainedTokenizer, PreTrainedModel, pipeline
 from ab.gpt.util.Util import extract_code, extract_hyperparam, extract_transform, extract_all_to_train
@@ -50,6 +51,28 @@ def _strip_prompt_prefix(text, prompt):
         return text[len(prompt):].lstrip()
     return text
 
+
+def _env_flag(name: str) -> bool:
+    return os.getenv(name, "").strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _strip_reasoning_output(text: str) -> str:
+    if not isinstance(text, str) or not text:
+        return text
+    cleaned = re.sub(r"<think>[\s\S]*?</think>", "", text, flags=re.IGNORECASE)
+    first_tag_positions = [
+        pos for pos in (
+            cleaned.find("<block>"),
+            cleaned.find("<nn>"),
+            cleaned.find("```python"),
+            cleaned.find("```"),
+        )
+        if pos >= 0
+    ]
+    if first_tag_positions:
+        return cleaned[min(first_tag_positions):].lstrip()
+    return cleaned
+
 class ChatBot:
     def __init__(self, model: PreTrainedModel, tokenizer: PreTrainedTokenizer, keep_memory=False,
                  temperature=1.0, top_k=50, top_p=0.9, system_prompt: str = None):
@@ -61,6 +84,8 @@ class ChatBot:
         self.top_k = top_k
         self.top_p = top_p
         self.system_prompt = system_prompt
+        self.disable_chat_template = _env_flag("NNGPT_DISABLE_CHAT_TEMPLATE")
+        self.strip_think_output = _env_flag("NNGPT_STRIP_THINK_OUTPUT")
         
         # Check if model is ONNX (wrapped or direct ORTModel)
         self.is_onnx = (
@@ -104,12 +129,14 @@ class ChatBot:
     def _prepare_pipeline_input(self, prompt_text):
         """Build a pipeline-ready text prompt using chat template when available."""
         messages = self._build_messages(prompt_text)
-        if hasattr(self.tokenizer, 'apply_chat_template'):
+        if not self.disable_chat_template and hasattr(self.tokenizer, 'apply_chat_template'):
             return self.tokenizer.apply_chat_template(
                 messages,
                 tokenize=False,
                 add_generation_prompt=True
             )
+        if self.system_prompt:
+            return f"System: {self.system_prompt}\nUser: {prompt_text}\nAssistant:"
         return prompt_text
 
     def _direct_generate_batch(self, prompts, max_new_tokens=None, max_len=None):
@@ -179,6 +206,8 @@ class ChatBot:
         for i in range(outputs.shape[0]):
             generated_ids = outputs[i][padded_input_length:]
             generated = self.tokenizer.decode(generated_ids, skip_special_tokens=True)
+            if self.strip_think_output:
+                generated = _strip_reasoning_output(generated)
             nn = extract_code(generated)
             results.append((nn, extract_hyperparam(generated), extract_transform(generated), generated))
         return results
@@ -222,6 +251,8 @@ class ChatBot:
                     out = _extract_generated_content(out_item)
                 
                 assert isinstance(out, str)
+                if self.strip_think_output:
+                    out = _strip_reasoning_output(out)
                 
                 if self.__keep_memory:
                     self.__messages.append({"role": "assistant", "content": out})
@@ -257,7 +288,7 @@ class ChatBot:
         """Direct model.generate() call without pipeline - works for ONNX and PyTorch"""
         try:
             # Apply chat template to format messages
-            if hasattr(self.tokenizer, 'apply_chat_template'):
+            if not self.disable_chat_template and hasattr(self.tokenizer, 'apply_chat_template'):
                 formatted_prompt = self.tokenizer.apply_chat_template(
                     messages,
                     tokenize=False,
@@ -265,7 +296,8 @@ class ChatBot:
                 )
             else:
                 # Fallback: concatenate messages
-                formatted_prompt = "\n".join([f"{msg['role']}: {msg['content']}" for msg in messages])
+                formatted_prompt = "\n".join([f"{msg['role'].capitalize()}: {msg['content']}" for msg in messages])
+                formatted_prompt = f"{formatted_prompt}\nAssistant:"
             
             # Tokenize input
             inputs = self.tokenizer(
@@ -335,6 +367,8 @@ class ChatBot:
             # FIX: Decode only the generated part (skip input prompt)
             generated_ids = outputs[0][input_length:]  # Use input_length, not shape[1]
             out = self.tokenizer.decode(generated_ids, skip_special_tokens=True)
+            if self.strip_think_output:
+                out = _strip_reasoning_output(out)
             
             assert isinstance(out, str)
             
