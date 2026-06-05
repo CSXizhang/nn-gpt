@@ -187,6 +187,7 @@ TARGET_STRUCTURE_DEAD_BLOCK_PENALTY = -0.80
 TARGET_STRUCTURE_DUAL_BACKBONE_PENALTY = -0.60
 TARGET_STRUCTURE_PATH_PENALTY = -0.05
 TARGET_STRUCTURE_PARSE_PENALTY = -0.30
+TARGET_STRUCTURE_PATTERN_MISMATCH_PENALTY = -1.00
 TARGET_STRUCTURE_PENALTY_FLOOR = -1.00
 TARGET_STRUCTURE_MATCH_BONUS = 0.20
 NO_PROGRESS_PENALTY = -0.06
@@ -2642,17 +2643,28 @@ def detect_target_structure(
     result["actual_backbone_before_block"] = backbone_before_block
 
     reasons: List[str] = []
-    target_needs_block = "Fractal" in normalized_target
+    declared_matches_prompt = bool(result["declared_pattern_matches_prompt"])
+    if not declared_matches_prompt:
+        reasons.append("declared_pattern_mismatch")
+    target_needs_parallel_triple = normalized_target == "Parallel_Triple"
+    target_needs_block = "Fractal" in normalized_target or target_needs_parallel_triple
     target_needs_dual_backbone = (
         "DualBackbone" in normalized_target
         or "_to_B" in normalized_target
         or "_plus_B" in normalized_target
         or normalized_target.endswith("_plus_A")
+        or target_needs_parallel_triple
     )
     if target_needs_block and not block_contributes_to_forward:
-        reasons.append("target_fractal_but_block_dead")
+        if target_needs_parallel_triple:
+            reasons.append("target_parallel_triple_but_block_dead")
+        else:
+            reasons.append("target_fractal_but_block_dead")
     if target_needs_dual_backbone and int(getattr(graph_info, "backbone_calls", 0) or 0) < 2:
-        reasons.append("target_dual_but_forward_uses_less_than_two_backbones")
+        if target_needs_parallel_triple:
+            reasons.append("target_parallel_triple_uses_less_than_two_backbones")
+        else:
+            reasons.append("target_dual_but_forward_uses_less_than_two_backbones")
     result["target_structure_match"] = not reasons
     result["target_structure_mismatch_reasons"] = reasons
     return result
@@ -2663,9 +2675,14 @@ def _target_structure_penalty(reasons: List[str]) -> float:
     penalty = 0.0
     if "graph_parse_failed" in reason_set:
         penalty += TARGET_STRUCTURE_PARSE_PENALTY
-    if "target_fractal_but_block_dead" in reason_set:
+    if "declared_pattern_mismatch" in reason_set:
+        penalty += TARGET_STRUCTURE_PATTERN_MISMATCH_PENALTY
+    if "target_fractal_but_block_dead" in reason_set or "target_parallel_triple_but_block_dead" in reason_set:
         penalty += TARGET_STRUCTURE_DEAD_BLOCK_PENALTY
-    if "target_dual_but_forward_uses_less_than_two_backbones" in reason_set:
+    if (
+        "target_dual_but_forward_uses_less_than_two_backbones" in reason_set
+        or "target_parallel_triple_uses_less_than_two_backbones" in reason_set
+    ):
         penalty += TARGET_STRUCTURE_DUAL_BACKBONE_PENALTY
     if any(
         reason in reason_set

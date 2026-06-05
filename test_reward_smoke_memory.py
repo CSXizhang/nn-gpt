@@ -133,6 +133,9 @@ def forward(self, x, is_probing=False):
             "TARGET_STRUCTURE_PARSE_PENALTY": _constant_float(
                 "ab/gpt/TuneRL.py", "TARGET_STRUCTURE_PARSE_PENALTY"
             ),
+            "TARGET_STRUCTURE_PATTERN_MISMATCH_PENALTY": _constant_float(
+                "ab/gpt/TuneRL.py", "TARGET_STRUCTURE_PATTERN_MISMATCH_PENALTY"
+            ),
             "TARGET_STRUCTURE_PENALTY_FLOOR": _constant_float(
                 "ab/gpt/TuneRL.py", "TARGET_STRUCTURE_PENALTY_FLOOR"
             ),
@@ -207,6 +210,62 @@ def forward(self, x, is_probing=False):
             ["target_dual_but_forward_uses_less_than_two_backbones"],
         )
         self.assertAlmostEqual(apply_adjustment(single_backbone_result, 0.0, 0.0)[2], -0.60)
+
+        dead_parallel_triple = SimpleNamespace(
+            pattern_name="Parallel_Triple",
+            suggested_pattern_name="DualBackbone_Fuse_123abc",
+            parse_ok=True,
+            family_id="DualBackboneFuse_Shallow",
+            descriptor_key="d4|m1|bb2|fr0|st0|pr0|fu1|fan2",
+            backbone_calls=2,
+            family_hash="f" * 40,
+            cnn_signature="c" * 40,
+            graph_expr=(
+                "classifier(Cat(PoolFlat(Backbone[efficientnet_b1](Input)), "
+                "PoolFlat(Backbone[resnet50](Input))))"
+            ),
+        )
+        dead_parallel_result = detect_target_structure(
+            prompt_target_pattern="Parallel_Triple",
+            graph_info=dead_parallel_triple,
+            block_contributes_to_forward=False,
+            block_signature="deadblock",
+        )
+        self.assertTrue(dead_parallel_result["declared_pattern_matches_prompt"])
+        self.assertFalse(dead_parallel_result["target_structure_match"])
+        self.assertEqual(
+            dead_parallel_result["target_structure_mismatch_reasons"],
+            ["target_parallel_triple_but_block_dead"],
+        )
+        self.assertAlmostEqual(apply_adjustment(dead_parallel_result, 0.12, 0.05)[2], -0.80)
+
+        undeclared_parallel_triple = SimpleNamespace(
+            pattern_name="",
+            suggested_pattern_name="DualBackbone_Fractal_Fuse_456def",
+            parse_ok=True,
+            family_id="Fractal_DualBackbone_Fuse",
+            descriptor_key="d7|m2|bb2|fr1|st0|pr0|fu2|fan3",
+            backbone_calls=2,
+            family_hash="a" * 40,
+            cnn_signature="b" * 40,
+            graph_expr=(
+                "classifier(Cat(PoolFlat(Sequential[Block](Input)), "
+                "PoolFlat(Backbone[resnet50](Input)), PoolFlat(Backbone[efficientnet_b1](Input))))"
+            ),
+        )
+        undeclared_parallel_result = detect_target_structure(
+            prompt_target_pattern="Parallel_Triple",
+            graph_info=undeclared_parallel_triple,
+            block_contributes_to_forward=True,
+            block_signature="liveblock123456789",
+        )
+        self.assertFalse(undeclared_parallel_result["declared_pattern_matches_prompt"])
+        self.assertFalse(undeclared_parallel_result["target_structure_match"])
+        self.assertEqual(
+            undeclared_parallel_result["target_structure_mismatch_reasons"],
+            ["declared_pattern_mismatch"],
+        )
+        self.assertAlmostEqual(apply_adjustment(undeclared_parallel_result, 0.12, 0.05)[2], -1.00)
 
         live_fractal_branch = SimpleNamespace(
             pattern_name="A_to_Fractal_plus_B",
