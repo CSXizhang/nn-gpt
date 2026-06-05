@@ -210,6 +210,7 @@ def _load_generation_model(args: argparse.Namespace):
 def command_gen_only(args: argparse.Namespace) -> None:
     import torch
     import ab.gpt.TuneRL as TuneRL
+    import ab.gpt.TuneRLSft as TuneRLSft
 
     _configure_sft_env(args)
     _configure_eval_runtime()
@@ -232,7 +233,7 @@ def command_gen_only(args: argparse.Namespace) -> None:
         "top_k": int(args.top_k),
         "max_new_tokens": int(args.max_new_tokens),
         "do_sample": True,
-        "stop_strings": ["</forward>"],
+        **TuneRLSft._resolve_sft_generation_kwargs(tokenizer),
     }
     run_config = {
         "phase": "gen_only",
@@ -269,18 +270,7 @@ def command_gen_only(args: argparse.Namespace) -> None:
             inputs = {key: value.to(device) for key, value in inputs.items()}
             from transformers import GenerationConfig
 
-            eos_id = getattr(tokenizer, "eos_token_id", None)
-            pad_id = getattr(tokenizer, "pad_token_id", None)
-            gen_cfg = GenerationConfig(
-                max_new_tokens=int(args.max_new_tokens),
-                do_sample=True,
-                temperature=float(args.temperature),
-                top_p=float(args.top_p),
-                top_k=int(args.top_k),
-                stop_strings=["</forward>"],
-                eos_token_id=eos_id,
-                pad_token_id=pad_id if pad_id is not None and pad_id != eos_id else None,
-            )
+            gen_cfg = GenerationConfig(**generation_config)
             with torch.no_grad():
                 generated = model.generate(
                     **inputs,
