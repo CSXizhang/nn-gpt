@@ -56,6 +56,17 @@ def _env_flag(name: str) -> bool:
     return os.getenv(name, "").strip().lower() in {"1", "true", "yes", "on"}
 
 
+def _safe_tokenizer_max_length(tokenizer, fallback: int = 4096) -> int:
+    tokenizer_max_len = getattr(tokenizer, "model_max_length", None)
+    try:
+        tokenizer_max_len = int(tokenizer_max_len)
+    except (TypeError, ValueError, OverflowError):
+        tokenizer_max_len = int(fallback)
+    if tokenizer_max_len <= 0 or tokenizer_max_len > 10**8:
+        tokenizer_max_len = int(fallback)
+    return tokenizer_max_len
+
+
 def _strip_reasoning_output(text: str) -> str:
     if not isinstance(text, str) or not text:
         return text
@@ -145,9 +156,7 @@ class ChatBot:
             self.model.eval()
 
         formatted_prompts = [self._prepare_pipeline_input(p) for p in prompts]
-        tokenizer_max_len = getattr(self.tokenizer, "model_max_length", None)
-        if tokenizer_max_len is None or tokenizer_max_len > 10**8:
-            tokenizer_max_len = 4096
+        tokenizer_max_len = _safe_tokenizer_max_length(self.tokenizer)
         token_budget = max_new_tokens or 4096
         max_input_len = max(1, tokenizer_max_len - token_budget)
 
@@ -299,12 +308,16 @@ class ChatBot:
                 formatted_prompt = "\n".join([f"{msg['role'].capitalize()}: {msg['content']}" for msg in messages])
                 formatted_prompt = f"{formatted_prompt}\nAssistant:"
             
+            tokenizer_max_len = _safe_tokenizer_max_length(self.tokenizer)
+            token_budget = max_new_tokens or 4096
+            max_input_len = max(1, tokenizer_max_len - token_budget)
+
             # Tokenize input
             inputs = self.tokenizer(
                 formatted_prompt,
                 return_tensors="pt",
                 truncation=True,
-                max_length=max(self.tokenizer.model_max_length - (max_new_tokens or 4096), 128),
+                max_length=max(max_input_len, 128),
                 add_special_tokens=False,  # chat template already includes BOS; prevents EOS being appended
             )
 
@@ -315,14 +328,15 @@ class ChatBot:
                 vocab_size = self.tokenizer.vocab_size
                 max_token_id = input_ids.max().item()
 
-            if max_token_id >= vocab_size:
-                print(f"[WARN] Invalid token IDs detected: max_id={max_token_id}, vocab_size={vocab_size}")
-                print(f"[WARN] Clamping to valid range [0, {vocab_size-1}]")
+                if max_token_id >= vocab_size:
+                    print(f"[WARN] Invalid token IDs detected: max_id={max_token_id}, vocab_size={vocab_size}")
+                    print(f"[WARN] Clamping to valid range [0, {vocab_size-1}]")
 
-            clamp_value = self.tokenizer.eos_token_id if self.tokenizer.eos_token_id is not None else vocab_size - 1
-            input_ids = torch.clamp(input_ids, max=clamp_value)
-            inputs['input_ids'] = input_ids
-            print(f"[WARN] After clamping: max_id={input_ids.max().item()}")
+                clamp_value = self.tokenizer.eos_token_id if self.tokenizer.eos_token_id is not None else vocab_size - 1
+                input_ids = torch.clamp(input_ids, max=clamp_value)
+                inputs['input_ids'] = input_ids
+                if max_token_id >= vocab_size:
+                    print(f"[WARN] After clamping: max_id={input_ids.max().item()}")
 
             
             # Move to appropriate device
