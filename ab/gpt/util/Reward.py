@@ -4923,7 +4923,11 @@ def _persistent_eval_worker_loop(conn, *, worker_device: str, assigned_gpu: Opti
                     backbone_model_names=_extract_backbone_model_names_from_code(request.get("code", "")),
                 )
                 result["components"]["reward"] = -1.0
-            worker_restart_requested = _is_fatal_cuda_worker_error(result.get("error"))
+            worker_error = result.get("error")
+            worker_restart_requested = (
+                _is_cuda_oom_error_message(worker_error)
+                or _is_fatal_cuda_worker_error(worker_error)
+            )
             result["assigned_gpu"] = assigned_gpu
             result["worker_device"] = worker_device
             result["worker_slot"] = request.get("worker_slot", None)

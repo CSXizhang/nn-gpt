@@ -1118,7 +1118,10 @@ def _persistent_nneval_worker_entry(conn, assigned_gpu: Optional[int], assigned_
                 }
             finally:
                 _clear_cuda_state()
-            result["worker_restart_requested"] = _is_fatal_cuda_worker_error(result.get("error"))
+            result["worker_restart_requested"] = (
+                bool(result.get("is_oom", False))
+                or _is_fatal_cuda_worker_error(result.get("error"))
+            )
             result["assigned_gpu"] = assigned_gpu
             result["worker_device"] = worker_device
             result["worker_slot"] = request.get("worker_slot")
