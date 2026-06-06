@@ -87,6 +87,7 @@ class RewardSmokeMemoryTest(unittest.TestCase):
 
         self.assertIn('_safe_bool_env("NNGPT_REWARD_ENABLE_DYNAMIC_SCALING", False)', body)
         self.assertIn('per_gpu_worker_counts[int(reward_gpu_index)] = 1', body)
+        self.assertIn("gpu_priority_indices=list(reward_gpu_indices)", body)
         self.assertIn('configured_reward_gpu_tokens = _configured_cuda_device_tokens("NNGPT_REWARD_GPU_INDICES")', runtime_body)
 
     def test_reward_worker_pool_signature_tracks_worker_counts(self):

@@ -627,7 +627,6 @@ def get_reward_worker_plan() -> Dict[str, Any]:
                 reason="configured_reward_gpu_unavailable",
                 gpu_memory_snapshots=gpu_memory_snapshots,
             )
-        gpu_priority_indices = _ordered_reward_gpu_indices(reward_gpu_indices, gpu_memory_snapshots)
         per_gpu_worker_counts = [0] * visible_gpu_count
         for reward_gpu_index in reward_gpu_indices:
             per_gpu_worker_counts[int(reward_gpu_index)] = workers_per_gpu
@@ -640,7 +639,7 @@ def get_reward_worker_plan() -> Dict[str, Any]:
             mode=mode,
             per_gpu_worker_counts=per_gpu_worker_counts,
             dynamic_scaling=False,
-            gpu_priority_indices=gpu_priority_indices,
+            gpu_priority_indices=list(reward_gpu_indices),
             gpu_memory_snapshots=gpu_memory_snapshots,
             reason="fixed_workers_override",
         )
@@ -658,7 +657,6 @@ def get_reward_worker_plan() -> Dict[str, Any]:
                 reason="configured_reward_gpu_unavailable",
                 gpu_memory_snapshots=gpu_memory_snapshots,
             )
-        gpu_priority_indices = _ordered_reward_gpu_indices(reward_gpu_indices, gpu_memory_snapshots)
         per_gpu_worker_counts = [0] * visible_gpu_count
         for reward_gpu_index in reward_gpu_indices:
             per_gpu_worker_counts[int(reward_gpu_index)] = 1
@@ -671,7 +669,7 @@ def get_reward_worker_plan() -> Dict[str, Any]:
             mode=mode,
             per_gpu_worker_counts=per_gpu_worker_counts,
             dynamic_scaling=False,
-            gpu_priority_indices=gpu_priority_indices,
+            gpu_priority_indices=list(reward_gpu_indices),
             gpu_memory_snapshots=gpu_memory_snapshots,
             reason="dynamic_scaling_disabled",
         )
