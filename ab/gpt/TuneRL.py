@@ -5,6 +5,7 @@ import hashlib
 import inspect
 import math
 import os
+import random
 import re
 import signal
 import subprocess
@@ -12,6 +13,7 @@ import sys
 import threading
 import time
 import warnings
+from typing import Tuple, Any, List, Dict, Optional, Set
 
 
 _RL_FILTERED_LOG_PATTERNS = (
@@ -65,6 +67,10 @@ def _install_rl_runtime_noise_filters() -> None:
 _install_rl_runtime_noise_filters()
 
 import torch
+try:
+    import numpy as np
+except Exception:
+    np = None
 from peft import prepare_model_for_kbit_training
 from trl.trainer.grpo_trainer import GRPOTrainer
 from trl.trainer.grpo_config import GRPOConfig
@@ -103,7 +109,6 @@ from dataclasses import dataclass, asdict
 
 from ab.gpt.util.simple_logger import SimpleCodeLogger
 import ab.gpt.util.training_runtime as TrainingRuntime
-from typing import Tuple, Any, List, Dict, Optional, Set
 from collections import Counter, deque
 
 # Open-architecture archives are keyed by canonical graph structure, not prompt labels.
@@ -770,6 +775,29 @@ def env_float(name: str, default: float) -> float:
     return float(value)
 
 
+def resolve_rl_seed() -> int:
+    return env_int("NNGPT_RL_SEED", 42)
+
+
+def apply_rl_seed(seed: Optional[int] = None, *, log_prefix: str = "[RL]") -> int:
+    resolved_seed = int(resolve_rl_seed() if seed is None else seed)
+    os.environ.setdefault("PYTHONHASHSEED", str(resolved_seed))
+    random.seed(resolved_seed)
+    if np is not None:
+        np.random.seed(resolved_seed)
+    torch.manual_seed(resolved_seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(resolved_seed)
+    try:
+        from transformers import set_seed
+
+        set_seed(resolved_seed)
+    except Exception as exc:
+        print(f"{log_prefix} transformers.set_seed unavailable: {type(exc).__name__}: {exc}")
+    print(f"{log_prefix} Seed: {resolved_seed}")
+    return resolved_seed
+
+
 REWARD_VARIANT_ENV = "NNGPT_RL_REWARD_VARIANT"
 REWARD_VARIANT_FULL = "full"
 REWARD_VARIANT_NO_STRUCTURAL_NOVELTY = "no_structural_novelty"
@@ -955,6 +983,11 @@ def _build_rl_grpo_config(
     }
     if "gradient_checkpointing_kwargs" in config_signature.parameters:
         config_kwargs["gradient_checkpointing_kwargs"] = {"use_reentrant": False}
+    seed = resolve_rl_seed()
+    if "seed" in config_signature.parameters:
+        config_kwargs["seed"] = seed
+    if "data_seed" in config_signature.parameters:
+        config_kwargs["data_seed"] = seed
     explicit_kl_coef = env_float("NNGPT_RL_KL_COEF", RL_STAGE_KL_COEF)
     if "beta" in config_signature.parameters:
         config_kwargs["beta"] = explicit_kl_coef
@@ -5963,13 +5996,14 @@ def load_rl_dataset(tokenizer):
             })
 
     rl_dataset = Dataset.from_list(prompts)
-    return rl_dataset.shuffle(seed=42)
+    return rl_dataset.shuffle(seed=resolve_rl_seed())
 
 def main():
     global active_rl_model
     global active_rl_tokenizer
     global current_stage_name
 
+    apply_rl_seed()
     torch.cuda.empty_cache()
     resume_checkpoint_dir = _resolve_resume_checkpoint_dir()
     resume_manifest = None

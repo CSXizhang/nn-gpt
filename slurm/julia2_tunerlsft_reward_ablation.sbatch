@@ -38,11 +38,12 @@ mkdir -p /home/s471802/nn-gpt/slurm_logs
 source /home/s471802/.venv/bin/activate
 cd /home/s471802/nn-gpt
 
-run_root="/home/s471802/nn-gpt/parallel_runs/${NNGPT_ABLATION_RUN_ID}"
+run_root="${NNGPT_RUN_ROOT:-/data/42-julia-hpc-ai-cv-students/s471802/nn-gpt-runs/parallel_runs/${NNGPT_ABLATION_RUN_ID}}"
 mkdir -p "${run_root}/slurm"
 
 export PYTHONUNBUFFERED=1
 export TOKENIZERS_PARALLELISM=false
+export PYTHONHASHSEED="${NNGPT_RL_SEED:-42}"
 export MALLOC_ARENA_MAX="${MALLOC_ARENA_MAX:-2}"
 export MALLOC_TRIM_THRESHOLD_="${MALLOC_TRIM_THRESHOLD_:-65536}"
 export PYTHONPATH="/home/s471802/nn-gpt:/home/s471802/nn-dataset:${PYTHONPATH:-}"
@@ -70,17 +71,20 @@ for dir in "${NNGPT_SFT_LOG_DIR}" "${NNGPT_SFT_MODEL_OUT}" "${NNGPT_SFT_TRAINER_
 done
 
 export NNGPT_RL_RESUME_STAGE="${NNGPT_RL_RESUME_STAGE:-stage2_formal_explore}"
-export NNGPT_RL_FORMAL_REWARD_EPOCHS="${NNGPT_RL_FORMAL_REWARD_EPOCHS:-10}"
+export NNGPT_RL_FORMAL_REWARD_EPOCHS="${NNGPT_RL_FORMAL_REWARD_EPOCHS:-1}"
+export NNGPT_RL_FORMAL_DATASET="${NNGPT_RL_FORMAL_DATASET:-cifar-10}"
+export NNGPT_RL_SEED="${NNGPT_RL_SEED:-42}"
 export NNGPT_SFT_LOAD_INITIAL_ADAPTER="${NNGPT_SFT_LOAD_INITIAL_ADAPTER:-1}"
 export NNGPT_SFT_INITIAL_ADAPTER_MODE="${NNGPT_SFT_INITIAL_ADAPTER_MODE:-trainable}"
-export NNGPT_SFT_RL_NN_PREFIXES="${NNGPT_SFT_RL_NN_PREFIXES:-rl-bb-struct1}"
+export NNGPT_SFT_RL_NN_PREFIXES="${NNGPT_SFT_RL_NN_PREFIXES:-rl-bb-struct1,rl-bb-struct1-v2}"
 export NNGPT_SFT_RL_PROMPT_MODE="${NNGPT_SFT_RL_PROMPT_MODE:-sft_aligned}"
 
 export NNGPT_SFT_BASE_MODEL_ID="${NNGPT_SFT_BASE_MODEL_ID:-/home/s471802/nn-gpt/out/llm/deepseek-ai/deepseek-coder-6.7b-instruct}"
 export NNGPT_SFT_TOKENIZER_ID="${NNGPT_SFT_TOKENIZER_ID:-}"
-export NNGPT_SFT_NUM_GENERATIONS="${NNGPT_SFT_NUM_GENERATIONS:-4}"
-export NNGPT_SFT_MAX_STEPS="${NNGPT_SFT_MAX_STEPS:-75}"
-export NNGPT_SFT_MAX_PROMPT_LENGTH="${NNGPT_SFT_MAX_PROMPT_LENGTH:-3500}"
+export NNGPT_SFT_NUM_GENERATIONS="${NNGPT_SFT_NUM_GENERATIONS:-8}"
+export NNGPT_SFT_MAX_STEPS="${NNGPT_SFT_MAX_STEPS:-125}"
+export NNGPT_SFT_GENERATION_BATCH_SIZE="${NNGPT_SFT_GENERATION_BATCH_SIZE:-8}"
+export NNGPT_SFT_MAX_PROMPT_LENGTH="${NNGPT_SFT_MAX_PROMPT_LENGTH:-4096}"
 export NNGPT_SFT_MAX_COMPLETION_LENGTH="${NNGPT_SFT_MAX_COMPLETION_LENGTH:-1536}"
 export NNGPT_SFT_DATASET_LIMIT="${NNGPT_SFT_DATASET_LIMIT:-500}"
 export NNGPT_SFT_NUM_EPOCHS="${NNGPT_SFT_NUM_EPOCHS:-5}"
@@ -94,8 +98,13 @@ echo "Log dir: ${NNGPT_SFT_LOG_DIR}"
 echo "Init adapter: ${NNGPT_SFT_INIT_ADAPTER}"
 echo "NN prefixes: ${NNGPT_SFT_RL_NN_PREFIXES}"
 echo "Formal reward epochs: ${NNGPT_RL_FORMAL_REWARD_EPOCHS}"
+echo "Formal dataset: ${NNGPT_RL_FORMAL_DATASET}"
+echo "RL seed: ${NNGPT_RL_SEED}"
+echo "KL coef: ${NNGPT_RL_KL_COEF:-}"
+echo "Learning rate: ${NNGPT_RL_LR:-}"
 echo "Num generations: ${NNGPT_SFT_NUM_GENERATIONS}"
 echo "Max steps: ${NNGPT_SFT_MAX_STEPS}"
+echo "Generation batch size: ${NNGPT_SFT_GENERATION_BATCH_SIZE:-}"
 echo "Max completion length: ${NNGPT_SFT_MAX_COMPLETION_LENGTH}"
 echo "Generation kwargs JSON: ${NNGPT_SFT_GENERATION_KWARGS_JSON:-}"
 echo "Master addr: ${MASTER_ADDR}"
