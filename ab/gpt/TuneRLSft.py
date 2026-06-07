@@ -581,6 +581,10 @@ def _env_optional_json(name: str) -> Any | None:
     return json.loads(raw)
 
 
+def resolve_sft_rl_seed() -> int:
+    return TuneRL.resolve_rl_seed()
+
+
 def _set_optional_grpo_config(
     config_kwargs: Dict[str, Any],
     signature_parameters: Dict[str, inspect.Parameter],
@@ -812,6 +816,7 @@ def _write_sft_run_config(
         "NNGPT_RL_FORMAL_DATASET",
         "NNGPT_RL_RESUME_STAGE",
         "NNGPT_RL_STAGE1_ONLY",
+        "NNGPT_RL_SEED",
         "NNGPT_RL_KL_COEF",
         "NNGPT_RL_FORMAL_EVAL_LIMIT_SECONDS",
         "NNGPT_RL_FORMAL_EPOCH_LIMIT_MINUTES",
@@ -877,6 +882,7 @@ def _write_sft_run_config(
             "adapter_env": _selected_env(adapter_env_names),
         },
         "sampling": {
+            "seed": resolve_sft_rl_seed(),
             "temperature": resolve_sft_temperature(),
             "top_p": resolve_sft_top_p(),
             "top_k": resolve_sft_top_k(),
@@ -1798,7 +1804,7 @@ def load_rl_dataset_sft(tokenizer) -> TuneRL.Dataset:
     if not rows:
         raise RuntimeError(f"No SFT RL prompt rows built for prefixes={nn_prefixes} prompt_mode={prompt_mode}")
 
-    random.Random(42).shuffle(rows)
+    random.Random(resolve_sft_rl_seed()).shuffle(rows)
     if len(rows) > runtime_settings["dataset_limit"]:
         rows = rows[:runtime_settings["dataset_limit"]]
     return DynamicSFTPromptDataset(
@@ -1870,6 +1876,11 @@ def _build_sft_grpo_config(
     }
     if "gradient_checkpointing_kwargs" in signature_parameters:
         config_kwargs["gradient_checkpointing_kwargs"] = {"use_reentrant": False}
+    seed = resolve_sft_rl_seed()
+    if "seed" in signature_parameters:
+        config_kwargs["seed"] = seed
+    if "data_seed" in signature_parameters:
+        config_kwargs["data_seed"] = seed
     if "save_strategy" in signature_parameters:
         config_kwargs["save_strategy"] = "steps"
     if "save_steps" in signature_parameters:
@@ -2373,6 +2384,7 @@ def bootstrap_sft_runtime() -> None:
 def main() -> None:
     import torch
 
+    TuneRL.apply_rl_seed(log_prefix="[SFT RL]")
     resume_spec = _resolve_sft_resume_spec()
     gpu_role_plan: Dict[str, Any] = {
         "requested_mode": "auto",
@@ -2423,6 +2435,7 @@ def main() -> None:
     print(f"[SFT RL] Temperature: {resolve_sft_temperature()}")
     print(f"[SFT RL] Top-p: {resolve_sft_top_p()}")
     print(f"[SFT RL] Top-k: {resolve_sft_top_k()}")
+    print(f"[SFT RL] Seed: {resolve_sft_rl_seed()}")
     print(f"[SFT RL] KL coef: {TuneRL.env_float('NNGPT_RL_KL_COEF', SFT_KL_COEF):.6f}")
     formal_dataset = resolve_sft_formal_dataset()
     formal_out_shape = resolve_sft_formal_out_shape(formal_dataset)
