@@ -23,6 +23,7 @@ Options:
                            optional NNGPT_SFT_GENERATION_KWARGS_JSON override
   --formal-reward-epochs E
                            default: 10
+  --seed N                 default: 42
   --no-run-archive        do not append metadata to run_archive_index.md
 USAGE
 }
@@ -41,6 +42,7 @@ num_generations="8"
 max_completion_length="1536"
 generation_kwargs_json=""
 formal_reward_epochs="10"
+seed="42"
 write_archive="1"
 
 while [ "$#" -gt 0 ]; do
@@ -59,6 +61,7 @@ while [ "$#" -gt 0 ]; do
     --max-completion-length) max_completion_length="$2"; shift 2 ;;
     --generation-kwargs-json) generation_kwargs_json="$2"; shift 2 ;;
     --formal-reward-epochs) formal_reward_epochs="$2"; shift 2 ;;
+    --seed) seed="$2"; shift 2 ;;
     --no-run-archive) write_archive="0"; shift ;;
     -h|--help) usage; exit 0 ;;
     *) echo "Unknown argument: $1" >&2; usage >&2; exit 2 ;;
@@ -110,6 +113,7 @@ for variant in "${variants[@]}"; do
   export_vars+=",NNGPT_RL_REWARD_VARIANT=${variant}"
   export_vars+=",NNGPT_SFT_INIT_ADAPTER=${init_adapter}"
   export_vars+=",NNGPT_RL_FORMAL_REWARD_EPOCHS=${formal_reward_epochs}"
+  export_vars+=",NNGPT_RL_SEED=${seed}"
   export_vars+=",NNGPT_SFT_NUM_GENERATIONS=${num_generations}"
   export_vars+=",NNGPT_SFT_MAX_COMPLETION_LENGTH=${max_completion_length}"
   if [ -n "${generation_kwargs_json}" ]; then
@@ -138,6 +142,7 @@ for variant in "${variants[@]}"; do
       echo "- mem/cpus: ${mem}, ${cpus}"
       echo "- commit: ${commit_hash} (${commit_subject})"
       echo "- reward variant: ${variant}"
+      echo "- seed: ${seed}"
       echo "- init adapter: ${init_adapter}"
       echo "- prompt/prefix: sft_aligned, rl-bb-struct1"
       echo "- formal reward epochs: ${formal_reward_epochs}"
