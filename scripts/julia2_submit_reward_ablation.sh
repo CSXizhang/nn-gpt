@@ -7,15 +7,16 @@ Submit four-pattern reward ablation runs on Julia2.
 
 Options:
   --run-prefix ID          default: YYYYmmdd_HHMM_reward_ablation_821f
-  --variants CSV          default: full,no_structural_novelty,strong_repeat_penalty
+  --variants CSV          default: full_reward,no_diversity_bonus,no_repeat_penalty
   --init-adapter PATH     default: /home/s471802/nn-gpt/out/nngpt/llm/epoch/A3/deepseek-ai/deepseek-coder-6.7b-instruct
+  --run-root-base PATH     default: /data/42-julia-hpc-ai-cv-students/s471802/nn-gpt-runs/parallel_runs
   --partition PART        default: h100
   --qos QOS               optional
   --gpus N                default: 4
-  --mem MEM               default: 80G
-  --cpus N                default: 16
-  --max-steps N           default: 75
-  --num-generations N     default: 4
+  --mem MEM               default: 160G
+  --cpus N                default: 32
+  --max-steps N           default: 125
+  --num-generations N     default: 8
   --max-completion-length N
                            default: 1536
   --generation-kwargs-json JSON
@@ -27,15 +28,16 @@ USAGE
 }
 
 run_prefix="$(date +%Y%m%d_%H%M)_reward_ablation_821f"
-variants_csv="full,no_structural_novelty,strong_repeat_penalty"
+variants_csv="full_reward,no_diversity_bonus,no_repeat_penalty"
 init_adapter="/home/s471802/nn-gpt/out/nngpt/llm/epoch/A3/deepseek-ai/deepseek-coder-6.7b-instruct"
+run_root_base="/data/42-julia-hpc-ai-cv-students/s471802/nn-gpt-runs/parallel_runs"
 partition="h100"
 qos=""
 gpus="4"
-mem="80G"
-cpus="16"
-max_steps="75"
-num_generations="4"
+mem="160G"
+cpus="32"
+max_steps="125"
+num_generations="8"
 max_completion_length="1536"
 generation_kwargs_json=""
 formal_reward_epochs="10"
@@ -46,6 +48,7 @@ while [ "$#" -gt 0 ]; do
     --run-prefix) run_prefix="$2"; shift 2 ;;
     --variants) variants_csv="$2"; shift 2 ;;
     --init-adapter) init_adapter="$2"; shift 2 ;;
+    --run-root-base) run_root_base="$2"; shift 2 ;;
     --partition) partition="$2"; shift 2 ;;
     --qos) qos="$2"; shift 2 ;;
     --gpus) gpus="$2"; shift 2 ;;
@@ -73,7 +76,7 @@ IFS=',' read -r -a variants <<< "${variants_csv}"
 for variant in "${variants[@]}"; do
   variant="$(echo "${variant}" | xargs)"
   case "${variant}" in
-    full|no_structural_novelty|strong_repeat_penalty) ;;
+    full|full_reward|no_diversity_bonus|no_repeat_penalty|no_structural_novelty|strong_repeat_penalty) ;;
     "")
       continue
       ;;
@@ -84,7 +87,7 @@ for variant in "${variants[@]}"; do
   esac
 
   run_id="${run_prefix}_${variant}"
-  run_root="/home/s471802/nn-gpt/parallel_runs/${run_id}"
+  run_root="${run_root_base%/}/${run_id}"
   mkdir -p "${run_root}/slurm"
 
   sbatch_args=(
@@ -103,6 +106,7 @@ for variant in "${variants[@]}"; do
 
   export_vars="ALL"
   export_vars+=",NNGPT_ABLATION_RUN_ID=${run_id}"
+  export_vars+=",NNGPT_ABLATION_RUN_ROOT_BASE=${run_root_base%/}"
   export_vars+=",NNGPT_RL_REWARD_VARIANT=${variant}"
   export_vars+=",NNGPT_SFT_INIT_ADAPTER=${init_adapter}"
   export_vars+=",NNGPT_RL_FORMAL_REWARD_EPOCHS=${formal_reward_epochs}"
@@ -131,6 +135,7 @@ for variant in "${variants[@]}"; do
       echo "- 状态: submitted"
       echo "- main job: ${job_id}"
       echo "- 分区/GPU: ${partition}, ${gpus} GPU"
+      echo "- mem/cpus: ${mem}, ${cpus}"
       echo "- commit: ${commit_hash} (${commit_subject})"
       echo "- reward variant: ${variant}"
       echo "- init adapter: ${init_adapter}"

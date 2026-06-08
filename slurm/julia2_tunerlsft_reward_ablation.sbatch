@@ -27,7 +27,7 @@ if [ -z "${NNGPT_SFT_INIT_ADAPTER:-}" ]; then
 fi
 
 case "${NNGPT_RL_REWARD_VARIANT}" in
-  full|no_structural_novelty|strong_repeat_penalty) ;;
+  full|full_reward|no_diversity_bonus|no_repeat_penalty|no_structural_novelty|strong_repeat_penalty) ;;
   *)
     echo "Unsupported NNGPT_RL_REWARD_VARIANT=${NNGPT_RL_REWARD_VARIANT}" >&2
     exit 2
@@ -38,7 +38,8 @@ mkdir -p /home/s471802/nn-gpt/slurm_logs
 source /home/s471802/.venv/bin/activate
 cd /home/s471802/nn-gpt
 
-run_root="/home/s471802/nn-gpt/parallel_runs/${NNGPT_ABLATION_RUN_ID}"
+run_root_base="${NNGPT_ABLATION_RUN_ROOT_BASE:-/data/42-julia-hpc-ai-cv-students/s471802/nn-gpt-runs/parallel_runs}"
+run_root="${run_root_base%/}/${NNGPT_ABLATION_RUN_ID}"
 mkdir -p "${run_root}/slurm"
 
 export PYTHONUNBUFFERED=1

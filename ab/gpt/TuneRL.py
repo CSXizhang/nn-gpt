@@ -800,10 +800,16 @@ def apply_rl_seed(seed: Optional[int] = None, *, log_prefix: str = "[RL]") -> in
 
 REWARD_VARIANT_ENV = "NNGPT_RL_REWARD_VARIANT"
 REWARD_VARIANT_FULL = "full"
+REWARD_VARIANT_FULL_REWARD = "full_reward"
+REWARD_VARIANT_NO_DIVERSITY_BONUS = "no_diversity_bonus"
+REWARD_VARIANT_NO_REPEAT_PENALTY = "no_repeat_penalty"
 REWARD_VARIANT_NO_STRUCTURAL_NOVELTY = "no_structural_novelty"
 REWARD_VARIANT_STRONG_REPEAT_PENALTY = "strong_repeat_penalty"
 REWARD_VARIANTS = {
     REWARD_VARIANT_FULL,
+    REWARD_VARIANT_FULL_REWARD,
+    REWARD_VARIANT_NO_DIVERSITY_BONUS,
+    REWARD_VARIANT_NO_REPEAT_PENALTY,
     REWARD_VARIANT_NO_STRUCTURAL_NOVELTY,
     REWARD_VARIANT_STRONG_REPEAT_PENALTY,
 }
@@ -823,6 +829,18 @@ def resolve_reward_variant() -> str:
 
 def _reward_variant_is_no_structural_novelty() -> bool:
     return resolve_reward_variant() == REWARD_VARIANT_NO_STRUCTURAL_NOVELTY
+
+
+def _reward_variant_is_full_reward() -> bool:
+    return resolve_reward_variant() in {REWARD_VARIANT_FULL, REWARD_VARIANT_FULL_REWARD}
+
+
+def _reward_variant_is_no_diversity_bonus() -> bool:
+    return resolve_reward_variant() == REWARD_VARIANT_NO_DIVERSITY_BONUS
+
+
+def _reward_variant_is_no_repeat_penalty() -> bool:
+    return resolve_reward_variant() == REWARD_VARIANT_NO_REPEAT_PENALTY
 
 
 def _reward_variant_is_strong_repeat_penalty() -> bool:
@@ -2824,6 +2842,8 @@ def _stage23_local_competition_reward(
     cell_archive_freq: int,
     batch_same_cell_count: int,
     cell_best_quality_acc: Optional[float],
+    disable_diversity_bonus: bool = False,
+    disable_repeat_penalty: bool = False,
 ) -> float:
     if (
         not target_ok
@@ -2842,13 +2862,13 @@ def _stage23_local_competition_reward(
         and quality_value >= float(cell_best_quality_acc) + STAGE23_CELL_IMPROVEMENT_DELTA
     )
 
-    if cell_is_unique_new:
+    if cell_is_unique_new and not disable_diversity_bonus:
         reward_value += STAGE23_NEW_CELL_BONUS
-    elif cell_improved:
+    elif cell_improved and not disable_diversity_bonus:
         reward_value += STAGE23_CELL_IMPROVEMENT_BONUS
-    elif int(generation_total or 0) < STAGE23_EARLY_LOCAL_COMPETITION_GENERATIONS:
+    elif (not disable_repeat_penalty) and int(generation_total or 0) < STAGE23_EARLY_LOCAL_COMPETITION_GENERATIONS:
         reward_value = min(reward_value, STAGE23_EARLY_CELL_REPEAT_REWARD_CAP)
-    elif quality_value < STAGE23_DUPLICATE_LOW_ACC_THRESHOLD:
+    elif (not disable_repeat_penalty) and quality_value < STAGE23_DUPLICATE_LOW_ACC_THRESHOLD:
         reward_value = min(reward_value, STAGE23_DUPLICATE_LOW_ACC_REWARD_CAP)
 
     if quality_value >= STAGE23_HIGH_ACC_ELITE_THRESHOLD:
@@ -3944,6 +3964,8 @@ def base_discovery_reward_fn(
     repeated_graph_without_refresh = False
     strong_repeat_reasons: List[str] = []
     reward_variant_adjustment: Dict[str, Any] = {}
+    no_diversity_bonus_variant = reward_variant == REWARD_VARIANT_NO_DIVERSITY_BONUS
+    no_repeat_penalty_variant = reward_variant == REWARD_VARIANT_NO_REPEAT_PENALTY
     executable_candidate = _is_executable_candidate(res, graph_info)
     formal_success_candidate = _is_trainable_candidate(res, graph_info)
     has_formal_epoch = _has_completed_formal_epoch(res)
@@ -3989,7 +4011,8 @@ def base_discovery_reward_fn(
             and not discovery_candidate
         ):
             dominant_family_repeat = True
-            r_repeat_family = REPEAT_FAMILY_PENALTY
+            if not no_repeat_penalty_variant:
+                r_repeat_family = REPEAT_FAMILY_PENALTY
         if graph_info.is_plain_parallel_triple or plain_dual_backbone_concat:
             plain_parallel_repeat = True
             if stage_name == STAGE1_STRUCTURE_EXPLORE:
@@ -4022,7 +4045,7 @@ def base_discovery_reward_fn(
                 STAGE1_STRUCTURE_ARCHIVE_SCALE
                 * float(stage1_validity_scale)
             )
-            if batch_same_descriptor_count == 1:
+            if batch_same_descriptor_count == 1 and not no_diversity_bonus_variant:
                 r_structure_group += (
                     STAGE1_DESCRIPTOR_BATCH_UNIQUE_BONUS
                     * novelty_scale
@@ -4034,21 +4057,24 @@ def base_discovery_reward_fn(
                     STAGE1_DESCRIPTOR_BATCH_REPEAT_MAX_PENALTY,
                     STAGE1_DESCRIPTOR_BATCH_REPEAT_STEP_PENALTY * float(batch_same_descriptor_count - 2),
                 )
-                r_no_progress_penalty += descriptor_batch_repeat_penalty
+                if not no_repeat_penalty_variant:
+                    r_no_progress_penalty += descriptor_batch_repeat_penalty
                 if batch_same_graph_count > 2:
                     graph_batch_repeat_penalty = max(
                         STAGE1_GRAPH_BATCH_REPEAT_MAX_PENALTY,
                         STAGE1_GRAPH_BATCH_REPEAT_STEP_PENALTY * float(batch_same_graph_count - 2),
                     )
-                    r_no_progress_penalty += graph_batch_repeat_penalty
-            if archive_snapshot_descriptor_freq <= 0:
+                    if not no_repeat_penalty_variant:
+                        r_no_progress_penalty += graph_batch_repeat_penalty
+            if archive_snapshot_descriptor_freq <= 0 and not no_diversity_bonus_variant:
                 r_structure_archive += STAGE1_DESCRIPTOR_ARCHIVE_NOVEL_BONUS * novelty_scale
             elif archive_snapshot_descriptor_freq > 3:
                 descriptor_archive_repeat_penalty = max(
                     STAGE1_DESCRIPTOR_ARCHIVE_REPEAT_MAX_PENALTY,
                     STAGE1_DESCRIPTOR_ARCHIVE_REPEAT_STEP_PENALTY * float(archive_snapshot_descriptor_freq - 3),
                 )
-                r_no_progress_penalty += descriptor_archive_repeat_penalty
+                if not no_repeat_penalty_variant:
+                    r_no_progress_penalty += descriptor_archive_repeat_penalty
             if discovery_candidate and goal_alignment_scale >= STAGE1_DISCOVERY_MIN_GOAL_HIT_RATE:
                 r_goal_best = (
                     STAGE1_DISCOVERY_FAMILY_BONUS
@@ -4073,13 +4099,15 @@ def base_discovery_reward_fn(
                     STAGE1_ARCHIVE_REPEAT_MAX_PENALTY,
                     STAGE1_ARCHIVE_REPEAT_STEP_PENALTY * float(archive_snapshot_family_freq),
                 )
-                r_no_progress_penalty += archive_repeat_penalty
+                if not no_repeat_penalty_variant:
+                    r_no_progress_penalty += archive_repeat_penalty
             if batch_same_family_count >= 3:
                 batch_repeat_penalty = max(
                     STAGE1_BATCH_REPEAT_MAX_PENALTY,
                     STAGE1_BATCH_REPEAT_STEP_PENALTY * float(batch_same_family_count - 2),
                 )
-                r_no_progress_penalty += batch_repeat_penalty
+                if not no_repeat_penalty_variant:
+                    r_no_progress_penalty += batch_repeat_penalty
             r_goal_match = STAGE1_GOAL_MATCH_SCALE * goal_tag_hit_rate * novelty_scale
             r_repeat_family = _clip(r_repeat_family, STAGE1_DOMINANT_FAMILY_PENALTY, 0.0)
             r_plain_fuse_penalty = _clip(r_plain_fuse_penalty, STAGE1_PLAIN_PARALLEL_PENALTY, 0.0)
@@ -4109,7 +4137,7 @@ def base_discovery_reward_fn(
             if (
                 (not discovery_candidate and archive_snapshot_family_freq > 5)
                 or shallow_pattern_repeat
-                or dominant_family_repeat
+                or (dominant_family_repeat and not no_repeat_penalty_variant)
                 or minimal_init_template
             ):
                 reward_target_value = min(float(reward_target_value), 0.26)
@@ -4122,7 +4150,7 @@ def base_discovery_reward_fn(
                 and not discovery_candidate
                 and (archive_snapshot_block_freq > 0 or batch_same_block_count >= 3)
             )
-            if stage1_repeated_block:
+            if stage1_repeated_block and not no_repeat_penalty_variant:
                 reward_target_value = min(float(reward_target_value), STAGE1_REPEATED_BLOCK_REWARD_CAP)
                 block_reward_cap_applied = True
         r_history_context = _history_context_reward(
@@ -4133,7 +4161,7 @@ def base_discovery_reward_fn(
             discovery_candidate=discovery_candidate,
             novel_vs_trainset_family=novel_vs_trainset_family,
             novel_vs_trainset_graph=novel_vs_trainset_graph,
-            dominant_family_repeat=dominant_family_repeat,
+            dominant_family_repeat=dominant_family_repeat and not no_repeat_penalty_variant,
             dominant_descriptor_repeat=False,
             shallow_one_shot=shallow_one_shot,
             plain_parallel_repeat=plain_parallel_repeat,
@@ -4297,25 +4325,27 @@ def base_discovery_reward_fn(
             )
         descriptor_progress_refresh = formal_progress_refresh
         if executable_candidate and graph_info.parse_ok and graph_info.descriptor_key:
-            if quality_diversity_eligible and batch_same_descriptor_count == 1:
+            if quality_diversity_eligible and batch_same_descriptor_count == 1 and not no_diversity_bonus_variant:
                 r_descriptor_diversity += STAGE23_DESCRIPTOR_BATCH_UNIQUE_BONUS
             elif batch_same_descriptor_count > 1:
-                r_descriptor_diversity += max(
-                    STAGE23_DESCRIPTOR_BATCH_REPEAT_MAX_PENALTY,
-                    STAGE23_DESCRIPTOR_BATCH_REPEAT_STEP_PENALTY * float(batch_same_descriptor_count - 1),
-                )
+                if not no_repeat_penalty_variant:
+                    r_descriptor_diversity += max(
+                        STAGE23_DESCRIPTOR_BATCH_REPEAT_MAX_PENALTY,
+                        STAGE23_DESCRIPTOR_BATCH_REPEAT_STEP_PENALTY * float(batch_same_descriptor_count - 1),
+                    )
 
-            if quality_diversity_eligible and archive_snapshot_descriptor_freq <= 0:
+            if quality_diversity_eligible and archive_snapshot_descriptor_freq <= 0 and not no_diversity_bonus_variant:
                 r_descriptor_diversity += STAGE23_DESCRIPTOR_ARCHIVE_NOVEL_BONUS
             elif archive_snapshot_descriptor_freq > 1:
-                r_descriptor_diversity += max(
-                    STAGE23_DESCRIPTOR_ARCHIVE_REPEAT_MAX_PENALTY,
-                    STAGE23_DESCRIPTOR_ARCHIVE_REPEAT_STEP_PENALTY * float(archive_snapshot_descriptor_freq - 1),
-                )
-            if quality_diversity_eligible:
+                if not no_repeat_penalty_variant:
+                    r_descriptor_diversity += max(
+                        STAGE23_DESCRIPTOR_ARCHIVE_REPEAT_MAX_PENALTY,
+                        STAGE23_DESCRIPTOR_ARCHIVE_REPEAT_STEP_PENALTY * float(archive_snapshot_descriptor_freq - 1),
+                    )
+            if quality_diversity_eligible and not no_diversity_bonus_variant:
                 if archive_snapshot_descriptor_freq <= 0:
                     global_descriptor_archive_reward = STAGE23_GLOBAL_DESCRIPTOR_ARCHIVE_NOVEL_BONUS
-                else:
+                elif not no_repeat_penalty_variant:
                     global_descriptor_archive_reward = max(
                         STAGE23_GLOBAL_DESCRIPTOR_ARCHIVE_REPEAT_MAX_PENALTY,
                         STAGE23_GLOBAL_DESCRIPTOR_ARCHIVE_REPEAT_MAX_PENALTY
@@ -4330,6 +4360,7 @@ def base_discovery_reward_fn(
             if (
                 (not group_warmup)
                 and quality_diversity_eligible
+                and not no_diversity_bonus_variant
                 and dominant_descriptor_key
                 and graph_info.descriptor_key != dominant_descriptor_key
                 and float(dominant_descriptor_share or 0.0) >= STAGE23_DOMINANT_DESCRIPTOR_SOFT_SHARE
@@ -4343,31 +4374,34 @@ def base_discovery_reward_fn(
                 and not descriptor_progress_refresh
             ):
                 dominant_descriptor_repeat = True
-                if float(dominant_descriptor_share or 0.0) >= STAGE23_DOMINANT_DESCRIPTOR_STRONG_SHARE:
-                    r_descriptor_diversity += STAGE23_DOMINANT_DESCRIPTOR_REPEAT_STRONG_PENALTY
-                else:
-                    r_descriptor_diversity += STAGE23_DOMINANT_DESCRIPTOR_REPEAT_PENALTY
+                if not no_repeat_penalty_variant:
+                    if float(dominant_descriptor_share or 0.0) >= STAGE23_DOMINANT_DESCRIPTOR_STRONG_SHARE:
+                        r_descriptor_diversity += STAGE23_DOMINANT_DESCRIPTOR_REPEAT_STRONG_PENALTY
+                    else:
+                        r_descriptor_diversity += STAGE23_DOMINANT_DESCRIPTOR_REPEAT_PENALTY
 
         if executable_candidate and graph_info.parse_ok and cnn_signature:
-            if quality_diversity_eligible and batch_same_backbone_cnn_count == 1:
+            if quality_diversity_eligible and batch_same_backbone_cnn_count == 1 and not no_diversity_bonus_variant:
                 r_cnn_diversity += STAGE23_CNN_BATCH_UNIQUE_BONUS
             elif batch_same_backbone_cnn_count > 1:
-                r_cnn_diversity += max(
-                    STAGE23_CNN_BATCH_REPEAT_MAX_PENALTY,
-                    STAGE23_CNN_BATCH_REPEAT_STEP_PENALTY * float(batch_same_backbone_cnn_count - 1),
-                )
+                if not no_repeat_penalty_variant:
+                    r_cnn_diversity += max(
+                        STAGE23_CNN_BATCH_REPEAT_MAX_PENALTY,
+                        STAGE23_CNN_BATCH_REPEAT_STEP_PENALTY * float(batch_same_backbone_cnn_count - 1),
+                    )
 
-            if quality_diversity_eligible and archive_snapshot_backbone_cnn_freq <= 0:
+            if quality_diversity_eligible and archive_snapshot_backbone_cnn_freq <= 0 and not no_diversity_bonus_variant:
                 r_cnn_diversity += STAGE23_CNN_ARCHIVE_NOVEL_BONUS
             elif archive_snapshot_backbone_cnn_freq > 1:
-                r_cnn_diversity += max(
-                    STAGE23_CNN_ARCHIVE_REPEAT_MAX_PENALTY,
-                    STAGE23_CNN_ARCHIVE_REPEAT_STEP_PENALTY * float(archive_snapshot_backbone_cnn_freq - 1),
-                )
-            if quality_diversity_eligible:
+                if not no_repeat_penalty_variant:
+                    r_cnn_diversity += max(
+                        STAGE23_CNN_ARCHIVE_REPEAT_MAX_PENALTY,
+                        STAGE23_CNN_ARCHIVE_REPEAT_STEP_PENALTY * float(archive_snapshot_backbone_cnn_freq - 1),
+                    )
+            if quality_diversity_eligible and not no_diversity_bonus_variant:
                 if archive_snapshot_cnn_freq <= 0:
                     global_cnn_archive_reward = STAGE23_GLOBAL_CNN_ARCHIVE_NOVEL_BONUS
-                else:
+                elif not no_repeat_penalty_variant:
                     global_cnn_archive_reward = max(
                         STAGE23_GLOBAL_CNN_ARCHIVE_REPEAT_MAX_PENALTY,
                         STAGE23_GLOBAL_CNN_ARCHIVE_REPEAT_MAX_PENALTY
@@ -4388,14 +4422,16 @@ def base_discovery_reward_fn(
                 and not descriptor_progress_refresh
             ):
                 dominant_cnn_repeat = True
-                if float(dominant_cnn_share or 0.0) >= STAGE23_DOMINANT_CNN_STRONG_SHARE:
-                    r_cnn_diversity += STAGE23_GLOBAL_CNN_REPEAT_STRONG_PENALTY
-                else:
-                    r_cnn_diversity += STAGE23_GLOBAL_CNN_REPEAT_PENALTY
+                if not no_repeat_penalty_variant:
+                    if float(dominant_cnn_share or 0.0) >= STAGE23_DOMINANT_CNN_STRONG_SHARE:
+                        r_cnn_diversity += STAGE23_GLOBAL_CNN_REPEAT_STRONG_PENALTY
+                    else:
+                        r_cnn_diversity += STAGE23_GLOBAL_CNN_REPEAT_PENALTY
 
             if (
                 (not group_warmup)
                 and quality_diversity_eligible
+                and not no_diversity_bonus_variant
                 and archive_snapshot_backbone_freq >= BACKBONE_BASELINE_MIN_ARCHIVE_SAMPLES
                 and dominant_backbone_cnn_signature
                 and cnn_signature != dominant_backbone_cnn_signature
@@ -4411,10 +4447,11 @@ def base_discovery_reward_fn(
                 and not descriptor_progress_refresh
             ):
                 dominant_cnn_repeat = True
-                if float(dominant_backbone_cnn_share or 0.0) >= STAGE23_DOMINANT_CNN_STRONG_SHARE:
-                    r_cnn_diversity += STAGE23_DOMINANT_CNN_REPEAT_STRONG_PENALTY
-                else:
-                    r_cnn_diversity += STAGE23_DOMINANT_CNN_REPEAT_PENALTY
+                if not no_repeat_penalty_variant:
+                    if float(dominant_backbone_cnn_share or 0.0) >= STAGE23_DOMINANT_CNN_STRONG_SHARE:
+                        r_cnn_diversity += STAGE23_DOMINANT_CNN_REPEAT_STRONG_PENALTY
+                    else:
+                        r_cnn_diversity += STAGE23_DOMINANT_CNN_REPEAT_PENALTY
 
         if (
             executable_candidate
@@ -4432,16 +4469,17 @@ def base_discovery_reward_fn(
             and block_signature
             and block_signature != "incomplete_block"
         ):
-            if batch_same_block_count == 1:
+            if batch_same_block_count == 1 and not no_diversity_bonus_variant:
                 r_block_diversity += STAGE23_BLOCK_BATCH_UNIQUE_BONUS
             elif batch_same_block_count > 1:
-                r_block_diversity += max(
-                    STAGE23_BLOCK_BATCH_REPEAT_MAX_PENALTY,
-                    STAGE23_BLOCK_BATCH_REPEAT_STEP_PENALTY * float(batch_same_block_count - 1),
-                )
-            if archive_snapshot_block_freq <= 0:
+                if not no_repeat_penalty_variant:
+                    r_block_diversity += max(
+                        STAGE23_BLOCK_BATCH_REPEAT_MAX_PENALTY,
+                        STAGE23_BLOCK_BATCH_REPEAT_STEP_PENALTY * float(batch_same_block_count - 1),
+                    )
+            if archive_snapshot_block_freq <= 0 and not no_diversity_bonus_variant:
                 block_archive_reward = STAGE23_BLOCK_ARCHIVE_NOVEL_BONUS
-            else:
+            elif not no_repeat_penalty_variant:
                 block_archive_reward = max(
                     STAGE23_BLOCK_ARCHIVE_REPEAT_MAX_PENALTY,
                     STAGE23_BLOCK_ARCHIVE_REPEAT_MAX_PENALTY
@@ -4593,10 +4631,10 @@ def base_discovery_reward_fn(
         )
         if has_formal_epoch and effective_prev_target_reward_target_acc is not None and not effective_beat_prev_target:
             total_reward = min(total_reward, stage_profile["non_improving_cap"])
-        if has_formal_epoch and dominant_descriptor_repeat:
+        if has_formal_epoch and dominant_descriptor_repeat and not no_repeat_penalty_variant:
             total_reward = min(total_reward, stage_profile["descriptor_non_improving_cap"])
             descriptor_reward_cap_applied = True
-        if has_formal_epoch and dominant_cnn_repeat:
+        if has_formal_epoch and dominant_cnn_repeat and not no_repeat_penalty_variant:
             total_reward = min(total_reward, stage_profile["descriptor_non_improving_cap"])
             cnn_reward_cap_applied = True
         block_repeat_quality_refresh = bool(r_goal_best > 0.0 or beat_best_backbone_target or beat_best_target)
@@ -4616,7 +4654,7 @@ def base_discovery_reward_fn(
             and (archive_snapshot_graph_freq > 0 or batch_same_graph_count > 1)
             and not block_repeat_quality_refresh
         )
-        if repeated_block_without_refresh:
+        if repeated_block_without_refresh and not no_repeat_penalty_variant:
             total_reward = min(total_reward, STAGE23_REPEATED_BLOCK_REWARD_CAP)
             block_reward_cap_applied = True
         if dominant_descriptor_repeat:
@@ -4640,6 +4678,8 @@ def base_discovery_reward_fn(
             cell_archive_freq=archive_snapshot_backbone_block_freq,
             batch_same_cell_count=batch_same_backbone_block_count,
             cell_best_quality_acc=cell_best_quality_acc,
+            disable_diversity_bonus=no_diversity_bonus_variant,
+            disable_repeat_penalty=no_repeat_penalty_variant,
         )
         total_reward = _apply_executability_clamp(res, total_reward, graph_info)
 
@@ -4990,6 +5030,7 @@ def _apply_batch_elite_bonuses(scored_results: List[Dict[str, Any]], group_conte
         return
 
     eligible: List[Tuple[float, Dict[str, Any]]] = []
+    no_repeat_penalty_variant = _reward_variant_is_no_repeat_penalty()
 
     for item in scored_results:
         res = item["result"]
@@ -5003,10 +5044,14 @@ def _apply_batch_elite_bonuses(scored_results: List[Dict[str, Any]], group_conte
             continue
         if res.get("target_structure_match") is False:
             continue
-        if _is_repeated_block_without_refresh(res):
+        if (not no_repeat_penalty_variant) and _is_repeated_block_without_refresh(res):
             continue
         improved = bool(res.get("group_reward_target_improved") or res.get("backbone_reward_target_improved"))
-        if (res.get("dominant_descriptor_repeat") or res.get("dominant_cnn_repeat")) and not improved:
+        if (
+            (not no_repeat_penalty_variant)
+            and (res.get("dominant_descriptor_repeat") or res.get("dominant_cnn_repeat"))
+            and not improved
+        ):
             continue
         if res.get("plain_dual_backbone_concat") and not improved:
             continue
@@ -5039,7 +5084,7 @@ def _apply_batch_elite_bonuses(scored_results: List[Dict[str, Any]], group_conte
         old_discovery_reward, _, _ = _recompute_discovery_reward(res, graph_info)
         postprocess_delta = old_reward - float(old_discovery_reward)
         if (
-            (not _is_repeated_block_without_refresh(res))
+            (no_repeat_penalty_variant or not _is_repeated_block_without_refresh(res))
             and not (_reward_variant_is_strong_repeat_penalty() and _is_strong_repeat_without_refresh(res))
             and float(res.get("r_no_progress_penalty", 0.0) or 0.0) < 0.0
         ):
