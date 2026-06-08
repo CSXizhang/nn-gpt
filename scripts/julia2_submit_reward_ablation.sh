@@ -7,7 +7,7 @@ Submit four-pattern reward ablation runs on Julia2.
 
 Options:
   --run-prefix ID          default: YYYYmmdd_HHMM_reward_ablation_821f
-  --variants CSV          default: full
+  --variants CSV          default: full_reward,no_diversity_bonus,no_repeat_penalty
   --seeds CSV             default: 42
   --init-adapter PATH     default: selected A18 struct1-v2 DeepSeek SFT adapter
   --nn-prefixes CSV       default: rl-bb-struct1,rl-bb-struct1-v2
@@ -21,8 +21,9 @@ Options:
   --num-generations N     default: 8
   --generation-batch-size N
                            optional NNGPT_SFT_GENERATION_BATCH_SIZE override
+  --max-prompt-length N   default: 3500
   --max-completion-length N
-                           default: 1536
+                           default: 1200
   --lr VALUE              optional NNGPT_RL_LR override
   --kl-coef VALUE         optional NNGPT_RL_KL_COEF override
   --run-root-base PATH    default: /data/42-julia-hpc-ai-cv-students/s471802/nn-gpt-runs/parallel_runs
@@ -34,8 +35,8 @@ Options:
 USAGE
 }
 
-run_prefix="$(date +%Y%m%d_%H%M)_struct1_v2_a18_current_reward"
-variants_csv="full"
+run_prefix="$(date +%Y%m%d_%H%M)_reward_ablation_821f"
+variants_csv="full_reward,no_diversity_bonus,no_repeat_penalty"
 seeds_csv="42"
 init_adapter="/home/s471802/nn-gpt/out/nngpt/llm/epoch_sft_20260527_1410_struct1_v2_sftcycle_h100x4_home/A18/deepseek-ai/deepseek-coder-6.7b-instruct"
 nn_prefixes="rl-bb-struct1,rl-bb-struct1-v2"
@@ -48,7 +49,8 @@ cpus="32"
 max_steps="125"
 num_generations="8"
 generation_batch_size=""
-max_completion_length="1536"
+max_prompt_length="3500"
+max_completion_length="1200"
 lr=""
 kl_coef=""
 run_root_base="/data/42-julia-hpc-ai-cv-students/s471802/nn-gpt-runs/parallel_runs"
@@ -61,6 +63,7 @@ while [ "$#" -gt 0 ]; do
     --run-prefix) run_prefix="$2"; shift 2 ;;
     --variants) variants_csv="$2"; shift 2 ;;
     --seeds) seeds_csv="$2"; shift 2 ;;
+    --seed) seeds_csv="$2"; shift 2 ;;
     --init-adapter) init_adapter="$2"; shift 2 ;;
     --nn-prefixes) nn_prefixes="$2"; shift 2 ;;
     --formal-dataset) formal_dataset="$2"; shift 2 ;;
@@ -72,6 +75,7 @@ while [ "$#" -gt 0 ]; do
     --max-steps) max_steps="$2"; shift 2 ;;
     --num-generations) num_generations="$2"; shift 2 ;;
     --generation-batch-size) generation_batch_size="$2"; shift 2 ;;
+    --max-prompt-length) max_prompt_length="$2"; shift 2 ;;
     --max-completion-length) max_completion_length="$2"; shift 2 ;;
     --lr) lr="$2"; shift 2 ;;
     --kl-coef) kl_coef="$2"; shift 2 ;;
@@ -90,13 +94,13 @@ commit_hash="$(git rev-parse HEAD)"
 commit_short="$(git rev-parse --short HEAD)"
 commit_subject="$(git log -1 --pretty=%s)"
 
-IFS=',' read -r -a variants <<< "${variants_csv}"
-IFS=',' read -r -a seeds <<< "${seeds_csv}"
+IFS=, read -r -a variants <<< "${variants_csv}"
+IFS=, read -r -a seeds <<< "${seeds_csv}"
 
 for variant in "${variants[@]}"; do
   variant="$(echo "${variant}" | xargs)"
   case "${variant}" in
-    full|no_structural_novelty|strong_repeat_penalty) ;;
+    full|full_reward|no_diversity_bonus|no_repeat_penalty|no_structural_novelty|strong_repeat_penalty) ;;
     "")
       continue
       ;;
@@ -131,6 +135,7 @@ for variant in "${variants[@]}"; do
     fi
 
     export NNGPT_ABLATION_RUN_ID="${run_id}"
+    export NNGPT_ABLATION_RUN_ROOT_BASE="${run_root_base%/}"
     export NNGPT_RUN_ROOT="${run_root}"
     export NNGPT_RL_REWARD_VARIANT="${variant}"
     export NNGPT_RL_SEED="${seed}"
@@ -138,6 +143,7 @@ for variant in "${variants[@]}"; do
     export NNGPT_RL_FORMAL_DATASET="${formal_dataset}"
     export NNGPT_RL_FORMAL_REWARD_EPOCHS="${formal_reward_epochs}"
     export NNGPT_SFT_NUM_GENERATIONS="${num_generations}"
+    export NNGPT_SFT_MAX_PROMPT_LENGTH="${max_prompt_length}"
     export NNGPT_SFT_MAX_COMPLETION_LENGTH="${max_completion_length}"
     if [ -n "${generation_batch_size}" ]; then
       export NNGPT_SFT_GENERATION_BATCH_SIZE="${generation_batch_size}"
@@ -179,6 +185,7 @@ for variant in "${variants[@]}"; do
         echo "- 状态: submitted"
         echo "- main job: ${job_id}"
         echo "- 分区/GPU: ${partition}, ${gpus} GPU"
+        echo "- mem/cpus: ${mem}, ${cpus}"
         echo "- commit: ${commit_hash} (${commit_subject})"
         echo "- reward variant: ${variant}"
         echo "- seed: ${seed}"
@@ -186,6 +193,7 @@ for variant in "${variants[@]}"; do
         echo "- init adapter: ${init_adapter}"
         echo "- prompt/prefix: sft_aligned, ${nn_prefixes}"
         echo "- formal reward epochs: ${formal_reward_epochs}"
+        echo "- max prompt length: ${max_prompt_length}"
         echo "- max completion length: ${max_completion_length}"
         if [ -n "${generation_batch_size}" ]; then
           echo "- generation batch size: ${generation_batch_size}"
