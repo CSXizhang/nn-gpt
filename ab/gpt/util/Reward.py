@@ -136,7 +136,6 @@ def _optional_positive_int_env(name: str) -> Optional[int]:
 FORMAL_MULTI_HORIZON_REWARD_TARGET_METRIC = "formal_multi_horizon_acc"
 DEFAULT_FORMAL_REWARD_EPOCHS: tuple[int, ...] = (1, 5, 10)
 FORMAL_REWARD_SCORE_HORIZONS: tuple[int, ...] = (1, 5, 10)
-CPU_SMOKE_PREVALIDATE_MEMORY_GIB_DEFAULT = 24.0
 CPU_SMOKE_MAX_ESTIMATED_PARAM_GIB_DEFAULT = 8.0
 CPU_SMOKE_TRAIN_STATE_MULTIPLIER_DEFAULT = 4.0
 
@@ -1521,306 +1520,6 @@ def _cpu_prevalidation_failure_result(
     return result
 
 
-def _cpu_smoke_memory_limit_bytes() -> Optional[int]:
-    raw = os.environ.get("NNGPT_RL_CPU_SMOKE_MEMORY_LIMIT_GIB")
-    if raw is not None and raw.strip() != "":
-        try:
-            gib = float(raw)
-        except (TypeError, ValueError):
-            gib = CPU_SMOKE_PREVALIDATE_MEMORY_GIB_DEFAULT
-    else:
-        gib = CPU_SMOKE_PREVALIDATE_MEMORY_GIB_DEFAULT
-    if gib <= 0:
-        return None
-    return int(gib * (1024 ** 3))
-
-
-def _apply_cpu_smoke_memory_limit(limit_bytes: Optional[int]) -> None:
-    if limit_bytes is None or limit_bytes <= 0:
-        return
-    try:
-        import resource
-
-        current_soft, current_hard = resource.getrlimit(resource.RLIMIT_AS)
-        hard_limit = current_hard
-        if hard_limit == resource.RLIM_INFINITY:
-            hard_limit = int(limit_bytes)
-        else:
-            hard_limit = min(int(hard_limit), int(limit_bytes))
-        soft_limit = min(int(limit_bytes), int(hard_limit))
-        resource.setrlimit(resource.RLIMIT_AS, (soft_limit, hard_limit))
-    except Exception:
-        pass
-
-
-def _cpu_smoke_prevalidate_child(payload: Dict[str, Any], conn: Any) -> None:
-    try:
-        estimate_result = _estimate_reward_model_memory_preflight(
-            str(payload.get("code", "")),
-            effective_cfg=EvalConfig(**payload["effective_cfg"]),
-            prm=payload.get("prm"),
-            seed_accuracy_baseline=payload.get("seed_accuracy_baseline"),
-            backbone_model_names=payload.get("backbone_model_names"),
-            code_trace=dict(payload.get("code_trace") or {}),
-        )
-        if estimate_result is not None:
-            conn.send({"ok": True, "result": estimate_result})
-            return
-        _apply_cpu_smoke_memory_limit(payload.get("memory_limit_bytes"))
-        result = _cpu_smoke_prevalidate_reward_code_inline(
-            str(payload.get("code", "")),
-            seed_accuracy_baseline=payload.get("seed_accuracy_baseline"),
-            effective_cfg=EvalConfig(**payload["effective_cfg"]),
-            backbone_model_names=payload.get("backbone_model_names"),
-            prm=payload.get("prm"),
-            code_trace=dict(payload.get("code_trace") or {}),
-        )
-        conn.send({"ok": True, "result": result})
-    except BaseException as exc:
-        try:
-            conn.send(
-                {
-                    "ok": False,
-                    "error_type": type(exc).__name__,
-                    "error": f"{type(exc).__name__}: {exc}",
-                }
-            )
-        except Exception:
-            pass
-    finally:
-        try:
-            conn.close()
-        except Exception:
-            pass
-
-
-def _estimate_reward_model_memory_preflight(
-    code: str,
-    *,
-    effective_cfg: "EvalConfig",
-    prm: Optional[Dict[str, Any]],
-    seed_accuracy_baseline: Optional[float],
-    backbone_model_names: Optional[list[str]],
-    code_trace: Dict[str, Any],
-) -> Optional[Dict[str, Any]]:
-    if not _safe_bool_env("NNGPT_RL_CPU_SMOKE_META_ESTIMATE", True):
-        return None
-    max_param_gib = max(
-        0.0,
-        _safe_float_env("NNGPT_RL_CPU_SMOKE_MAX_ESTIMATED_PARAM_GIB", CPU_SMOKE_MAX_ESTIMATED_PARAM_GIB_DEFAULT),
-    )
-    state_multiplier = max(
-        1.0,
-        _safe_float_env("NNGPT_RL_CPU_SMOKE_TRAIN_STATE_MULTIPLIER", CPU_SMOKE_TRAIN_STATE_MULTIPLIER_DEFAULT),
-    )
-    if max_param_gib <= 0:
-        return None
-    meta_context = {
-        "code_trace": code_trace,
-        "cpu_smoke": True,
-        "cpu_smoke_isolated": True,
-        "memory_preflight": "meta_build",
-        "max_estimated_param_gib": max_param_gib,
-        "train_state_multiplier": state_multiplier,
-    }
-    try:
-        input_shape = tuple(getattr(effective_cfg, "input_shape", (1, 3, 32, 32)))
-        if len(input_shape) != 4:
-            return None
-        meta_prm = {
-            "lr": 1e-2,
-            "momentum": 0.9,
-            "batch": max(1, min(2, int(getattr(effective_cfg, "default_batch_size", 2) or 2))),
-            "epoch": 1,
-            "transform": None,
-            **dict(prm or {}),
-        }
-        meta_prm["batch"] = max(1, min(2, int(meta_prm.get("batch", 2) or 2)))
-        meta_prm["epoch"] = 1
-        original_smoke_flag = os.environ.get("NNGPT_SMOKE_PREVALIDATE")
-        original_cuda_is_available = getattr(torch.cuda, "is_available", None)
-        original_cuda_device_count = getattr(torch.cuda, "device_count", None)
-        os.environ["NNGPT_SMOKE_PREVALIDATE"] = "1"
-        try:
-            if callable(original_cuda_is_available):
-                torch.cuda.is_available = lambda: False  # type: ignore[method-assign]
-            if callable(original_cuda_device_count):
-                torch.cuda.device_count = lambda: 0  # type: ignore[method-assign]
-            builder = build_fn_from_code(
-                code,
-                tuple(input_shape),
-                (int(getattr(effective_cfg, "n_classes", 10)),),
-                meta_prm,
-                "meta",
-            )
-            with torch.device("meta"):
-                model = builder()
-            params = sum(int(p.numel()) for p in model.parameters())
-            buffers = sum(int(b.numel()) for b in model.buffers())
-            param_gib = float(params + buffers) * 4.0 / float(1024 ** 3)
-            estimated_train_state_gib = param_gib * state_multiplier
-        finally:
-            if callable(original_cuda_is_available):
-                torch.cuda.is_available = original_cuda_is_available  # type: ignore[method-assign]
-            if callable(original_cuda_device_count):
-                torch.cuda.device_count = original_cuda_device_count  # type: ignore[method-assign]
-            if original_smoke_flag is None:
-                os.environ.pop("NNGPT_SMOKE_PREVALIDATE", None)
-            else:
-                os.environ["NNGPT_SMOKE_PREVALIDATE"] = original_smoke_flag
-        meta_context.update(
-            {
-                "estimated_params_m": params / 1e6,
-                "estimated_param_gib": param_gib,
-                "estimated_train_state_gib": estimated_train_state_gib,
-            }
-        )
-        if estimated_train_state_gib <= max_param_gib:
-            return None
-        return _cpu_prevalidation_failure_result(
-            reward=-3.0,
-            error_message=(
-                "RuntimeError: estimated reward eval memory "
-                f"{estimated_train_state_gib:.2f}GiB exceeds limit {max_param_gib:.2f}GiB"
-            ),
-            error_type="RuntimeError",
-            error_context=meta_context,
-            seed_accuracy_baseline=seed_accuracy_baseline,
-            effective_cfg=effective_cfg,
-            backbone_model_names=backbone_model_names,
-        )
-    except Exception as exc:
-        _clear_exception_frames(exc)
-        return None
-
-
-def _run_cpu_smoke_prevalidate_isolated(
-    code: str,
-    *,
-    seed_accuracy_baseline: Optional[float],
-    effective_cfg: "EvalConfig",
-    backbone_model_names: Optional[list[str]],
-    prm: Optional[Dict[str, Any]],
-    code_trace: Dict[str, Any],
-) -> Optional[Dict[str, Any]]:
-    timeout_seconds = max(10.0, _safe_float_env("NNGPT_RL_CPU_SMOKE_TIMEOUT_SECONDS", 90.0))
-    memory_limit_bytes = _cpu_smoke_memory_limit_bytes()
-    start_method = os.environ.get("NNGPT_RL_CPU_SMOKE_START_METHOD", "fork").strip() or "fork"
-    try:
-        ctx = mp.get_context(start_method)
-    except ValueError:
-        ctx = mp.get_context("spawn")
-    parent_conn, child_conn = ctx.Pipe(duplex=False)
-    payload = {
-        "code": code,
-        "seed_accuracy_baseline": seed_accuracy_baseline,
-        "effective_cfg": asdict(effective_cfg),
-        "backbone_model_names": backbone_model_names,
-        "prm": prm,
-        "code_trace": code_trace,
-        "memory_limit_bytes": memory_limit_bytes,
-    }
-    proc = ctx.Process(target=_cpu_smoke_prevalidate_child, args=(payload, child_conn))
-    proc.start()
-    child_conn.close()
-    try:
-        if parent_conn.poll(timeout_seconds):
-            try:
-                message = parent_conn.recv()
-            except EOFError:
-                message = None
-            proc.join(timeout=5.0)
-            if proc.exitcode is not None and proc.exitcode < 0:
-                return _cpu_smoke_signal_failure_result(
-                    signal_number=-int(proc.exitcode),
-                    code_trace=code_trace,
-                    memory_limit_bytes=memory_limit_bytes,
-                    seed_accuracy_baseline=seed_accuracy_baseline,
-                    effective_cfg=effective_cfg,
-                    backbone_model_names=backbone_model_names,
-                )
-            if isinstance(message, dict) and message.get("ok"):
-                return message.get("result")
-            error_type = str((message or {}).get("error_type") or "RuntimeError")
-            error_message = str((message or {}).get("error") or "RuntimeError: CPU smoke prevalidate failed")
-            return _cpu_prevalidation_failure_result(
-                reward=-3.0,
-                error_message=error_message,
-                error_type=error_type,
-                error_context={
-                    "code_trace": code_trace,
-                    "cpu_smoke": True,
-                    "cpu_smoke_isolated": True,
-                    "cpu_smoke_memory_limit_gib": (
-                        None if memory_limit_bytes is None else memory_limit_bytes / float(1024 ** 3)
-                    ),
-                },
-                seed_accuracy_baseline=seed_accuracy_baseline,
-                effective_cfg=effective_cfg,
-                backbone_model_names=backbone_model_names,
-            )
-
-        proc.terminate()
-        proc.join(timeout=5.0)
-        if proc.is_alive():
-            proc.kill()
-            proc.join(timeout=5.0)
-        return _cpu_prevalidation_failure_result(
-            reward=-3.0,
-            error_message=f"TimeoutError: CPU smoke prevalidate exceeded {timeout_seconds:.0f}s",
-            error_type="TimeoutError",
-            error_context={
-                "code_trace": code_trace,
-                "cpu_smoke": True,
-                "cpu_smoke_isolated": True,
-                "cpu_smoke_timeout_seconds": timeout_seconds,
-                "cpu_smoke_memory_limit_gib": (
-                    None if memory_limit_bytes is None else memory_limit_bytes / float(1024 ** 3)
-                ),
-            },
-            seed_accuracy_baseline=seed_accuracy_baseline,
-            effective_cfg=effective_cfg,
-            backbone_model_names=backbone_model_names,
-        )
-    finally:
-        exitcode = proc.exitcode
-        if proc.is_alive():
-            proc.terminate()
-            proc.join(timeout=5.0)
-        try:
-            parent_conn.close()
-        except Exception:
-            pass
-
-
-def _cpu_smoke_signal_failure_result(
-    *,
-    signal_number: int,
-    code_trace: Dict[str, Any],
-    memory_limit_bytes: Optional[int],
-    seed_accuracy_baseline: Optional[float],
-    effective_cfg: "EvalConfig",
-    backbone_model_names: Optional[list[str]],
-) -> Dict[str, Any]:
-    return _cpu_prevalidation_failure_result(
-        reward=-3.0,
-        error_message=f"RuntimeError: CPU smoke prevalidate worker terminated by signal {signal_number}",
-        error_type="RuntimeError",
-        error_context={
-            "code_trace": code_trace,
-            "cpu_smoke": True,
-            "cpu_smoke_isolated": True,
-            "cpu_smoke_worker_signal": signal_number,
-            "cpu_smoke_memory_limit_gib": (
-                None if memory_limit_bytes is None else memory_limit_bytes / float(1024 ** 3)
-            ),
-        },
-        seed_accuracy_baseline=seed_accuracy_baseline,
-        effective_cfg=effective_cfg,
-        backbone_model_names=backbone_model_names,
-    )
-
-
 def _cpu_smoke_prevalidate_reward_code(
     code: str,
     *,
@@ -1835,38 +1534,6 @@ def _cpu_smoke_prevalidate_reward_code(
     if not _safe_bool_env("NNGPT_RL_CPU_SMOKE_PREVALIDATE", True):
         return None
 
-    input_shape = tuple(getattr(effective_cfg, "input_shape", (1, 3, 32, 32)))
-    if len(input_shape) != 4:
-        return None
-    if _safe_bool_env("NNGPT_RL_CPU_SMOKE_ISOLATED", True):
-        return _run_cpu_smoke_prevalidate_isolated(
-            code,
-            seed_accuracy_baseline=seed_accuracy_baseline,
-            effective_cfg=effective_cfg,
-            backbone_model_names=backbone_model_names,
-            prm=prm,
-            code_trace=code_trace,
-        )
-
-    return _cpu_smoke_prevalidate_reward_code_inline(
-        code,
-        seed_accuracy_baseline=seed_accuracy_baseline,
-        effective_cfg=effective_cfg,
-        backbone_model_names=backbone_model_names,
-        prm=prm,
-        code_trace=code_trace,
-    )
-
-
-def _cpu_smoke_prevalidate_reward_code_inline(
-    code: str,
-    *,
-    seed_accuracy_baseline: Optional[float],
-    effective_cfg: "EvalConfig",
-    backbone_model_names: Optional[list[str]],
-    prm: Optional[Dict[str, Any]],
-    code_trace: Dict[str, Any],
-) -> Optional[Dict[str, Any]]:
     input_shape = tuple(getattr(effective_cfg, "input_shape", (1, 3, 32, 32)))
     if len(input_shape) != 4:
         return None
@@ -1902,6 +1569,53 @@ def _cpu_smoke_prevalidate_reward_code_inline(
             torch.cuda.is_available = lambda: False  # type: ignore[method-assign]
         if callable(original_cuda_device_count):
             torch.cuda.device_count = lambda: 0  # type: ignore[method-assign]
+        if _safe_bool_env("NNGPT_RL_CPU_SMOKE_META_ESTIMATE", True):
+            max_gib = max(
+                0.0,
+                _safe_float_env("NNGPT_RL_CPU_SMOKE_MAX_ESTIMATED_PARAM_GIB", CPU_SMOKE_MAX_ESTIMATED_PARAM_GIB_DEFAULT),
+            )
+            multiplier = max(
+                1.0,
+                _safe_float_env("NNGPT_RL_CPU_SMOKE_TRAIN_STATE_MULTIPLIER", CPU_SMOKE_TRAIN_STATE_MULTIPLIER_DEFAULT),
+            )
+            try:
+                meta_builder = build_fn_from_code(
+                    code,
+                    cpu_input_shape,
+                    (int(getattr(effective_cfg, "n_classes", 10)),),
+                    safe_prm,
+                    "meta",
+                )
+                with torch.device("meta"):
+                    meta_model = meta_builder()
+                params = sum(int(p.numel()) for p in meta_model.parameters())
+                buffers = sum(int(b.numel()) for b in meta_model.buffers())
+                param_gib = float(params + buffers) * 4.0 / float(1024 ** 3)
+                estimated_gib = param_gib * multiplier
+                smoke_context.update(
+                    {
+                        "memory_preflight": "meta_build",
+                        "estimated_params_m": params / 1e6,
+                        "estimated_param_gib": param_gib,
+                        "estimated_train_state_gib": estimated_gib,
+                        "max_estimated_param_gib": max_gib,
+                    }
+                )
+                if max_gib > 0 and estimated_gib > max_gib:
+                    return _cpu_prevalidation_failure_result(
+                        reward=-3.0,
+                        error_message=(
+                            "RuntimeError: estimated reward eval memory "
+                            f"{estimated_gib:.2f}GiB exceeds limit {max_gib:.2f}GiB"
+                        ),
+                        error_type="RuntimeError",
+                        error_context=smoke_context,
+                        seed_accuracy_baseline=seed_accuracy_baseline,
+                        effective_cfg=effective_cfg,
+                        backbone_model_names=backbone_model_names,
+                    )
+            except Exception as meta_exc:
+                _clear_exception_frames(meta_exc)
         builder = build_fn_from_code(
             code,
             cpu_input_shape,
