@@ -761,6 +761,7 @@ def _reward_worker_plan_signature(plan: Dict[str, Any]) -> Tuple[Any, ...]:
 def _clear_reward_cuda_state() -> None:
     gc.collect()
     if not torch.cuda.is_available():
+        _trim_cpu_allocator()
         return
     try:
         torch.cuda.empty_cache()
@@ -768,6 +769,38 @@ def _clear_reward_cuda_state() -> None:
         pass
     try:
         torch.cuda.ipc_collect()
+    except Exception:
+        pass
+    _trim_cpu_allocator()
+
+
+def _shutdown_reward_dataloader(loader: Any) -> None:
+    if loader is None:
+        return
+    iterator = getattr(loader, "_iterator", None)
+    if iterator is not None:
+        try:
+            shutdown_workers = getattr(iterator, "_shutdown_workers", None)
+            if callable(shutdown_workers):
+                shutdown_workers()
+        except Exception:
+            pass
+        try:
+            loader._iterator = None
+        except Exception:
+            pass
+
+
+def _shutdown_registered_reward_loaders(patch_token: Optional[Dict[str, Any]]) -> None:
+    if not isinstance(patch_token, dict):
+        return
+    loaders = patch_token.get("loaders")
+    if not loaders:
+        return
+    for loader in list(loaders):
+        _shutdown_reward_dataloader(loader)
+    try:
+        loaders.clear()
     except Exception:
         pass
 
@@ -2778,9 +2811,10 @@ def _patch_nn_dataset_loader_utils_for_reward() -> Optional[Dict[str, Any]]:
     )
     persistent_workers = _safe_bool_env(
         "NNGPT_RL_FORMAL_PERSISTENT_WORKERS",
-        True,
+        False,
     )
     prefetch_factor = _optional_positive_int_env("NNGPT_RL_FORMAL_PREFETCH_FACTOR")
+    loaders: list[DataLoader] = []
 
     def _resolved_num_workers(dataset: Any, default_num_workers: int) -> int:
         value = getattr(dataset, "num_workers", default_num_workers)
@@ -2805,7 +2839,9 @@ def _patch_nn_dataset_loader_utils_for_reward() -> Optional[Dict[str, Any]]:
                 loader_kwargs["persistent_workers"] = True
             if prefetch_factor is not None:
                 loader_kwargs["prefetch_factor"] = max(1, int(prefetch_factor))
-        return DataLoader(dataset, **loader_kwargs)
+        loader = DataLoader(dataset, **loader_kwargs)
+        loaders.append(loader)
+        return loader
 
     def _train_loader(dataset: Any, batch: int, num_workers: int) -> DataLoader:
         return _build_loader(dataset, batch, num_workers, shuffle=True)
@@ -2824,12 +2860,14 @@ def _patch_nn_dataset_loader_utils_for_reward() -> Optional[Dict[str, Any]]:
         "test_loader_f": original_test_loader,
         "util_train_loader_f": original_util_train_loader,
         "util_test_loader_f": original_util_test_loader,
+        "loaders": loaders,
     }
 
 
 def _restore_nn_dataset_loader_utils_patch(patch_token: Optional[Dict[str, Any]]) -> None:
     if not isinstance(patch_token, dict):
         return
+    _shutdown_registered_reward_loaders(patch_token)
     nn_train = patch_token.get("nn_train")
     nn_util = patch_token.get("nn_util")
     if nn_train is not None:
@@ -3401,7 +3439,7 @@ def _formal_eval_with_nn_dataset(
         )
         formal_trace_context["reward_loader_persistent_workers"] = _safe_bool_env(
             "NNGPT_RL_FORMAL_PERSISTENT_WORKERS",
-            True,
+            False,
         )
         formal_trace_context["reward_loader_prefetch_factor"] = _optional_positive_int_env(
             "NNGPT_RL_FORMAL_PREFETCH_FACTOR"
