@@ -136,6 +136,8 @@ def _optional_positive_int_env(name: str) -> Optional[int]:
 FORMAL_MULTI_HORIZON_REWARD_TARGET_METRIC = "formal_multi_horizon_acc"
 DEFAULT_FORMAL_REWARD_EPOCHS: tuple[int, ...] = (1, 5, 10)
 FORMAL_REWARD_SCORE_HORIZONS: tuple[int, ...] = (1, 5, 10)
+CPU_SMOKE_MAX_ESTIMATED_PARAM_GIB_DEFAULT = 8.0
+CPU_SMOKE_TRAIN_STATE_MULTIPLIER_DEFAULT = 4.0
 
 
 def _parse_formal_reward_epochs(raw: Optional[str]) -> list[int]:
@@ -1567,6 +1569,53 @@ def _cpu_smoke_prevalidate_reward_code(
             torch.cuda.is_available = lambda: False  # type: ignore[method-assign]
         if callable(original_cuda_device_count):
             torch.cuda.device_count = lambda: 0  # type: ignore[method-assign]
+        if _safe_bool_env("NNGPT_RL_CPU_SMOKE_META_ESTIMATE", True):
+            max_gib = max(
+                0.0,
+                _safe_float_env("NNGPT_RL_CPU_SMOKE_MAX_ESTIMATED_PARAM_GIB", CPU_SMOKE_MAX_ESTIMATED_PARAM_GIB_DEFAULT),
+            )
+            multiplier = max(
+                1.0,
+                _safe_float_env("NNGPT_RL_CPU_SMOKE_TRAIN_STATE_MULTIPLIER", CPU_SMOKE_TRAIN_STATE_MULTIPLIER_DEFAULT),
+            )
+            try:
+                meta_builder = build_fn_from_code(
+                    code,
+                    cpu_input_shape,
+                    (int(getattr(effective_cfg, "n_classes", 10)),),
+                    safe_prm,
+                    "meta",
+                )
+                with torch.device("meta"):
+                    meta_model = meta_builder()
+                params = sum(int(p.numel()) for p in meta_model.parameters())
+                buffers = sum(int(b.numel()) for b in meta_model.buffers())
+                param_gib = float(params + buffers) * 4.0 / float(1024 ** 3)
+                estimated_gib = param_gib * multiplier
+                smoke_context.update(
+                    {
+                        "memory_preflight": "meta_build",
+                        "estimated_params_m": params / 1e6,
+                        "estimated_param_gib": param_gib,
+                        "estimated_train_state_gib": estimated_gib,
+                        "max_estimated_param_gib": max_gib,
+                    }
+                )
+                if max_gib > 0 and estimated_gib > max_gib:
+                    return _cpu_prevalidation_failure_result(
+                        reward=-3.0,
+                        error_message=(
+                            "RuntimeError: estimated reward eval memory "
+                            f"{estimated_gib:.2f}GiB exceeds limit {max_gib:.2f}GiB"
+                        ),
+                        error_type="RuntimeError",
+                        error_context=smoke_context,
+                        seed_accuracy_baseline=seed_accuracy_baseline,
+                        effective_cfg=effective_cfg,
+                        backbone_model_names=backbone_model_names,
+                    )
+            except Exception as meta_exc:
+                _clear_exception_frames(meta_exc)
         builder = build_fn_from_code(
             code,
             cpu_input_shape,
@@ -1761,7 +1810,7 @@ def _base_eval_result(
         seed_accuracy_baseline=seed_accuracy_baseline,
         eval_limit_seconds=eval_limit_seconds,
         backbone_model_names=backbone_model_names,
-        formal_reward_epochs=DEFAULT_FORMAL_REWARD_EPOCHS,
+        formal_reward_epochs=_resolve_formal_reward_epochs(),
     )
 
 
@@ -3588,7 +3637,7 @@ def _empty_eval_result(
         seed_accuracy_baseline=seed_accuracy_baseline,
         eval_limit_seconds=eval_limit_seconds,
         backbone_model_names=backbone_model_names,
-        formal_reward_epochs=DEFAULT_FORMAL_REWARD_EPOCHS,
+        formal_reward_epochs=_resolve_formal_reward_epochs(),
     )
 
 
@@ -3657,7 +3706,7 @@ def _timeout_eval_result(
         training_context_metric_value=training_context_metric_value,
         latency_ms=latency_ms,
         params_m=params_m,
-        formal_reward_epochs=DEFAULT_FORMAL_REWARD_EPOCHS,
+        formal_reward_epochs=_resolve_formal_reward_epochs(),
     )
 
 def evaluate_and_reward(
