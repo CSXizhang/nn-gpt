@@ -3,7 +3,6 @@ category	source_host	source_path	archive_path	size	sha256	experiment	seed	job_id
 .gitignore	local		.gitignore	17	a6309201fde03ce1815abb16b7d4f36786f4e166df2b67b18bc1f3d1e6cb7740					.gitignore	published_git	
 ASSETS.tsv	local		ASSETS.tsv	14909	89b57a8ed60d0fd0fe50f8ef948b2b2428ba305e3224160be0489e89a7d721f8					ASSETS.tsv	published_git	
 README.md	local		README.md	2781	6d491be7c766a47c2a98df1d76867a43df301c36fd0817433d23bf73cd4fe5e1					README.md	published_git	
-adapter-upload-plan.tsv	local		adapter-upload-plan.tsv	9409	f97bc4beed27e43dcaf707bcb0b34d57478f30780a0a2fda106a276fc13d54c1					adapter-upload-plan.tsv	published_git	
 configs	workstation	/shared/ssd/home/b-x-0522/SFT.json	configs/workstation-root/SFT.json	2557	4039e5924324ecf1664c9e76e327b79b40d55cca351d4d7303fd7eead86afb70					SFT.json	published_git	
 configs	workstation	/shared/ssd/home/b-x-0522/TRAINING_ANALYSIS.md	configs/workstation-root/TRAINING_ANALYSIS.md	0	e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855					TRAINING_ANALYSIS.md	published_git	
 configs	workstation	/shared/ssd/home/b-x-0522/brute-exp.json	configs/workstation-root/brute-exp.json	1784	feaa6335dcb369027f61e8b744c716ae0d8173a41dff1c154e9580bba0a86ee3					brute-exp.json	published_git	
@@ -808,7 +807,7 @@ git	local	/Users/zhangxi/code/RL/nn-gpt	git/nn-gpt/status.txt	121	f46f86379ff165
 git	local	/Users/zhangxi/code/RL/nn-gpt	git/nn-gpt/tags.txt	48	4a2fb1f00d2fa44502a5a67afcfc34074faa12967562be9a31faaeae7c785840					tags.txt	published_git	
 inventory	local		inventory/SELECTION_RULES.md	2850	02eefb2d650d845f1a95082dd57885ffeb81844051e54ec2ebd5fa267290d630					SELECTION_RULES.md	published_git	
 inventory	local		inventory/archived_run_coverage.tsv	8347	8664262f83aeab4d9a92547dc0dbd7f4433facc2d6f69f58c3c90d8d54932750					archived_run_coverage.tsv	published_git	
-inventory	local		inventory/build_public_manifest.py	4777	b04d492f7e58066dd3877cc97744b7b3b550958e922bf5e68c4d594e2137756e					build_public_manifest.py	published_git	
+inventory	local		inventory/build_public_manifest.py	4775	c46f9517ceca3d6d4de479c5d3f6f0a74046e2846825fc3f18cd68cc8c5f47d2					build_public_manifest.py	published_git	
 inventory	local		inventory/email_selection_evidence.md	2461	9d4c170386c966d2ad658de6b0844381fc60f342520a78e0619a2cea29a2306a					email_selection_evidence.md	published_git	
 inventory	local		inventory/external_15_gpu_hour_recheck.tsv	796	7a251397825f5a7fce56a9be1d31835925413f31fe55376442fe57279e440325					external_15_gpu_hour_recheck.tsv	published_git	
 inventory	local		inventory/git_bundle_verification.tsv	640	a8ecce9bfa16b00acb75920d85d332797a1ca1c9b810bb92f44bf06994013ebf					git_bundle_verification.tsv	published_git	
@@ -951,9 +950,6 @@ paper_verification	local	/Users/zhangxi/code/RL/reply_20260802/08_sacct_records.
 paper_verification	local	/Users/zhangxi/code/RL/reply_20260802/09_build_gpu_hours.py	paper_verification/faraz/reply_20260802/09_build_gpu_hours.py	937	4b36ce6b1c50ee9a5e495156af45eababb2a7d9bfcfcd72cfd8c4c3b3f0a472d					09_build_gpu_hours.py	published_git	
 paper_verification	local	/Users/zhangxi/code/RL/reply_20260802/CHECKSUMS.sha256	paper_verification/faraz/reply_20260802/CHECKSUMS.sha256	937	8f9700ead6739610951e07f1eb94f7145424ba7efbc5e5cf26be01e82af7c592					CHECKSUMS.sha256	published_git	
 paper_verification	local	/Users/zhangxi/code/RL/reply_20260802/README.md	paper_verification/faraz/reply_20260802/README.md	1541	aad14213c889455eda2db5369d7fde2e235cdee7794dd366eea9e7ad6837cb3d					README.md	published_git	
-remote-only-adapter-hashes.tsv	local		remote-only-adapter-hashes.tsv	3656	73b1fb074cc43aadd2c4d1d14c125f21837cac854270d5026985b1d230af005d					remote-only-adapter-hashes.tsv	published_git	
-remote-only-adapter-plan.tsv	local		remote-only-adapter-plan.tsv	3071	c35ebc19e36794756572a3fee02bdd8c323b7b46a2cf36ec69a97732c9d9c42b					remote-only-adapter-plan.tsv	published_git	
-remote-only-upload-plan.tsv	local		remote-only-upload-plan.tsv	3566	27d96bb39f59507e7f95c8697f33b0912ed6af58f9c620094fcdc2f2c3238dc0					remote-only-upload-plan.tsv	published_git	
 scripts	local		scripts/article_seed_diagnostics_20260627.py	23728	86d0f53e7b4321a4165f868be4e52819deda93489fd37e458b87c827fd7b736c					article_seed_diagnostics_20260627.py	published_git	
 scripts	local	/Users/zhangxi/Desktop/sftrl-generated-code-examples/generated_code_example_4pattern_rl_line0464_illustrative.txt	scripts/sftrl-generated-code-examples/generated_code_example_4pattern_rl_line0464_illustrative.txt	1923	c87496dc9de194ceaa35d80c2b0022435e765cf1817f50771b3d6e8472b95c86					generated_code_example_4pattern_rl_line0464_illustrative.txt	published_git	
 scripts	local	/Users/zhangxi/Desktop/sftrl-generated-code-examples/generated_code_example_4pattern_rl_line0464_illustrative_meta.json	scripts/sftrl-generated-code-examples/generated_code_example_4pattern_rl_line0464_illustrative_meta.json	885	f884dc02c106e1dfb22f6b725d762b74d28a709155540f63ae3b60adaaf98e40					generated_code_example_4pattern_rl_line0464_illustrative_meta.json	published_git	

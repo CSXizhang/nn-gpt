@@ -4,6 +4,7 @@
 import csv
 import hashlib
 import re
+import subprocess
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -33,10 +34,9 @@ rows = []
 branch_checksums = []
 published_sources = set()
 
-for path in sorted(ROOT.rglob("*")):
-    if not path.is_file() or ".git" in path.parts or "release-assets" in path.parts:
-        continue
-    rel = path.relative_to(ROOT).as_posix()
+tracked = subprocess.check_output(["git", "-C", str(ROOT), "ls-files", "-z"]).decode().split("\0")
+for rel in sorted(filter(None, tracked)):
+    path = ROOT / rel
     if rel in ("MANIFEST.tsv", "CHECKSUMS.sha256"):
         continue
     row = dict(by_path.get(rel, {}))
