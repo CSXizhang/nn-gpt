@@ -10,9 +10,11 @@
   are included.
 - Public base-model caches, official dataset downloads, package caches, and
   virtual environments can be retrieved again and are not release assets.
-- Complete trainer/optimizer checkpoints and repeated snapshots exceed
-  105 GiB. The 29 selected stage adapters and three paper-used SFT adapters
-  are release assets; individual omitted checkpoint paths are in
+- All model weights and checkpoints are outside this paper-data-only archive,
+  including the 29 selected stage adapters and three A9/A18/Qwen A7 SFT
+  adapters previously attached to the release. `EXCLUDED_WEIGHTS.tsv` records
+  their original archive mapping, size, and checksum; the cluster source files
+  were not altered. Trainer/optimizer and repeated checkpoint paths are in
   `julia2_selected_checkpoint_exclusions.tsv`.
 - Empty, diagnostic, and superseded run directories were filtered according
   to `SELECTION_RULES.md`; the complete Slurm accounting export retains their

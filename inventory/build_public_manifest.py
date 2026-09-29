@@ -28,6 +28,12 @@ with (LOCAL / "MANIFEST.tsv").open() as handle:
 by_path = {row["archive_path"]: row for row in original if row["archive_path"]}
 assets = list(csv.DictReader((ROOT / "ASSETS.tsv").open(), delimiter="\t"))
 asset_names = {row["asset_name"] for row in assets}
+with (ROOT / "inventory/EXCLUDED_WEIGHTS.tsv").open() as handle:
+    excluded_weights = list(csv.DictReader(handle, delimiter="\t"))
+excluded_sources = {
+    asset["source_path"]
+    for asset in excluded_weights
+}
 with (ROOT / "inventory/archived_run_coverage.tsv").open() as handle:
     coverage = {row["run_id"]: row for row in csv.DictReader(handle, delimiter="\t")}
 rows = []
@@ -101,9 +107,20 @@ for old in original:
 for old in original:
     if old["archive_path"] or old["status"] in ("archived", ""):
         continue
-    if old["source_path"] in published_sources:
+    if old["source_path"] in published_sources or old["source_path"] in excluded_sources:
         continue
     rows.append(old)
+
+for excluded in excluded_weights:
+    rel = excluded["archive_path"]
+    old = by_path.get(rel, {})
+    row = {field: old.get(field, "") for field in FIELDS}
+    row.update(category="models", source_host=old.get("source_host") or "julia2",
+               source_path=excluded["source_path"], archive_path="",
+               size=excluded["bytes"], sha256=excluded["sha256"],
+               description=excluded["description"], status="excluded_scope",
+               notes="Model weight excluded from paper-data-only release; source retained; " + rel)
+    rows.append(row)
 
 for rel in (
     "git/nn-dataset/nn-dataset-all.bundle",

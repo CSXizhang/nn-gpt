@@ -6,7 +6,9 @@ repository release `thesis-archive-2026-09-29`; `ASSETS.tsv` gives each asset's
 source path, SHA-256, and size. Download an asset from the release and compare
 it with `ASSETS.tsv` before use. The original source locations were not changed.
 `MANIFEST.tsv` also indexes files inside the selected Julia2 tar packages;
-`CHECKSUMS.sha256` checks the files tracked directly on this branch.
+`CHECKSUMS.sha256` checks the files tracked directly on this branch. The
+release tag is the original publication snapshot; this branch is the current
+data-only index and takes precedence over that tag's older README.
 
 The run selection follows Faraz's July–September correspondence. See
 `inventory/SELECTION_RULES.md` and
@@ -22,6 +24,10 @@ in the scheduler inventory and are not copied as raw run directories.
   9,600 raw candidate records and 8,030 formal-success records.
 - `inventory/archived_run_coverage.tsv`: per-run raw/evaluation/config/adapter
   and job mapping. Blank provenance is unresolved, not inferred.
+- `inventory/config_provenance.tsv`: exact archived JSON configuration or
+  manifest path for 43 selected runs. The two proxy runs use their archived
+  preparation/evaluation scripts and candidate manifests instead; see
+  `inventory/CONFIG_COVERAGE.md`.
 - `slurm/raw/julia2-sacct-duplicates-20260929.psv`: scheduler output including
   duplicate allocation records. The fifteen-run external cohort recalculates
   to 1,182.60 allocated GPU-hours in
@@ -35,13 +41,15 @@ in the scheduler inventory and are not copied as raw run directories.
 
 ## Limits
 
-The release does not contain complete optimizer/trainer checkpoints (over
-105 GiB), public base-model caches, or every historical run. It includes the
-paper-used A9/A18 and Qwen A7 SFT adapters and one stage adapter for each of
-the 29 selected trajectories where an adapter exists. The exact dirty-source patch for some runs,
-the 507-row historical SFT cycle manifest, and one old Qwen table value's
-source were not recovered. See `inventory/julia2_selected_checkpoint_exclusions.tsv`
-and `ASSETS.tsv` for the precise retained set.
+This archive is for paper data verification, not training continuation.
+Model weights, including the A9/A18/Qwen A7 SFT adapters and selected RL stage
+adapters, are deliberately outside the data-only release. Their source paths,
+sizes, and checksums are recorded in `inventory/EXCLUDED_WEIGHTS.tsv`; the
+original cluster files were not changed. Public base-model caches and other
+re-downloadable dependencies are also excluded. The exact dirty-source patch
+for some runs, the 507-row historical SFT cycle manifest, and one old Qwen
+table value's source were not recovered. See `inventory/CONFIG_COVERAGE.md`
+for the practical effect on paper verification.
 
 The `nn-gpt` source and fixed commit are in the fork's normal branches.
 `nn-dataset` history bundles triggered a credential-like pattern during

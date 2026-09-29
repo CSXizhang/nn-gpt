@@ -8,4 +8,9 @@ Do not equate scheduler state with usefulness. The no-diversity seed-123 result 
 
 The Faraz packages under `paper_verification/faraz/` and `paper_verification/SFT_RL 2.zip` are retained as distinct delivered snapshots. Later email corrections take precedence over the older 2026-07-03 `DATA_STATUS` inside that ZIP: Qwen three-seed RL and wide-range proxy evaluations subsequently completed. The September 27 `faraz_final_verification_package.zip` is targeted verification, not a complete artifact release.
 
-The filtered Julia2 run archives exclude trainer optimizer states and repeated checkpoint weights because the original 44 selected directories alone contain about 105.94 GiB of those files, versus about 20 GiB of free space after local archival. The exact source paths and sizes remain in `julia2_parallel_files.tsv`. The three paper-used SFT adapters A9, A18, and Qwen A7 are archived and checksum-verified separately; one stage adapter per selected RL trajectory is being archived separately when available.
+The filtered Julia2 run archives exclude model weights and checkpoints because
+this publication is for paper data analysis rather than training continuation.
+The original 44 selected directories contain about 105.94 GiB of checkpoint
+files. Their source paths and sizes remain in `julia2_parallel_files.tsv`;
+`EXCLUDED_WEIGHTS.tsv` records the separately identified SFT and stage adapters.
+The original cluster files were not changed.
