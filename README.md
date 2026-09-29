@@ -36,8 +36,8 @@ in the scheduler inventory and are not copied as raw run directories.
 
 The release does not contain complete optimizer/trainer checkpoints (over
 105 GiB), public base-model caches, or every historical run. It includes the
-paper-used A9/A18 and Qwen A7 SFT adapters and only stage adapters that were
-fully transferred and validated: 20 stage adapters are attached. The exact dirty-source patch for some runs,
+paper-used A9/A18 and Qwen A7 SFT adapters and one stage adapter for each of
+the 29 selected trajectories where an adapter exists. The exact dirty-source patch for some runs,
 the 507-row historical SFT cycle manifest, and one old Qwen table value's
 source were not recovered. See `inventory/julia2_selected_checkpoint_exclusions.tsv`
 and `ASSETS.tsv` for the precise retained set.

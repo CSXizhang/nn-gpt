@@ -3,6 +3,7 @@
 
 import csv
 import hashlib
+import re
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -26,8 +27,11 @@ with (LOCAL / "MANIFEST.tsv").open() as handle:
 by_path = {row["archive_path"]: row for row in original if row["archive_path"]}
 assets = list(csv.DictReader((ROOT / "ASSETS.tsv").open(), delimiter="\t"))
 asset_names = {row["asset_name"] for row in assets}
+with (ROOT / "inventory/archived_run_coverage.tsv").open() as handle:
+    coverage = {row["run_id"]: row for row in csv.DictReader(handle, delimiter="\t")}
 rows = []
 branch_checksums = []
+published_sources = set()
 
 for path in sorted(ROOT.rglob("*")):
     if not path.is_file() or ".git" in path.parts or "release-assets" in path.parts:
@@ -68,8 +72,17 @@ for asset in assets:
                archive_path="release/" + asset["asset_name"],
                size=asset["bytes"], sha256=asset["sha256"],
                description=asset["description"], status="published_release",
-               notes="local source: " + rel)
+               notes="archive mapping: " + rel)
+    if "retained_rl" in Path(rel).parts:
+        run = Path(rel).parts[Path(rel).parts.index("retained_rl") + 1]
+        row["experiment"] = run
+        seed = re.search(r"seed(\d+)", run)
+        row["seed"] = seed.group(1) if seed else ""
+        row["job_id"] = coverage.get(run, {}).get("job_ids", "")
+        row["code_commit"] = coverage.get(run, {}).get("code_commit", "")
     rows.append(row)
+    if source_path:
+        published_sources.add(source_path)
 
 for old in original:
     archive_path = old["archive_path"]
@@ -86,6 +99,8 @@ for old in original:
 
 for old in original:
     if old["archive_path"] or old["status"] in ("archived", ""):
+        continue
+    if old["source_path"] in published_sources:
         continue
     rows.append(old)
 
