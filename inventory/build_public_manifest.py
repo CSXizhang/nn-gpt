@@ -65,8 +65,9 @@ for asset in assets:
         parts = Path(rel).parts
         source_path = ("/data/42-julia-hpc-ai-cv-students/s471802/nn-gpt-runs/parallel_runs/"
                        + "/".join(parts[parts.index("retained_rl") + 1:]))
-    elif asset["asset_name"] == "workstation-prototype-raw-generation_samples.jsonl":
-        source_path = "/shared/ssd/home/b-x-0522/nn-gpt_exp/rl_output/raw/generation_samples.jsonl"
+    elif rel.startswith("experiments/workstation-prototype/"):
+        source_path = ("/shared/ssd/home/b-x-0522/nn-gpt_exp/"
+                       + rel.removeprefix("experiments/workstation-prototype/"))
     row = {field: old.get(field, "") for field in FIELDS}
     row.update(category=rel.split("/", 1)[0], source_host=host, source_path=source_path,
                archive_path="release/" + asset["asset_name"],
