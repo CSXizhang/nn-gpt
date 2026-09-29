@@ -10,6 +10,10 @@
   are included.
 - Public base-model caches, official dataset downloads, package caches, and
   virtual environments can be retrieved again and are not release assets.
+- The three Julia2/workstation `ab.nn.db` SQLite snapshots were removed from
+  the release as derived caches outside the paper-data-only scope. Their
+  former source paths and checksums remain in `MANIFEST.tsv` with
+  `excluded_derived_cache` status. Original server databases were not changed.
 - All model weights and checkpoints are outside this paper-data-only archive,
   including the 29 selected stage adapters and three A9/A18/Qwen A7 SFT
   adapters previously attached to the release. `EXCLUDED_WEIGHTS.tsv` records

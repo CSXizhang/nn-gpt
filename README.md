@@ -48,7 +48,11 @@ This archive is for paper data verification, not training continuation.
 Model weights, including the A9/A18/Qwen A7 SFT adapters and selected RL stage
 adapters, are deliberately outside the data-only release. Their source paths,
 sizes, and checksums are recorded in `inventory/EXCLUDED_WEIGHTS.tsv`; the
-original cluster files were not changed. Public base-model caches and other
+original cluster files were not changed. The three derived `ab.nn.db` SQLite
+snapshots were also removed from the release because the paper-used raw results
+and configurations are preserved separately; their former source paths and
+checksums remain in `MANIFEST.tsv` with `excluded_derived_cache` status.
+Public base-model caches and other
 re-downloadable dependencies are also excluded. The exact dirty-source patch
 for some runs and one old Qwen table value's source were not recovered. The
 507 cycle records were recovered after the first publication; a training-time
