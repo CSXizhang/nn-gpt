@@ -1,0 +1,308 @@
+{
+  "dscoder_cifar10": {
+    "backbone": {
+      "unique": 4,
+      "normalized_unique_ratio": 0.5,
+      "top1": "resnet50",
+      "top1_count": 4,
+      "top1_share": 0.5,
+      "effective_number": 3.363585661014858
+    },
+    "cnn": {
+      "unique": 1,
+      "normalized_unique_ratio": 0.125,
+      "top1": "52eaddcb168d401f0f9f042af3dfefdd3c5dea4d",
+      "top1_count": 8,
+      "top1_share": 1.0,
+      "effective_number": 1.0
+    },
+    "backbone_cnn": {
+      "unique": 4,
+      "normalized_unique_ratio": 0.5,
+      "top1": "resnet50::52eaddcb168d401f0f9f042af3dfefdd3c5dea4d",
+      "top1_count": 4,
+      "top1_share": 0.5,
+      "effective_number": 3.363585661014858
+    },
+    "forward_graph": {
+      "unique": 6,
+      "normalized_unique_ratio": 0.75,
+      "top1": "6d5576bfb9fc3ad7ff4ae6bcf93811cd2a850651",
+      "top1_count": 3,
+      "top1_share": 0.375,
+      "effective_number": 5.298702257124208
+    }
+  },
+  "dscoder_cifar100": {
+    "backbone": {
+      "unique": 5,
+      "normalized_unique_ratio": 0.625,
+      "top1": "regnet_x_3_2gf",
+      "top1_count": 3,
+      "top1_share": 0.375,
+      "effective_number": 4.455659733512512
+    },
+    "cnn": {
+      "unique": 3,
+      "normalized_unique_ratio": 0.375,
+      "top1": "49b9e9e8b2b0f7c8df972ac93e7bf5ac3ee5ca51",
+      "top1_count": 4,
+      "top1_share": 0.5,
+      "effective_number": 2.82842712474619
+    },
+    "backbone_cnn": {
+      "unique": 6,
+      "normalized_unique_ratio": 0.75,
+      "top1": "regnet_x_3_2gf::49b9e9e8b2b0f7c8df972ac93e7bf5ac3ee5ca51",
+      "top1_count": 2,
+      "top1_share": 0.25,
+      "effective_number": 5.656854249492381
+    },
+    "forward_graph": {
+      "unique": 6,
+      "normalized_unique_ratio": 0.75,
+      "top1": "f86de93fc461319ba268624925c45cc770e96b3a",
+      "top1_count": 2,
+      "top1_share": 0.25,
+      "effective_number": 5.656854249492381
+    }
+  },
+  "dscoder_imagenette": {
+    "backbone": {
+      "unique": 4,
+      "normalized_unique_ratio": 0.5,
+      "top1": "regnet_x_1_6gf",
+      "top1_count": 4,
+      "top1_share": 0.5,
+      "effective_number": 3.363585661014858
+    },
+    "cnn": {
+      "unique": 4,
+      "normalized_unique_ratio": 0.5,
+      "top1": "6210d19db096ee26e85a8ba2340cfacd7516a10d",
+      "top1_count": 2,
+      "top1_share": 0.25,
+      "effective_number": 4.0
+    },
+    "backbone_cnn": {
+      "unique": 8,
+      "normalized_unique_ratio": 1.0,
+      "top1": "regnet_x_1_6gf::6210d19db096ee26e85a8ba2340cfacd7516a10d",
+      "top1_count": 1,
+      "top1_share": 0.125,
+      "effective_number": 7.999999999999998
+    },
+    "forward_graph": {
+      "unique": 8,
+      "normalized_unique_ratio": 1.0,
+      "top1": "30249ffedcc62b4ab509f4bde4d9ee73d2ca5116",
+      "top1_count": 1,
+      "top1_share": 0.125,
+      "effective_number": 7.999999999999998
+    }
+  },
+  "olympic_cifar10": {
+    "backbone": {
+      "unique": 2,
+      "normalized_unique_ratio": 0.25,
+      "top1": "regnet_x_1_6gf",
+      "top1_count": 4,
+      "top1_share": 0.5,
+      "effective_number": 2.0
+    },
+    "cnn": {
+      "unique": 1,
+      "normalized_unique_ratio": 0.125,
+      "top1": "52eaddcb168d401f0f9f042af3dfefdd3c5dea4d",
+      "top1_count": 8,
+      "top1_share": 1.0,
+      "effective_number": 1.0
+    },
+    "backbone_cnn": {
+      "unique": 2,
+      "normalized_unique_ratio": 0.25,
+      "top1": "regnet_x_1_6gf::52eaddcb168d401f0f9f042af3dfefdd3c5dea4d",
+      "top1_count": 4,
+      "top1_share": 0.5,
+      "effective_number": 2.0
+    },
+    "forward_graph": {
+      "unique": 2,
+      "normalized_unique_ratio": 0.25,
+      "top1": "8047746d7e9eb7c93bf2f4819ea8c4c05ad5353e",
+      "top1_count": 4,
+      "top1_share": 0.5,
+      "effective_number": 2.0
+    }
+  },
+  "olympic_cifar100": {
+    "backbone": {
+      "unique": 2,
+      "normalized_unique_ratio": 0.25,
+      "top1": "regnet_x_3_2gf",
+      "top1_count": 4,
+      "top1_share": 0.5,
+      "effective_number": 2.0
+    },
+    "cnn": {
+      "unique": 1,
+      "normalized_unique_ratio": 0.125,
+      "top1": "52eaddcb168d401f0f9f042af3dfefdd3c5dea4d",
+      "top1_count": 8,
+      "top1_share": 1.0,
+      "effective_number": 1.0
+    },
+    "backbone_cnn": {
+      "unique": 2,
+      "normalized_unique_ratio": 0.25,
+      "top1": "regnet_x_3_2gf::52eaddcb168d401f0f9f042af3dfefdd3c5dea4d",
+      "top1_count": 4,
+      "top1_share": 0.5,
+      "effective_number": 2.0
+    },
+    "forward_graph": {
+      "unique": 2,
+      "normalized_unique_ratio": 0.25,
+      "top1": "cd55fbf06ee4c52407fa85dc9a47dec34d4f97c1",
+      "top1_count": 4,
+      "top1_share": 0.5,
+      "effective_number": 2.0
+    }
+  },
+  "olympic_imagenette": {
+    "backbone": {
+      "unique": 4,
+      "normalized_unique_ratio": 0.5,
+      "top1": "regnet_x_1_6gf",
+      "top1_count": 4,
+      "top1_share": 0.5,
+      "effective_number": 3.363585661014858
+    },
+    "cnn": {
+      "unique": 1,
+      "normalized_unique_ratio": 0.125,
+      "top1": "52eaddcb168d401f0f9f042af3dfefdd3c5dea4d",
+      "top1_count": 8,
+      "top1_share": 1.0,
+      "effective_number": 1.0
+    },
+    "backbone_cnn": {
+      "unique": 4,
+      "normalized_unique_ratio": 0.5,
+      "top1": "regnet_x_1_6gf::52eaddcb168d401f0f9f042af3dfefdd3c5dea4d",
+      "top1_count": 4,
+      "top1_share": 0.5,
+      "effective_number": 3.363585661014858
+    },
+    "forward_graph": {
+      "unique": 4,
+      "normalized_unique_ratio": 0.5,
+      "top1": "02de2e5afbcf36d0cc40980e30163401eb4218d7",
+      "top1_count": 4,
+      "top1_share": 0.5,
+      "effective_number": 3.363585661014858
+    }
+  },
+  "qwen_cifar10": {
+    "backbone": {
+      "unique": 3,
+      "normalized_unique_ratio": 0.375,
+      "top1": "regnet_y_16gf",
+      "top1_count": 4,
+      "top1_share": 0.5,
+      "effective_number": 2.649351128562104
+    },
+    "cnn": {
+      "unique": 1,
+      "normalized_unique_ratio": 0.125,
+      "top1": "52eaddcb168d401f0f9f042af3dfefdd3c5dea4d",
+      "top1_count": 8,
+      "top1_share": 1.0,
+      "effective_number": 1.0
+    },
+    "backbone_cnn": {
+      "unique": 3,
+      "normalized_unique_ratio": 0.375,
+      "top1": "regnet_y_16gf::52eaddcb168d401f0f9f042af3dfefdd3c5dea4d",
+      "top1_count": 4,
+      "top1_share": 0.5,
+      "effective_number": 2.649351128562104
+    },
+    "forward_graph": {
+      "unique": 3,
+      "normalized_unique_ratio": 0.375,
+      "top1": "c49d8924b836949ad503b9d6e2f7f17b8f45269a",
+      "top1_count": 4,
+      "top1_share": 0.5,
+      "effective_number": 2.649351128562104
+    }
+  },
+  "qwen_cifar100": {
+    "backbone": {
+      "unique": 6,
+      "normalized_unique_ratio": 0.75,
+      "top1": "resnext50_32x4d",
+      "top1_count": 2,
+      "top1_share": 0.25,
+      "effective_number": 5.656854249492381
+    },
+    "cnn": {
+      "unique": 1,
+      "normalized_unique_ratio": 0.125,
+      "top1": "52eaddcb168d401f0f9f042af3dfefdd3c5dea4d",
+      "top1_count": 8,
+      "top1_share": 1.0,
+      "effective_number": 1.0
+    },
+    "backbone_cnn": {
+      "unique": 6,
+      "normalized_unique_ratio": 0.75,
+      "top1": "resnext50_32x4d::52eaddcb168d401f0f9f042af3dfefdd3c5dea4d",
+      "top1_count": 2,
+      "top1_share": 0.25,
+      "effective_number": 5.656854249492381
+    },
+    "forward_graph": {
+      "unique": 8,
+      "normalized_unique_ratio": 1.0,
+      "top1": "b07e169d88edb3278f60a838db769891a692738e",
+      "top1_count": 1,
+      "top1_share": 0.125,
+      "effective_number": 7.999999999999998
+    }
+  },
+  "qwen_imagenette": {
+    "backbone": {
+      "unique": 2,
+      "normalized_unique_ratio": 0.25,
+      "top1": "regnet_x_3_2gf",
+      "top1_count": 4,
+      "top1_share": 0.5,
+      "effective_number": 2.0
+    },
+    "cnn": {
+      "unique": 1,
+      "normalized_unique_ratio": 0.125,
+      "top1": "52eaddcb168d401f0f9f042af3dfefdd3c5dea4d",
+      "top1_count": 8,
+      "top1_share": 1.0,
+      "effective_number": 1.0
+    },
+    "backbone_cnn": {
+      "unique": 2,
+      "normalized_unique_ratio": 0.25,
+      "top1": "regnet_x_3_2gf::52eaddcb168d401f0f9f042af3dfefdd3c5dea4d",
+      "top1_count": 4,
+      "top1_share": 0.5,
+      "effective_number": 2.0
+    },
+    "forward_graph": {
+      "unique": 2,
+      "normalized_unique_ratio": 0.25,
+      "top1": "970230ee06612276dcc7f18ed0f140a233ffc740",
+      "top1_count": 4,
+      "top1_share": 0.5,
+      "effective_number": 2.0
+    }
+  }
+}

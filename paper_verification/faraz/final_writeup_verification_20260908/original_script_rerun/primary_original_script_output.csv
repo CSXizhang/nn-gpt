@@ -1,0 +1,13 @@
+condition,seed,run_id,job_id,partition,gpu_type,gpu_count,state,elapsed_seconds,elapsed,node,gpu_hours,gpu_hours
+4pattern,42,20260612_4pattern_a18_cifar10_e5_p3500_c1200_s100_l40s_excl_full_full_reward_seed42,2697817,gpu_computervision_long,L40S,4,COMPLETED,140826,1-15:07:06,jnfat05,156.47333333333333,156.47333333333333
+4pattern,123,20260612_4pattern_a18_cifar10_e5_p3500_c1200_s100_h100x4_shared_full_full_reward_seed123,2697840,h100,H100,4,COMPLETED,78180,21:43:00,jnultra01,86.86666666666666,86.86666666666666
+4pattern,777,20260612_4pattern_a18_cifar10_e5_p3500_c1200_s100_l40s_excl_full_full_reward_seed777,2697842,gpu_computervision_long,L40S,4,COMPLETED,177723,2-01:22:03,jnfat06,197.47,197.47
+1pattern,42,20260618_1pattern_a9_cifar10_e5_p3500_c1200_s100_h100x4_shared_full_full_reward_seed42,2723084,h100,H100,4,COMPLETED,61461,17:04:21,jnultra01,68.29,68.29
+1pattern,123,20260618_1pattern_a9_cifar10_e5_p3500_c1200_s100_h100x4_shared_full_full_reward_seed123,2723085,h100,H100,4,COMPLETED,83183,23:06:23,jnultra02,92.42555555555556,92.42555555555556
+1pattern,777,20260618_1pattern_a9_cifar10_e5_p3500_c1200_s100_h100x4_shared_full_full_reward_seed777,2723086,h100,H100,4,COMPLETED,64943,18:02:23,jnultra02,72.1588888888889,72.1588888888889
+4pattern,114,20260627_4pattern_a18_cifar10_e5_p3500_c1200_s100_h100x4_shared_full_full_reward_seed114,2776904,h100,H100,4,COMPLETED,7025,01:57:05,jnultra01,7.805555555555555,7.805555555555555
+4pattern,514,20260627_4pattern_a18_cifar10_e5_p3500_c1200_s100_h100x4_shared_full_full_reward_seed514,2776906,h100,H100,4,COMPLETED,42212,11:43:32,jnultra01,46.90222222222222,46.90222222222222
+1pattern,114,20260627_1pattern_a9_cifar10_e5_p3500_c1200_s100_h100x4_shared_full_full_reward_seed114,2776908,h100,H100,4,COMPLETED,35454,09:50:54,jnultra01,39.39333333333333,39.39333333333333
+1pattern,514,20260627_1pattern_a9_cifar10_e5_p3500_c1200_s100_h100x4_shared_full_full_reward_seed514,2776910,h100,H100,4,COMPLETED,40009,11:06:49,jnultra02,44.45444444444445,44.45444444444445
+4pattern,919,20260627_4pattern_a18_cifar10_e5_p3500_c1200_s100_h100x4_shared_full_full_reward_seed919,2777817,h100,H100,4,COMPLETED,34309,09:31:49,jnultra01,38.12111111111111,38.12111111111111
+1pattern,919,20260627_1pattern_a9_cifar10_e5_p3500_c1200_s100_h100x4_shared_full_full_reward_seed919,2777842,h100,H100,4,COMPLETED,51575,14:19:35,jnultra01,57.30555555555556,57.30555555555556

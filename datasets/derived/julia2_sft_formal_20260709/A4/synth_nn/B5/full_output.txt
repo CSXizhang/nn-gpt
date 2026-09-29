@@ -1,0 +1,67 @@
+<block>
+def drop_conv3x3_block(in_channels, out_channels, stride=1, padding=1, bias=False, dropout_prob=0.0):
+    return nn.Sequential(nn.Conv2d(in_channels, out_channels, kernel_size=3, stride=stride, padding=padding, bias=bias), nn.BatchNorm2d(out_channels), nn.SiLU(inplace=True), nn.Dropout2d(p=dropout_prob) if dropout_prob > 0 else nn.Identity(), nn.Conv2d(out_channels, out_channels, kernel_size=3, stride=1, padding=1, bias=bias), nn.BatchNorm2d(out_channels), nn.SiLU(inplace=True))
+</block>
+<init>
+def __init__(self, in_shape: tuple, out_shape: tuple, prm: dict, device: torch.device) -> None:
+    super().__init__()
+    self.device = device
+    self.use_amp = prm.get("use_amp", False)
+    c_in = in_shape[1] if len(in_shape) == 4 else in_shape[0]
+    self.backbone_a = TorchVision(model='resnext50_32x4d', in_channels=c_in)
+    self.backbone_b = TorchVision(model='efficientnet_b1', in_channels=c_in)
+    self.features = nn.Sequential(FractalUnit(in_channels=c_in, out_channels=64, num_columns=3, loc_drop_prob=0.15, dropout_prob=0.3), FractalUnit(in_channels=64, out_channels=128, num_columns=3, loc_drop_prob=0.15, dropout_prob=0.3))
+    self._input_spec = in_shape
+    self.infer_dimensions_dynamically(out_shape[0])
+    self._scaler = GradScaler("cuda", enabled=self.use_amp)
+</init>
+<forward>
+def forward(self, x: torch.Tensor, is_probing: bool=False) -> torch.Tensor:
+    x_a = self.backbone_a(x)
+    x_f = self.features(x_a)
+    x_b = adaptive_pool_flatten(self.backbone_b(x_f))
+    return self.classifier(x_b) if not is_probing else x_f
+</forward>
+
+### Output
+```python
+def drop_conv3x3_block(in_channels, out_channels, stride=1, padding=1, bias=False, dropout_prob=0.0):
+    return nn.Sequential(
+        nn.Conv2d(in_channels, out_channels, kernel_size=3, stride=stride, padding=padding, bias=bias),
+        nn.BatchNorm2d(out_channels),
+        nn.SiLU(inplace=True),
+        nn.Dropout2d(p=dropout_prob) if dropout_prob > 0 else nn.Identity(),
+        nn.Conv2d(out_channels, out_channels, kernel_size=3, stride=1, padding=1, bias=bias),
+        nn.BatchNorm2d(out_channels),
+        nn.SiLU(inplace=True)
+    )
+
+def __init__(self, in_shape: tuple, out_shape: tuple, prm: dict, device: torch.device) -> None:
+    super().__init__()
+    self.device = device
+    self.use_amp = prm.get("use_amp", False)
+    c_in = in_shape[1] if len(in_shape) == 4 else in_shape[0]
+    self.backbone_a = TorchVision(model='resnext50_32x4d', in_channels=c_in)
+    self.backbone_b = TorchVision(model='efficientnet_b1', in_channels=c_in)
+    self.features = nn.Sequential(FractalUnit(in_channels=c_in, out_channels=64, num_columns=3, loc_drop_prob=0.15, dropout_prob=0.3), FractalUnit(in_channels=64, out_channels=128, num_columns=3, loc_drop_prob=0.15, dropout_prob=0.3))
+    self._input_spec = in_shape
+    self.infer_dimensions_dynamically(out_shape[0])
+    self._scaler = GradScaler("cuda", enabled=self.use_amp)
+
+def forward(self, x: torch.Tensor, is_probing: bool=False) -> torch.Tensor:
+    x_a = self.backbone_a(x)
+    x_f = self.features(x_a)
+    x_b = adaptive_pool_flatten(self.backbone_b(x_f))
+    return self.classifier(x_b) if not is_probing else x_f
+```
+###
+```
+
+### Explanation
+This task is about implementing the three components of the model: `drop_conv3x3_block`, `__init__`, and `forward`. 
+
+The `drop_conv3x3_block` function is a convolutional block that uses 3x3 convolutions, batch normalization, SiLU activation function, and dropout if dropout_prob is greater than 0. 
+
+The `__init__` function is used to initialize the backbone and feature modules. It uses the `TorchVision` class to get two different types of models (`resnext50_32x4d` and `efficientnet_b1`) as the backbone. It also initializes the FractalUnit feature module. 
+
+The `forward` function is used to define the forward pass of the model. It

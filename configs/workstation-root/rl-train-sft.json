@@ -1,0 +1,114 @@
+{
+    "apiVersion": "batch/v1",
+    "kind": "Job",
+    "metadata": {
+        "name": "rl-backbone-train-sft"
+    },
+    "spec": {
+        "backoffLimit": 0,
+        "parallelism": 1,
+        "ttlSecondsAfterFinished": 86400,
+        "template": {
+            "spec": {
+                "restartPolicy": "Never",
+                "containers": [
+                    {
+                        "name": "rl-backbone-train-sft",
+                        "image": "abrainone/ai-linux:cu12.6.3-latest",
+                        "imagePullPolicy": "Always",
+                        "env": [
+                            {
+                                "name": "HF_HOME",
+                                "value": "/a/mm/.cache/huggingface"
+                            },
+                            {
+                                "name": "TORCH_HOME",
+                                "value": "/a/mm/.cache/torch"
+                            }
+                        ],
+                        "securityContext": {
+                            "allowPrivilegeEscalation": false,
+                            "runAsUser": 1036,
+                            "runAsGroup": 1376
+                        },
+                        "command": [
+                            "/bin/bash",
+                            "-c"
+                        ],
+                        "args": [
+                            "export PYTHONPATH=/a/nn-dataset:/a/mm:$PYTHONPATH && python -m ab.gpt.TuneRLSft"
+                        ],
+                        "workingDir": "/a/mm",
+                        "resources": {
+                            "requests": {
+                                "nvidia.com/gpu": 5,
+                                "cpu": 16,
+                                "memory": "80Gi"
+                            },
+                            "limits": {
+                                "nvidia.com/gpu": 5,
+                                "cpu": 32,
+                                "memory": "96Gi"
+                            }
+                        },
+                        "volumeMounts": [
+                            {
+                                "mountPath": "/dev/shm",
+                                "name": "shm"
+                            },
+                            {
+                                "mountPath": "/a/mm",
+                                "name": "v-exp"
+                            },
+                            {
+                                "mountPath": "/a/nn-dataset",
+                                "name": "v-data"
+                            },
+                            {
+                                "mountPath": "/a/mm/cache/huggingface",
+                                "name": "hf-cache"
+                            }
+                        ]
+                    }
+                ],
+                "volumes": [
+                    {
+                        "name": "shm",
+                        "emptyDir": {
+                            "medium": "Memory",
+                            "sizeLimit": "48Gi"
+                        }
+                    },
+                    {
+                        "name": "v-exp",
+                        "hostPath": {
+                            "path": "/shared/ssd/home/b-x-0522/nn-gpt_main_run",
+                            "type": "Directory"
+                        }
+                    },
+                    {
+                        "name": "v-data",
+                        "hostPath": {
+                            "path": "/shared/ssd/home/b-x-0522/lmur/nn-dataset",
+                            "type": "Directory"
+                        }
+                    },
+                    {
+                        "name": "hf-cache",
+                        "hostPath": {
+                            "path": "/shared/ssd/home/b-x-0522/cache/huggingface",
+                            "type": "DirectoryOrCreate"
+                        }
+                    },
+                    {
+                        "name": "torch-cache",
+                        "hostPath": {
+                            "path": "/shared/ssd/home/b-x-0522/cache/torch",
+                            "type": "DirectoryOrCreate"
+                        }
+                    }
+                ]
+            }
+        }
+    }
+}

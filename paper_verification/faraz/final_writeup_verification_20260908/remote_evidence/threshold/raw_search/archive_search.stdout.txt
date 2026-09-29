@@ -1,0 +1,8 @@
+/home/s471802/nn-gpt/data/celeba/img_align_celeba.zip
+/home/s471802/nn-gpt/data/imagenette2.tgz
+/home/s471802/nn-gpt/data/cifar-10-python.tar.gz
+/home/s471802/nn-gpt/data/cifar-100-python.tar.gz
+/home/s471802/nn-gpt/data_v2/cifar-10-python.tar.gz
+/home/s471802/tunerl_runtime_5007863e.tgz
+/home/s471802/.venv/lib/python3.13/site-packages/dateutil/zoneinfo/dateutil-zoneinfo.tar.gz
+/home/s471802/.venv/lib/python3.13/site-packages/tensorboard/webfiles.zip

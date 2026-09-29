@@ -1,0 +1,41 @@
+<block>
+def drop_conv3x3_block(in_channels, out_channels, stride=1, padding=1, bias=False, dropout_prob=0.0):
+    return nn.Sequential(
+        nn.Conv2d(in_channels, out_channels, kernel_size=3, stride=stride, padding=padding, bias=bias),
+        nn.BatchNorm2d(out_channels),
+        nn.SiLU(inplace=True),
+        nn.Dropout2d(p=dropout_prob, inplace=True) if dropout_prob > 0 else nn.Identity(),
+        nn.Conv2d(out_channels, out_channels, kernel_size=3, stride=1, padding=1, bias=bias),
+        nn.BatchNorm2d(out_channels),
+        nn.SiLU(inplace=True)
+    )
+</block>
+<init>
+def __init__(self, in_shape: tuple, out_shape: tuple, prm: dict, device: torch.device) -> None:
+    super().__init__()
+    self.device = device
+    self.use_amp = prm.get("use_amp", False)
+    c_in = in_shape[1] if len(in_shape) == 4 else in_shape[0]
+    self.backbone_a = TorchVision(model='resnet50', in_channels=c_in)
+    self.backbone_b = TorchVision(model='resnext50_32x4d', in_channels=c_in)
+    self.features = nn.Sequential(FractalUnit(in_channels=c_in, out_channels=64, num_columns=3, loc_drop_prob=0.25, dropout_prob=0.01), FractalUnit(in_channels=64, out_channels=128, num_columns=3, loc_drop_prob=0.25, dropout_prob=0.01))
+    self._input_spec = in_shape
+    self.infer_dimensions_dynamically(num_classes=out_shape[0])
+    self._scaler = GradScaler('cuda', enabled=self.use_amp)
+</init>
+<forward>
+def forward(self, x: torch.Tensor, is_probing: bool=False) -> torch.Tensor:
+    x_b_map = self.backbone_a(x)
+    x_b_fu = self.features(x_b_map)
+    x_b_img = self.backbone_b(x)
+    x_b_img = adaptive_pool_flatten(x_b_img)
+    x_f_img = adaptive_pool_flatten(x_b_fu)
+    x_b_map_d = adaptive_pool_flatten(x_b_map)
+    x_out = torch.cat((x_b_img, x_f_img, x_b_map_d), dim=1)
+    if is_probing:
+        return x_out
+    return self.classifier(x_out)
+</forward>
+
+### Output Instructions
+The three components have been implemented as per the specifications. They are wrapped in XML tags for easy extraction and processing. Please ensure to review them for any errors.

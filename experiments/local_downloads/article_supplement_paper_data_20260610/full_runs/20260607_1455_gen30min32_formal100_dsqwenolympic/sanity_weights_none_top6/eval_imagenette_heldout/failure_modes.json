@@ -1,0 +1,5 @@
+{
+  "qwen_cifar10_weights_none_top6": {
+    "AccuracyException: (0.10420382165605095, 63576639507, \"Accuracy is too low: 0.10420382165605095. The minimum accepted accuracy for the 'imagenette' dataset is 0": 1
+  }
+}

@@ -1,0 +1,76 @@
+RuntimeError: Given groups=1, weight of size [64, 3, 3, 3], expected input[1, 576, 1, 1] to have 3 channels, but got 576 channels instead
+
+Traceback (most recent call last):
+  File "/home/s471802/nn-gpt/ab/gpt/util/nneval_worker_pool.py", line 1057, in _persistent_nneval_worker_entry
+    result = _execute_nneval_task(request)
+  File "/home/s471802/nn-gpt/ab/gpt/util/nneval_worker_pool.py", line 387, in _execute_nneval_task
+    eval_results = evaluator.evaluate(code_file, checkpoint_path=checkpoint_path)
+  File "/home/s471802/nn-gpt/ab/gpt/util/Eval.py", line 107, in evaluate
+    return api.check_nn(
+           ~~~~~~~~~~~~^
+        code,
+        ^^^^^
+    ...<6 lines>...
+        self.save_path,
+        ^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/home/s471802/nn-dataset/ab/nn/api.py", line 240, in check_nn
+    return Train.train_new(nn_code, task, dataset, metric, prm, save_to_db=save_to_db, prefix=prefix, save_path=save_path, export_onnx=export_onnx,
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                           epoch_limit_minutes=epoch_limit_minutes, transform_dir=transform_dir)
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/s471802/nn-dataset/ab/nn/util/Train.py", line 548, in train_new
+    trainer = Train(
+        config=(task, dataset, metric, model_name),
+    ...<10 lines>...
+        save_to_db=save_to_db,
+        is_code=True)
+  File "/home/s471802/nn-dataset/ab/nn/util/Train.py", line 216, in __init__
+    self.model = model_net(self.in_shape, out_shape, prm, self.device)
+                 ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/s471802/nn-gpt/out_nneval_tmp_pid_51303/nn/tmp/rl-bb-struct1-v2-dscoder7b-sftcycle-10cycle1536-1987440549ca3ca4c86b5ba7785777f1.py", line 110, in __init__
+  File "/home/s471802/nn-gpt/out_nneval_tmp_pid_51303/nn/tmp/rl-bb-struct1-v2-dscoder7b-sftcycle-10cycle1536-1987440549ca3ca4c86b5ba7785777f1.py", line 126, in infer_dimensions_dynamically
+  File "/home/s471802/nn-gpt/out_nneval_tmp_pid_51303/nn/tmp/rl-bb-struct1-v2-dscoder7b-sftcycle-10cycle1536-1987440549ca3ca4c86b5ba7785777f1.py", line 146, in forward
+  File "/home/s471802/.venv/lib/python3.13/site-packages/torch/nn/modules/module.py", line 1775, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "/home/s471802/.venv/lib/python3.13/site-packages/torch/nn/modules/module.py", line 1786, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/s471802/.venv/lib/python3.13/site-packages/torch/nn/modules/container.py", line 250, in forward
+    input = module(input)
+  File "/home/s471802/.venv/lib/python3.13/site-packages/torch/nn/modules/module.py", line 1775, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "/home/s471802/.venv/lib/python3.13/site-packages/torch/nn/modules/module.py", line 1786, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/s471802/nn-gpt/out_nneval_tmp_pid_51303/nn/tmp/rl-bb-struct1-v2-dscoder7b-sftcycle-10cycle1536-1987440549ca3ca4c86b5ba7785777f1.py", line 98, in forward
+  File "/home/s471802/.venv/lib/python3.13/site-packages/torch/nn/modules/module.py", line 1775, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "/home/s471802/.venv/lib/python3.13/site-packages/torch/nn/modules/module.py", line 1786, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/s471802/nn-gpt/out_nneval_tmp_pid_51303/nn/tmp/rl-bb-struct1-v2-dscoder7b-sftcycle-10cycle1536-1987440549ca3ca4c86b5ba7785777f1.py", line 86, in forward
+  File "/home/s471802/.venv/lib/python3.13/site-packages/torch/nn/modules/module.py", line 1775, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "/home/s471802/.venv/lib/python3.13/site-packages/torch/nn/modules/module.py", line 1786, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/s471802/.venv/lib/python3.13/site-packages/torch/nn/modules/container.py", line 250, in forward
+    input = module(input)
+  File "/home/s471802/.venv/lib/python3.13/site-packages/torch/nn/modules/module.py", line 1775, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "/home/s471802/.venv/lib/python3.13/site-packages/torch/nn/modules/module.py", line 1786, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/s471802/.venv/lib/python3.13/site-packages/torch/nn/modules/conv.py", line 548, in forward
+    return self._conv_forward(input, self.weight, self.bias)
+           ~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/s471802/.venv/lib/python3.13/site-packages/torch/nn/modules/conv.py", line 543, in _conv_forward
+    return F.conv2d(
+           ~~~~~~~~^
+        input, weight, bias, self.stride, self.padding, self.dilation, self.groups
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+RuntimeError: Given groups=1, weight of size [64, 3, 3, 3], expected input[1, 576, 1, 1] to have 3 channels, but got 576 channels instead

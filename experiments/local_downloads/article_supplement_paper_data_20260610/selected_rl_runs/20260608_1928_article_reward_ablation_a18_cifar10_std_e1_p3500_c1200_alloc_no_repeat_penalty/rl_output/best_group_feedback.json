@@ -1,0 +1,52 @@
+{
+  "group_id": 5,
+  "best_closed_group_mean_reward_target_acc": 0.1832306918238993,
+  "best_closed_group_mean_train_acc": 0.8988199283154118,
+  "best_closed_group_mean_test_acc": 0.9161006289308175,
+  "feedback": [
+    {
+      "goal_key": "B_to_Fractal_plus_A",
+      "pattern_name": "DualBackbone_Fractal_Fuse_Deep_3cc176",
+      "graph_expr_short": "classifier(Cat(PoolFlat(Fractal[FractalUnit](_feature_to_input_image(Backbone[resnet50](Input), 'a'))), Cat(PoolFlat(Backbone[resnet50](Input)), PoolFlat(Bac...",
+      "reward_target_value": 0.18504,
+      "frozen_train_acc": 0.9018444444444444,
+      "frozen_test_acc": 0.9196,
+      "unfrozen_train_acc": null,
+      "unfrozen_test_acc": null,
+      "backbone_model_names": [
+        "resnet50",
+        "resnet50"
+      ],
+      "stats_short": "depth:6 merges:2 stem:0 project:0 fuse:2 struct:0.18",
+      "summary": "pattern=DualBackbone_Fractal_Fuse_Deep_3cc176; target=0.1850; frozen_train=0.9018; frozen_test=0.9196; backbones=[resnet50, resnet50]; backbone_bucket=resnet50 + resnet50; cnn=Cat(Cat(Backbone(Input), Backbone(Input)), Fractal(_feature_t...",
+      "family_hash": "7c28444a41740841caf8485208ff8df7c03848af",
+      "signature": "DualBackbone_Fractal_Fuse_Deep_3cc176_3cc176",
+      "reward_group_id": 5,
+      "backbone_signature": "resnet50 + resnet50",
+      "cnn_signature": "e3e67dcebb027ea5cf18788f2678e26fac05675c",
+      "cnn_expr_short": "Cat(Cat(Backbone(Input), Backbone(Input)), Fractal(_feature_to_input_image(Backbone(Input), '..."
+    },
+    {
+      "goal_key": "B_to_Fractal_plus_A",
+      "pattern_name": "DualBackbone_Fractal_Fuse_Deep_3cc176",
+      "graph_expr_short": "classifier(Cat(PoolFlat(Fractal[FractalUnit](_feature_to_input_image(Backbone[resnet50](Input), 'a'))), Cat(PoolFlat(Backbone[resnet50](Input)), PoolFlat(Bac...",
+      "reward_target_value": 0.18492,
+      "frozen_train_acc": 0.8989111111111111,
+      "frozen_test_acc": 0.9246,
+      "unfrozen_train_acc": null,
+      "unfrozen_test_acc": null,
+      "backbone_model_names": [
+        "resnet50",
+        "resnet50"
+      ],
+      "stats_short": "depth:6 merges:2 stem:0 project:0 fuse:2 struct:0.18",
+      "summary": "pattern=DualBackbone_Fractal_Fuse_Deep_3cc176; target=0.1849; frozen_train=0.8989; frozen_test=0.9246; backbones=[resnet50, resnet50]; backbone_bucket=resnet50 + resnet50; cnn=Cat(Cat(Backbone(Input), Backbone(Input)), Fractal(_feature_t...",
+      "family_hash": "7c28444a41740841caf8485208ff8df7c03848af",
+      "signature": "DualBackbone_Fractal_Fuse_Deep_3cc176_3cc176",
+      "reward_group_id": 5,
+      "backbone_signature": "resnet50 + resnet50",
+      "cnn_signature": "e3e67dcebb027ea5cf18788f2678e26fac05675c",
+      "cnn_expr_short": "Cat(Cat(Backbone(Input), Backbone(Input)), Fractal(_feature_to_input_image(Backbone(Input), '..."
+    }
+  ]
+}

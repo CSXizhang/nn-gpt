@@ -1,0 +1,1 @@
+find /data/42-julia-hpc-ai-cv-students/s471802/nn-gpt-runs/paper_followup_20260727 -maxdepth 1 -type f -printf "%p\t%s\t%TY-%Tm-%TdT%TH:%TM:%TS%Tz\n" | sort

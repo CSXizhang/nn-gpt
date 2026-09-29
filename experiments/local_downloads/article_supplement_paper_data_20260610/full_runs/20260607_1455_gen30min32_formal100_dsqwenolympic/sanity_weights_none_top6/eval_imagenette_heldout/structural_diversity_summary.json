@@ -1,0 +1,36 @@
+{
+  "qwen_cifar10_weights_none_top6": {
+    "backbone": {
+      "unique": 1,
+      "normalized_unique_ratio": 0.2,
+      "top1": "regnet_y_16gf + regnet_y_32gf",
+      "top1_count": 5,
+      "top1_share": 1.0,
+      "effective_number": 1.0
+    },
+    "cnn": {
+      "unique": 1,
+      "normalized_unique_ratio": 0.2,
+      "top1": "86ab858e3845e7128fa6117d06a68dc414a53cbd",
+      "top1_count": 5,
+      "top1_share": 1.0,
+      "effective_number": 1.0
+    },
+    "backbone_cnn": {
+      "unique": 1,
+      "normalized_unique_ratio": 0.2,
+      "top1": "regnet_y_16gf + regnet_y_32gf::86ab858e3845e7128fa6117d06a68dc414a53cbd",
+      "top1_count": 5,
+      "top1_share": 1.0,
+      "effective_number": 1.0
+    },
+    "forward_graph": {
+      "unique": 1,
+      "normalized_unique_ratio": 0.2,
+      "top1": "bf4a68d626f3789d6b30eb88af0f5e10c20d90f7",
+      "top1_count": 5,
+      "top1_share": 1.0,
+      "effective_number": 1.0
+    }
+  }
+}

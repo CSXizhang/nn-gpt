@@ -1,0 +1,18 @@
+{
+  "dscoder_cifar10": {
+    "Reconstruction failed (tags missing?)": 2
+  },
+  "dscoder_cifar100": {
+    "RuntimeError: Sizes of tensors must match except in dimension 0. Expected size 1024 but got size 1280 for tensor number 1 in the list.": 1
+  },
+  "dscoder_imagenette": {
+    "NameError: name 'F' is not defined": 2,
+    "Reconstruction failed (tags missing?)": 1
+  },
+  "olympic_cifar10": {},
+  "olympic_cifar100": {},
+  "olympic_imagenette": {},
+  "qwen_cifar10": {},
+  "qwen_cifar100": {},
+  "qwen_imagenette": {}
+}

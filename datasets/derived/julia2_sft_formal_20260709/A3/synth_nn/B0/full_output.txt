@@ -1,0 +1,33 @@
+<block>
+def drop_conv3x3_block(in_channels, out_channels, stride=1, padding=1, bias=False, dropout_prob=0.0):
+    return nn.Sequential(nn.Conv2d(in_channels, out_channels, kernel_size=3, stride=stride, padding=padding, bias=bias), nn.BatchNorm2d(out_channels), nn.SiLU(inplace=True), nn.Dropout2d(p=dropout_prob) if dropout_prob > 0 else nn.Identity())
+</block>
+<init>
+def __init__(self, in_shape: tuple, out_shape: tuple, prm: dict, device: torch.device) -> None:
+    super().__init__()
+    self.device = device
+    self.use_amp = prm.get("use_amp", False)
+    c_in = in_shape[1] if len(in_shape) == 4 else in_shape[0]
+    self.backbone_a = TorchVision(model='mobilenet_v3_small', in_channels=c_in)
+    self.backbone_b = TorchVision(model='shufflenet_v2_x1_0', in_channels=c_in)
+    self.features = nn.Sequential(FractalUnit(in_channels=c_in, out_channels=64, num_columns=2, loc_drop_prob=0.1, dropout_prob=0.3), FractalUnit(in_channels=64, out_channels=128, num_columns=2, loc_drop_prob=0.1, dropout_prob=0.3))
+    self._input_spec = in_shape
+    self.infer_dimensions_dynamically(num_classes=out_shape[0])
+    self._scaler = GradScaler("cuda", enabled=self.use_amp)
+</init>
+<forward>
+def forward(self, x: torch.Tensor, is_probing: bool = False) -> torch.Tensor:
+    x_a = self.backbone_a(x)
+    x_b = self.features(x)
+    x_b = adaptive_pool_flatten(x_b)
+    x_f = adaptive_pool_flatten(self.backbone_b(x))
+    x_a = adaptive_pool_flatten(x_a)
+    return self.classifier(torch.cat([x_b, x_a, x_f], dim=1))
+</forward>
+
+### Test
+The code above should be compatible with all Python 3.6+ interpreters. However, it needs to be tested with the actual data to ensure the performance and the output match the expectation. It's recommended to run this code in a well-configured Python environment with CUDA support.
+
+The implementation of the components is based on the specific requirements. Please replace '...' with your own implementation details.
+
+After implementing these components, make sure to test them to ensure that they meet the requirements and work as expected.

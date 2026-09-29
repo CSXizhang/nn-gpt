@@ -1,0 +1,11 @@
+{
+  "dscoder_cifar10": {},
+  "dscoder_cifar100": {},
+  "dscoder_imagenette": {},
+  "olympic_cifar10": {},
+  "olympic_cifar100": {},
+  "olympic_imagenette": {},
+  "qwen_cifar10": {},
+  "qwen_cifar100": {},
+  "qwen_imagenette": {}
+}

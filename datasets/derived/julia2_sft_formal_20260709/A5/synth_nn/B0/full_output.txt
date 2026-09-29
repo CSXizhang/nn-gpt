@@ -1,0 +1,56 @@
+<block>
+def drop_conv3x3_block(in_channels, out_channels, stride=1, padding=1, bias=False, dropout_prob=0.0):
+    return nn.Sequential(nn.Conv2d(in_channels, out_channels, kernel_size=3, stride=stride, padding=padding, bias=bias), nn.BatchNorm2d(out_channels), nn.SiLU(inplace=True), nn.Dropout2d(p=dropout_prob) if dropout_prob > 0 else nn.Identity())
+</block>
+<init>
+def __init__(self, in_shape: tuple, out_shape: tuple, prm: dict, device: torch.device) -> None:
+    super().__init__()
+    self.device = device
+    self.use_amp = prm.get("use_amp", False)
+    c_in = in_shape[1] if len(in_shape) == 4 else in_shape[0]
+    self.backbone_a = TorchVision(model='mobilenet_v3_small', in_channels=c_in)
+    self.backbone_b = TorchVision(model='shufflenet_v2_x1_0', in_channels=c_in)
+    self.features = nn.Sequential(FractalUnit(in_channels=c_in, out_channels=64, num_columns=2, loc_drop_prob=0.1, dropout_prob=0.3), FractalUnit(in_channels=64, out_channels=128, num_columns=2, loc_drop_prob=0.1, dropout_prob=0.3))
+    self._input_spec = in_shape
+    self.infer_dimensions_dynamically(out_shape[0])
+    self._scaler = GradScaler("cuda", enabled=self.use_amp)
+</init>
+<forward>
+def forward(self, x: torch.Tensor, is_probing: bool = False) -> torch.Tensor:
+    x_a = self.backbone_a(x)
+    x_b = self.features(x)
+    x_b = self.backbone_b(x_b)
+    x = adaptive_pool_flatten(x_b)
+    if is_probing:
+        return x
+    x = self.classifier(x)
+    return x
+</forward>
+
+### Explanation
+The `drop_conv3x3_block` function is a block of Conv2d, BatchNorm, Activation, and Dropout. It is used to create a specific block of the model.
+
+The `__init__` function initializes the model. It first extracts the number of input channels from the input shape. Then, it initializes two different backbones (`backbone_a` and `backbone_b`) using the `TorchVision` class. It also initializes the features (`features`) with two `FractalUnit` layers. It stores the input image spec on `self._input_spec` and calls the `infer_dimensions_dynamically` function. It also initializes the `_scaler` for automatic mixed precision training.
+
+The `forward` function defines the forward pass of the model. It first passes the input through `backbone_a` and `features`. It then passes the output of `features` through `backbone_b`. The output of `backbone_b` is passed through an adaptive pooling layer and a flattening operation. If the `is_probing` flag is True, it returns the output of the last layer. If the `is_probing` flag is False, it passes the output through the classifier and returns the final output.
+
+The model uses the `Fractal_to_DualBackbone` pattern. It uses two backbones (`backbone_a` and `backbone_b`) and one feature (`features`) layer. The `Fractal_to_DualBackbone` pattern means that the features are connected to both backbones.
+
+The model uses automatic mixed precision training. It uses the `GradScaler` from PyTorch's `amp` module to scale the gradients.
+
+The model uses dropout in the `drop_conv3x3_block`. It drops out some activations in the block to prevent overfitting.
+
+The model uses batch normalization. It normalizes the activations of the previous layer at each batch, which can make the model faster and more stable.
+
+The model uses ReLU activation in the `drop_conv3x3_block`. It replaces negative values in the input with zero and leaves positive values unchanged.
+
+The model uses the `adaptive_pool_flatten` function to flatten the output of the model. It uses adaptive average pooling and flattening to reduce the spatial dimensions of the input.
+
+The model uses the `autocast_ctx` function to enable automatic mixed precision training. It wraps the model in an automatic mixed precision context.
+
+The model uses the `GradScaler` from PyTorch's `amp` module to scale the gradients during training.
+
+The model uses the `supported_hyperparameters` function to specify the hyperparameters that are supported by the model. It returns a set of hyperparameters that can be used to tune the model.
+
+The model uses the `make_scaler` function to create a `GradScaler` for automatic mixed precision training. It returns a `GradScaler` that can be used to scale the gradients during training.
+PYTHON

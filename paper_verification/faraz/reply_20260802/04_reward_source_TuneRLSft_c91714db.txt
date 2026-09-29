@@ -1,0 +1,375 @@
+# Exact excerpts from ab/gpt/TuneRLSft.py at commit c91714dbe7dad1d02a9080243945bbf8e8ec9300
+# Extracted with git show; line ranges are preserved but non-contiguous.
+
+    if _normalize_sft_eval_split_protocol(split_protocol) == "trainvaltest":
+        if dataset == "cifar-10":
+            return "cifar10-train[45k]", "cifar10-train[5k]", "cifar10-test[10k]"
+        if dataset == "cifar-100":
+            return "cifar100-train[45k]", "cifar100-train[5k]", "cifar100-test[10k]"
+        if dataset == "imagenette":
+            return "imagenette-train[7500]", "imagenette-train[1969]", "imagenette-test[3925]"
+    return "official-train", "official-test", "none"
+
+
+def _stage1_fixed_failure_reward(res: Dict[str, Any], meta: Dict[str, Any], graph_info) -> Optional[float]:
+    if str(res.get("current_stage_name") or "") != TuneRL.STAGE1_STRUCTURE_EXPLORE:
+        return None
+    if TuneRL._is_trainable_candidate(res, graph_info):
+        return None
+
+    if (
+        not meta.get("xml_tag_exact")
+        or int(meta.get("xml_tag_count", 0) or 0) < 3
+        or int(meta.get("class_count", 0) or 0) > 0
+        or int(meta.get("import_count", 0) or 0) > 0
+        or int(meta.get("bad_signature_count", 0) or 0) > 0
+        or not meta.get("dual_backbone_ok")
+        or not res.get("built_ok")
+    ):
+        return -3.0
+    if not res.get("forward_ok") or not res.get("forward_shape_ok"):
+        return -1.0
+    return -0.25
+
+
+def _estimate_completion_tokens(completion: str) -> tuple[int, str]:
+    tokenizer = getattr(TuneRL, "active_rl_tokenizer", None)
+    if tokenizer is not None:
+        try:
+            tokenized = tokenizer(completion, add_special_tokens=False)
+            return int(len(tokenized.input_ids)), "tokenizer"
+        except Exception:
+            pass
+    return int(max(1, round(len(completion) / 2.4))), "char_estimate"
+
+
+def _count_repeated_code_lines(completion: str) -> tuple[int, int]:
+    counts: Dict[str, int] = {}
+    for raw_line in completion.splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("<") or len(line) < 12:
+            continue
+        line = re.sub(r"\s+", " ", line)
+        counts[line] = counts.get(line, 0) + 1
+    repeated_groups = sum(1 for value in counts.values() if value >= 3)
+    repeated_excess = sum(value - 2 for value in counts.values() if value >= 3)
+    return repeated_groups, repeated_excess
+
+
+def _completion_compactness_penalty(completion: str, meta: Dict[str, Any]) -> Dict[str, Any]:
+    token_count, token_count_source = _estimate_completion_tokens(completion)
+    soft_limit = max(1, _env_int("NNGPT_SFT_LENGTH_SOFT_TOKEN_LIMIT", SFT_LENGTH_SOFT_TOKEN_LIMIT))
+    hard_limit = max(soft_limit + 1, _env_int("NNGPT_SFT_LENGTH_HARD_TOKEN_LIMIT", SFT_LENGTH_HARD_TOKEN_LIMIT))
+    failure_limit = max(hard_limit + 1, _env_int("NNGPT_SFT_LENGTH_FAILURE_TOKEN_LIMIT", SFT_LENGTH_FAILURE_TOKEN_LIMIT))
+    soft_penalty = max(0.0, _env_float("NNGPT_SFT_LENGTH_SOFT_PENALTY", SFT_LENGTH_SOFT_PENALTY))
+    hard_extra_penalty = max(
+        0.0,
+        _env_float("NNGPT_SFT_LENGTH_HARD_EXTRA_PENALTY", SFT_LENGTH_HARD_EXTRA_PENALTY),
+    )
+    repeat_unit = max(0.0, _env_float("NNGPT_SFT_REPEAT_LINE_PENALTY", SFT_REPEAT_LINE_PENALTY))
+    repeat_cap = max(0.0, _env_float("NNGPT_SFT_REPEAT_LINE_MAX_PENALTY", SFT_REPEAT_LINE_MAX_PENALTY))
+
+    length_penalty = 0.0
+    if token_count > soft_limit:
+        if token_count <= hard_limit:
+            length_penalty = -soft_penalty * ((token_count - soft_limit) / float(hard_limit - soft_limit))
+        else:
+            hard_span = max(1, failure_limit - hard_limit)
+            length_penalty = -soft_penalty - hard_extra_penalty * min(
+                1.0,
+                (token_count - hard_limit) / float(hard_span),
+            )
+
+    repeated_groups, repeated_excess = _count_repeated_code_lines(completion)
+    repeated_line_penalty = -min(repeat_cap, repeat_unit * repeated_excess)
+    xml_incomplete_length_cap = bool(token_count > failure_limit and not meta.get("xml_tag_exact"))
+    return {
+        "completion_token_count": token_count,
+        "completion_token_count_source": token_count_source,
+        "completion_length_soft_limit": soft_limit,
+        "completion_length_hard_limit": hard_limit,
+        "completion_length_failure_limit": failure_limit,
+        "repeated_line_groups": repeated_groups,
+        "repeated_line_excess": repeated_excess,
+        "r_length_compactness": length_penalty,
+        "r_repeated_line_penalty": repeated_line_penalty,
+        "xml_incomplete_length_cap": xml_incomplete_length_cap,
+    }
+
+
+def raw_reward_fn(
+    completion: str,
+    *,
+    seed_accuracy_baseline: float,
+    precomputed_eval_result: Dict[str, Any] | None = None,
+    graph_info=None,
+    batch_graph_hashes: List[str] = None,
+    batch_family_hashes: List[str] = None,
+    batch_descriptor_keys: List[str] = None,
+    batch_backbone_signatures: List[str] = None,
+    batch_cnn_signatures: List[str] = None,
+    batch_block_signatures: List[str] = None,
+    batch_backbone_block_signatures: List[str] = None,
+    prompt_goal_tags: List[str] = None,
+    prompt_target_pattern: str = "",
+    archive_snapshot_family_counts: Dict[str, int] = None,
+    archive_snapshot_descriptor_counts: Dict[str, int] = None,
+    archive_snapshot_backbone_signature_counts: Dict[str, int] = None,
+    archive_snapshot_cnn_signature_counts: Dict[str, int] = None,
+    archive_snapshot_graph_counts: Dict[str, int] = None,
+    archive_snapshot_block_signature_counts: Dict[str, int] = None,
+    archive_snapshot_backbone_cnn_pair_counts: Dict[str, int] = None,
+    archive_snapshot_backbone_block_pair_counts: Dict[str, int] = None,
+    archive_snapshot_backbone_block_best_quality: Dict[str, float] = None,
+    group_baseline_train_acc: float | None = None,
+    group_baseline_reward_target_acc: float | None = None,
+    reward_batch_index: int | None = None,
+    reward_group_id: int | None = None,
+    group_warmup: bool = False,
+    completion_index: int | None = None,
+    batch_last_item: bool = False,
+):
+    res = TuneRL.base_discovery_reward_fn(
+        completion,
+        seed_accuracy_baseline=seed_accuracy_baseline,
+        precomputed_eval_result=precomputed_eval_result,
+        graph_info=graph_info,
+        batch_graph_hashes=batch_graph_hashes,
+        batch_family_hashes=batch_family_hashes,
+        batch_descriptor_keys=batch_descriptor_keys,
+        batch_backbone_signatures=batch_backbone_signatures,
+        batch_cnn_signatures=batch_cnn_signatures,
+        batch_block_signatures=batch_block_signatures,
+        batch_backbone_block_signatures=batch_backbone_block_signatures,
+        prompt_goal_tags=prompt_goal_tags,
+        prompt_target_pattern=prompt_target_pattern,
+        archive_snapshot_family_counts=archive_snapshot_family_counts,
+        archive_snapshot_descriptor_counts=archive_snapshot_descriptor_counts,
+        archive_snapshot_backbone_signature_counts=archive_snapshot_backbone_signature_counts,
+        archive_snapshot_cnn_signature_counts=archive_snapshot_cnn_signature_counts,
+        archive_snapshot_graph_counts=archive_snapshot_graph_counts,
+        archive_snapshot_block_signature_counts=archive_snapshot_block_signature_counts,
+        archive_snapshot_backbone_cnn_pair_counts=archive_snapshot_backbone_cnn_pair_counts,
+        archive_snapshot_backbone_block_pair_counts=archive_snapshot_backbone_block_pair_counts,
+        archive_snapshot_backbone_block_best_quality=archive_snapshot_backbone_block_best_quality,
+        group_baseline_train_acc=group_baseline_train_acc,
+        group_baseline_reward_target_acc=group_baseline_reward_target_acc,
+        reward_batch_index=reward_batch_index,
+        reward_group_id=reward_group_id,
+        group_warmup=group_warmup,
+        completion_index=completion_index,
+        batch_last_item=batch_last_item,
+    )
+    meta = extract_completion_meta(completion)
+    raw_delta = 0.0
+
+    raw_delta -= 0.35 * min(int(meta.get("class_count", 0)), 2)
+    raw_delta -= 0.12 * min(int(meta.get("import_count", 0)), 2)
+    raw_delta -= 0.35 * min(int(meta.get("bad_signature_count", 0)), 2)
+
+    xml_tag_count = int(meta.get("xml_tag_count", 0))
+    if xml_tag_count < 3:
+        raw_delta -= 0.45 * (3 - xml_tag_count)
+    if not meta.get("xml_tag_exact"):
+        raw_delta -= 1.20
+    if not meta.get("exact_block_signature"):
+        raw_delta -= 0.50
+    if not meta.get("exact_init_signature"):
+        raw_delta -= 0.60
+    if not meta.get("exact_forward_signature"):
+        raw_delta -= 0.60
+
+    terminal_penalty = 0.0
+    if meta.get("trailing_after_forward"):
+        terminal_penalty -= 0.20
+        if int(meta.get("trailing_after_forward_chars", 0) or 0) > 300:
+            terminal_penalty -= 0.10
+    jupyter_artifact_count = int(meta.get("jupyter_artifact_count", 0) or 0)
+    if jupyter_artifact_count:
+        terminal_penalty -= 0.25 * min(jupyter_artifact_count, 2)
+    raw_delta += terminal_penalty
+
+    if meta.get("dual_backbone_ok"):
+        raw_delta += 0.45
+    else:
+        if not meta.get("dual_backbone_init_ok"):
+            raw_delta -= 1.75
+        if not meta.get("dual_backbone_forward_ok"):
+            raw_delta -= 1.75
+
+    shape_contract_delta = 0.0
+    if str(res.get("current_stage_name") or TuneRL.current_stage_name) != TuneRL.STAGE1_STRUCTURE_EXPLORE:
+        if res.get("built_ok") and res.get("forward_ok") and res.get("forward_shape_ok"):
+            shape_contract_delta = 0.12
+        elif res.get("built_ok") and res.get("forward_ok"):
+            shape_contract_delta = -0.12
+        elif res.get("built_ok"):
+            shape_contract_delta = -0.08
+    raw_delta += shape_contract_delta
+
+    res["reward"] = TuneRL._apply_trainability_clamp(
+        res,
+        float(res.get("reward", -2.0)) + raw_delta,
+        graph_info,
+    )
+
+    core_format_violation = bool(
+        not meta.get("xml_tag_exact")
+        or not meta.get("exact_block_signature")
+        or not meta.get("exact_init_signature")
+        or not meta.get("exact_forward_signature")
+    )
+    class_count = int(meta.get("class_count", 0))
+    import_count = int(meta.get("import_count", 0))
+    minor_hygiene_violation = class_count > 0 or import_count > 0
+    severe_hygiene_violation = class_count > 2 or import_count > 2
+
+    if core_format_violation:
+        res["reward"] = min(float(res["reward"]), -3.0)
+    elif severe_hygiene_violation:
+        res["reward"] = min(float(res["reward"]), -2.0)
+    elif minor_hygiene_violation:
+        res["reward"] = min(float(res["reward"]), -1.5)
+
+    if not meta.get("dual_backbone_ok"):
+        res["reward"] = min(float(res["reward"]), -3.5)
+    elif group_warmup:
+        if TuneRL._is_trainable_candidate(res, graph_info):
+            res["reward"] = float(res.get("warmup_dense_reward") or 0.0)
+        else:
+            res["reward"] = -float(res.get("warmup_dense_reward") or 0.18)
+
+    fixed_failure_reward = _stage1_fixed_failure_reward(res, meta, graph_info)
+    if fixed_failure_reward is not None:
+        res["reward"] = fixed_failure_reward
+        res["stage1_fixed_failure_reward"] = True
+    elif str(res.get("current_stage_name") or "") == TuneRL.STAGE1_STRUCTURE_EXPLORE:
+        if TuneRL._is_trainable_candidate(res, graph_info):
+            trainability_bonus = 0.10
+            res["reward"] = float(res["reward"]) + trainability_bonus
+            res["stage1_trainability_bonus"] = trainability_bonus
+
+    compactness = _completion_compactness_penalty(completion, meta)
+    res.update(compactness)
+    res["reward"] = (
+        float(res.get("reward", -2.0))
+        + float(compactness["r_length_compactness"])
+        + float(compactness["r_repeated_line_penalty"])
+    )
+    if compactness["xml_incomplete_length_cap"]:
+        res["reward"] = min(float(res["reward"]), -0.8)
+    if TuneRL._reward_variant_is_strong_repeat_penalty() and bool(res.get("strong_repeat_penalty_applied")):
+        res["reward"] = min(float(res["reward"]), 0.0)
+    res["reward"] = TuneRL._apply_target_structure_reward_gate(
+        res,
+        float(res.get("reward", -2.0)),
+    )
+
+    res["raw_extraction"] = {
+        **meta,
+    return bool(
+        parse_ok
+        and res.get("built_ok")
+        and res.get("forward_shape_ok")
+        and res.get("backward_ok")
+    )
+
+
+def _reapply_trainability_clamp(res: Dict[str, Any], reward_value: float, graph_info) -> float:
+    discovery_meta = res.get("open_discovery", {})
+    parse_ok = bool(getattr(graph_info, "parse_ok", False) or discovery_meta.get("parse_ok", False))
+    stage_name = str(res.get("current_stage_name") or TuneRL.current_stage_name)
+    if (
+        stage_name == TuneRL.STAGE1_STRUCTURE_EXPLORE
+        and bool(res.get("static_only") or res.get("stage_uses_static_only"))
+    ):
+        reward_value = TuneRL._apply_executability_clamp(res, reward_value, graph_info)
+        if bool(res.get("forward_shape_ok")):
+            return max(reward_value, 0.05)
+        return reward_value
+
+    if not parse_ok:
+        reward_value = min(reward_value, -0.25)
+    if not res.get("built_ok"):
+        build_partial = float(res.get("r_build_partial", 0.0))
+        reward_value = min(reward_value, -0.8 + build_partial)
+    elif not res.get("forward_ok"):
+        reward_value = min(reward_value, -0.40)
+    elif not res.get("forward_shape_ok"):
+        reward_value = min(reward_value, -0.30)
+    elif not res.get("backward_ok"):
+        reward_value = min(reward_value, -0.10)
+    return reward_value
+
+
+def sft_reward_fn(
+    completion: str,
+    *,
+    seed_accuracy_baseline: float,
+    precomputed_eval_result: Dict[str, Any] | None = None,
+    graph_info=None,
+    batch_graph_hashes: List[str] = None,
+    batch_family_hashes: List[str] = None,
+    batch_descriptor_keys: List[str] = None,
+    batch_backbone_signatures: List[str] = None,
+    batch_cnn_signatures: List[str] = None,
+    batch_block_signatures: List[str] = None,
+    batch_backbone_block_signatures: List[str] = None,
+    prompt_goal_tags: List[str] = None,
+    prompt_target_pattern: str = "",
+    archive_snapshot_family_counts: Dict[str, int] = None,
+    archive_snapshot_descriptor_counts: Dict[str, int] = None,
+    archive_snapshot_backbone_signature_counts: Dict[str, int] = None,
+    archive_snapshot_cnn_signature_counts: Dict[str, int] = None,
+    archive_snapshot_graph_counts: Dict[str, int] = None,
+    archive_snapshot_block_signature_counts: Dict[str, int] = None,
+    archive_snapshot_backbone_cnn_pair_counts: Dict[str, int] = None,
+    archive_snapshot_backbone_block_pair_counts: Dict[str, int] = None,
+    archive_snapshot_backbone_block_best_quality: Dict[str, float] = None,
+    group_baseline_train_acc: float | None = None,
+    group_baseline_reward_target_acc: float | None = None,
+    reward_batch_index: int | None = None,
+    reward_group_id: int | None = None,
+    group_warmup: bool = False,
+    completion_index: int | None = None,
+    batch_last_item: bool = False,
+):
+    res = raw_reward_fn(
+        completion,
+        seed_accuracy_baseline=seed_accuracy_baseline,
+        precomputed_eval_result=precomputed_eval_result,
+        graph_info=graph_info,
+        batch_graph_hashes=batch_graph_hashes,
+        batch_family_hashes=batch_family_hashes,
+        batch_descriptor_keys=batch_descriptor_keys,
+        batch_backbone_signatures=batch_backbone_signatures,
+        batch_cnn_signatures=batch_cnn_signatures,
+        batch_block_signatures=batch_block_signatures,
+        batch_backbone_block_signatures=batch_backbone_block_signatures,
+        prompt_goal_tags=prompt_goal_tags,
+        prompt_target_pattern=prompt_target_pattern,
+        archive_snapshot_family_counts=archive_snapshot_family_counts,
+        archive_snapshot_descriptor_counts=archive_snapshot_descriptor_counts,
+        archive_snapshot_backbone_signature_counts=archive_snapshot_backbone_signature_counts,
+        archive_snapshot_cnn_signature_counts=archive_snapshot_cnn_signature_counts,
+        archive_snapshot_graph_counts=archive_snapshot_graph_counts,
+        archive_snapshot_block_signature_counts=archive_snapshot_block_signature_counts,
+        archive_snapshot_backbone_cnn_pair_counts=archive_snapshot_backbone_cnn_pair_counts,
+        archive_snapshot_backbone_block_pair_counts=archive_snapshot_backbone_block_pair_counts,
+        archive_snapshot_backbone_block_best_quality=archive_snapshot_backbone_block_best_quality,
+        group_baseline_train_acc=group_baseline_train_acc,
+        group_baseline_reward_target_acc=group_baseline_reward_target_acc,
+        reward_batch_index=reward_batch_index,
+        reward_group_id=reward_group_id,
+        group_warmup=group_warmup,
+        completion_index=completion_index,
+        batch_last_item=batch_last_item,
+    )
+    res["reward"] = _reapply_trainability_clamp(res, float(res.get("reward", -2.0)), graph_info)
+    res["anti_collapse"] = {
+        "goal_key": TuneRL.primary_goal_key(prompt_goal_tags, prompt_target_pattern),
+        "trainable_ok": _is_trainable_architecture(res, graph_info),
+        "anti_collapse_delta": 0.0,
+    }
+    return res
+

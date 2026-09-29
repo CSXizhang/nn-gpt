@@ -1,0 +1,17 @@
+{
+  "created_at": "2026-06-08T13:40:29+0200",
+  "source_eval": "/data/42-julia-hpc-ai-cv-students/s471802/nn-gpt-runs/parallel_runs/20260607_1455_gen30min32_formal100_dsqwenolympic/eval_heldout_test/imagenette/generation_samples.jsonl",
+  "selected_count": 36,
+  "settings": {
+    "dscoder_cifar10": 28,
+    "dscoder_cifar100": 29,
+    "dscoder_imagenette": 27,
+    "olympic_cifar10": 30,
+    "olympic_cifar100": 30,
+    "olympic_imagenette": 30,
+    "qwen_cifar10": 30,
+    "qwen_cifar100": 30,
+    "qwen_imagenette": 30
+  },
+  "manifest": "/data/42-julia-hpc-ai-cv-students/s471802/nn-gpt-runs/parallel_runs/20260608_1345_article_B_single_dual_imagenette/selection/single_dual_imagenette_top4_per_setting.json"
+}

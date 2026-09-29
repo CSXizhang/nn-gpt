@@ -1,0 +1,1 @@
+tar -tzf /home/s471802/tunerl_runtime_5007863e.tgz | grep -Ei "threshold|sensitivity|canonical|granular|collapse"

@@ -1,0 +1,150 @@
+{
+  "generated_at": "2026-09-08T17:31:34.825705+00:00",
+  "host": "julia2.hpc.uni-wuerzburg.de",
+  "search_roots": [
+    "/home/s471802/nn-gpt",
+    "/home/s471802/nn-dataset",
+    "/data/42-julia-hpc-ai-cv-students/s471802/nn-gpt-runs"
+  ],
+  "files": [
+    {
+      "host": "julia2.hpc.uni-wuerzburg.de",
+      "remote_path": "/data/42-julia-hpc-ai-cv-students/s471802/nn-gpt-runs/parallel_runs/20260605_0925_dscoder_imagenette_h100/rl_output/generation_samples.jsonl",
+      "local_path": "remote_evidence/imagenette/generation_samples.jsonl",
+      "sha256": "9e43736e9a4b1a69c3047d5a620a7ade743a7c9800520ee4fab9127c4dbbe2fc",
+      "size": 24938907,
+      "fetched_at": "2026-09-08T17:31:34.825705+00:00"
+    },
+    {
+      "host": "julia2.hpc.uni-wuerzburg.de",
+      "remote_path": "/data/42-julia-hpc-ai-cv-students/s471802/nn-gpt-runs/parallel_runs/20260605_0925_dscoder_imagenette_h100/rl_output/run_config.json",
+      "local_path": "remote_evidence/imagenette/data/42-julia-hpc-ai-cv-students/s471802/nn-gpt-runs/parallel_runs/20260605_0925_dscoder_imagenette_h100/rl_output/run_config.json",
+      "sha256": "3d96993601d75ef9beca9ff56a56d6dc89b2af92772ca6853ce8fe40af33cc35",
+      "size": 7759,
+      "fetched_at": "2026-09-08T17:31:34.825705+00:00"
+    },
+    {
+      "host": "julia2.hpc.uni-wuerzburg.de",
+      "remote_path": "/data/42-julia-hpc-ai-cv-students/s471802/nn-gpt-runs/parallel_runs/20260605_0925_dscoder_imagenette_h100/run_state.json",
+      "local_path": "remote_evidence/imagenette/data/42-julia-hpc-ai-cv-students/s471802/nn-gpt-runs/parallel_runs/20260605_0925_dscoder_imagenette_h100/run_state.json",
+      "sha256": "23a5e6c0cf14d86769f831b8631d281ec2c7bbddd1c10e13533ba3cc25098f71",
+      "size": 1426,
+      "fetched_at": "2026-09-08T17:31:34.825705+00:00"
+    },
+    {
+      "host": "julia2.hpc.uni-wuerzburg.de",
+      "remote_path": "/data/42-julia-hpc-ai-cv-students/s471802/nn-gpt-runs/parallel_runs/20260627_1pattern_a9_cifar10_e5_p3500_c1200_s100_h100x4_shared_full_full_reward_seed114/run_state.json",
+      "local_path": "remote_evidence/provenance/data/42-julia-hpc-ai-cv-students/s471802/nn-gpt-runs/parallel_runs/20260627_1pattern_a9_cifar10_e5_p3500_c1200_s100_h100x4_shared_full_full_reward_seed114/run_state.json",
+      "sha256": "3b8ca495f90b75493570600a9c0e0246dda0f87ad656eed20ffdebe44ec0b6ce",
+      "size": 1726,
+      "fetched_at": "2026-09-08T17:31:34.825705+00:00",
+      "remote_size": 1726,
+      "remote_mtime_epoch": 1782535666,
+      "remote_mtime": "2026-06-27 06:47:46.541049402 +0200"
+    },
+    {
+      "host": "julia2.hpc.uni-wuerzburg.de",
+      "remote_path": "/data/42-julia-hpc-ai-cv-students/s471802/nn-gpt-runs/parallel_runs/20260627_1pattern_a9_cifar10_e5_p3500_c1200_s100_h100x4_shared_full_full_reward_seed514/run_state.json",
+      "local_path": "remote_evidence/provenance/data/42-julia-hpc-ai-cv-students/s471802/nn-gpt-runs/parallel_runs/20260627_1pattern_a9_cifar10_e5_p3500_c1200_s100_h100x4_shared_full_full_reward_seed514/run_state.json",
+      "sha256": "a5b087435a0e057cd911f323d301976bb1ee22bb1f2fd44f766341a14019d7c5",
+      "size": 1726,
+      "fetched_at": "2026-09-08T17:31:34.825705+00:00",
+      "remote_size": 1726,
+      "remote_mtime_epoch": 1782547627,
+      "remote_mtime": "2026-06-27 10:07:07.761391190 +0200"
+    },
+    {
+      "host": "julia2.hpc.uni-wuerzburg.de",
+      "remote_path": "/data/42-julia-hpc-ai-cv-students/s471802/nn-gpt-runs/parallel_runs/20260627_1pattern_a9_cifar10_e5_p3500_c1200_s100_h100x4_shared_full_full_reward_seed919/run_state.json",
+      "local_path": "remote_evidence/provenance/data/42-julia-hpc-ai-cv-students/s471802/nn-gpt-runs/parallel_runs/20260627_1pattern_a9_cifar10_e5_p3500_c1200_s100_h100x4_shared_full_full_reward_seed919/run_state.json",
+      "sha256": "3af6d8152ca5dcf2bc5e73ad25566b8db7d80dbe5f40d550443ea5fd80b3c032",
+      "size": 1771,
+      "fetched_at": "2026-09-08T17:31:34.825705+00:00",
+      "remote_size": 1771,
+      "remote_mtime_epoch": 1782607045,
+      "remote_mtime": "2026-06-28 02:37:25.001481101 +0200"
+    },
+    {
+      "host": "julia2.hpc.uni-wuerzburg.de",
+      "remote_path": "/data/42-julia-hpc-ai-cv-students/s471802/nn-gpt-runs/parallel_runs/20260627_4pattern_a18_cifar10_e5_p3500_c1200_s100_h100x4_shared_full_full_reward_seed114/run_state.json",
+      "local_path": "remote_evidence/provenance/data/42-julia-hpc-ai-cv-students/s471802/nn-gpt-runs/parallel_runs/20260627_4pattern_a18_cifar10_e5_p3500_c1200_s100_h100x4_shared_full_full_reward_seed114/run_state.json",
+      "sha256": "7751ee55890785d563800fa2e71278a8e8993a1ae971be84af36114a96a7aa07",
+      "size": 1733,
+      "fetched_at": "2026-09-08T17:31:34.825705+00:00",
+      "remote_size": 1733,
+      "remote_mtime_epoch": 1782500213,
+      "remote_mtime": "2026-06-26 20:56:53.372763865 +0200"
+    },
+    {
+      "host": "julia2.hpc.uni-wuerzburg.de",
+      "remote_path": "/data/42-julia-hpc-ai-cv-students/s471802/nn-gpt-runs/parallel_runs/20260627_4pattern_a18_cifar10_e5_p3500_c1200_s100_h100x4_shared_full_full_reward_seed514/run_state.json",
+      "local_path": "remote_evidence/provenance/data/42-julia-hpc-ai-cv-students/s471802/nn-gpt-runs/parallel_runs/20260627_4pattern_a18_cifar10_e5_p3500_c1200_s100_h100x4_shared_full_full_reward_seed514/run_state.json",
+      "sha256": "9c1e5d020fb5c942a07f47e1668b6fe1d6edbad9baae18c6d752be286c502d65",
+      "size": 1733,
+      "fetched_at": "2026-09-08T17:31:34.825705+00:00",
+      "remote_size": 1733,
+      "remote_mtime_epoch": 1782535400,
+      "remote_mtime": "2026-06-27 06:43:20.156068589 +0200"
+    },
+    {
+      "host": "julia2.hpc.uni-wuerzburg.de",
+      "remote_path": "/data/42-julia-hpc-ai-cv-students/s471802/nn-gpt-runs/parallel_runs/20260627_4pattern_a18_cifar10_e5_p3500_c1200_s100_h100x4_shared_full_full_reward_seed919/run_state.json",
+      "local_path": "remote_evidence/provenance/data/42-julia-hpc-ai-cv-students/s471802/nn-gpt-runs/parallel_runs/20260627_4pattern_a18_cifar10_e5_p3500_c1200_s100_h100x4_shared_full_full_reward_seed919/run_state.json",
+      "sha256": "153629223f6a039499620c3b58bfc523046325df25815adb07c498b4e37b0223",
+      "size": 1781,
+      "fetched_at": "2026-09-08T17:31:34.825705+00:00",
+      "remote_size": 1781,
+      "remote_mtime_epoch": 1782584591,
+      "remote_mtime": "2026-06-27 20:23:11.483496521 +0200"
+    },
+    {
+      "host": "julia2.hpc.uni-wuerzburg.de",
+      "remote_path": "/data/42-julia-hpc-ai-cv-students/s471802/nn-gpt-runs/parallel_runs/20260727_proxy_wide38_unfrozen20_standard/proxy_manifest_wide38.jsonl",
+      "local_path": "remote_evidence/wide38/proxy_manifest_wide38.jsonl",
+      "sha256": "87c570d62c96f7d959d0286cd128420001ef46e8ae76d4953b67bdf8d7fa29c3",
+      "size": 92996,
+      "fetched_at": "2026-09-08T17:31:34.825705+00:00",
+      "remote_size": 92996,
+      "remote_mtime_epoch": 1785122327,
+      "remote_mtime": "2026-07-27 05:18:47.772269178 +0200"
+    },
+    {
+      "host": "julia2.hpc.uni-wuerzburg.de",
+      "remote_path": "/data/42-julia-hpc-ai-cv-students/s471802/nn-gpt-runs/parallel_runs/20260727_proxy_wide38_unfrozen20_standard/results/00_4pattern_seed42_743.json",
+      "local_path": "remote_evidence/wide38/00_4pattern_seed42_743.json",
+      "sha256": "a2e7daea31676387e844d2803060ec5d970fbc70acadb177794942acb2902b49",
+      "size": 4280,
+      "fetched_at": "2026-09-08T17:31:34.825705+00:00",
+      "remote_size": 4280,
+      "remote_mtime_epoch": 1785124647,
+      "remote_mtime": "2026-07-27 05:57:27.645699233 +0200"
+    },
+    {
+      "host": "julia2.hpc.uni-wuerzburg.de",
+      "remote_path": "/data/42-julia-hpc-ai-cv-students/s471802/nn-gpt-runs/parallel_runs/20260727_proxy_wide38_unfrozen20_standard/slurm/proxy-wide38-smoke-2968490_0.err",
+      "local_path": "remote_evidence/wide38/proxy-wide38-smoke-2968490_0.err",
+      "sha256": "c2e6c5cba8123570a137cc6b3ea81a492e4ebe5eb23ee276787ee8f897b35355",
+      "size": 882627,
+      "fetched_at": "2026-09-08T17:31:34.825705+00:00",
+      "remote_size": 882627,
+      "remote_mtime_epoch": 1785124640,
+      "remote_mtime": "2026-07-27 05:57:20.937677222 +0200"
+    },
+    {
+      "host": "julia2.hpc.uni-wuerzburg.de",
+      "remote_path": "/data/42-julia-hpc-ai-cv-students/s471802/nn-gpt-runs/parallel_runs/20260727_proxy_wide38_unfrozen20_standard/slurm/proxy-wide38-smoke-2968490_0.out",
+      "local_path": "remote_evidence/wide38/proxy-wide38-smoke-2968490_0.out",
+      "sha256": "a1f7c1f12d0bc2dbf7d969b6bb610753f7b48a1d2721d1ab3bd0300852cdc49a",
+      "size": 4205,
+      "fetched_at": "2026-09-08T17:31:34.825705+00:00",
+      "remote_size": 4205,
+      "remote_mtime_epoch": 1785124647,
+      "remote_mtime": "2026-07-27 05:57:27.645699233 +0200"
+    }
+  ],
+  "generated_evidence": [
+    "remote_evidence/wide38/sacct_2968450_2968490_2968494_raw.txt",
+    "remote_evidence/wide38/gpu_task0_recomputed.json",
+    "remote_evidence/imagenette_and_nndataset_raw.txt"
+  ]
+}

@@ -1,0 +1,162 @@
+{
+  "formula": "seed mean = sum(formal-success 5-epoch accuracies)/N; seed-mean condition accuracy = arithmetic mean of three seed means; pooled = arithmetic mean over all formal-success accuracies",
+  "1pattern": {
+    "seeds": [
+      {
+        "input": "/Users/zhangxi/code/RL/faraz_followup_delivery_20260808/sft_only/raw/1pattern_seed42/generation_samples.jsonl",
+        "input_sha256": "0899ee3c736dc74059d7ee504e4b832d2cb82b7eba4efc8b353ef8926c5140e6",
+        "attempted_n": 400,
+        "formal_success_n": 367,
+        "accuracy_function": "delivery recompute_final_summaries.py:40-48: api_result.test_acc first; formal_horizon_test_acc['5'] only if test_acc non-numeric",
+        "test_acc_numeric_n": 367,
+        "formal_horizon_test_acc_5_numeric_n": 367,
+        "test_acc_equals_horizon5_n": 363,
+        "fallback_used_n": 0,
+        "accuracy_n": 367,
+        "mean_accuracy": 0.8798852861035436,
+        "seed": 42
+      },
+      {
+        "input": "/Users/zhangxi/code/RL/faraz_followup_delivery_20260808/sft_only/raw/1pattern_seed123/generation_samples.jsonl",
+        "input_sha256": "5dca97b4f8945f28a250afcc209081aaeeb1d24fcd51b28899a183dbf6c229c0",
+        "attempted_n": 400,
+        "formal_success_n": 367,
+        "accuracy_function": "delivery recompute_final_summaries.py:40-48: api_result.test_acc first; formal_horizon_test_acc['5'] only if test_acc non-numeric",
+        "test_acc_numeric_n": 367,
+        "formal_horizon_test_acc_5_numeric_n": 367,
+        "test_acc_equals_horizon5_n": 362,
+        "fallback_used_n": 0,
+        "accuracy_n": 367,
+        "mean_accuracy": 0.8808923705722067,
+        "seed": 123
+      },
+      {
+        "input": "/Users/zhangxi/code/RL/faraz_followup_delivery_20260808/sft_only/raw/1pattern_seed777/generation_samples.jsonl",
+        "input_sha256": "885ea0a31e1506e4b3837eac54e2409c516f4d8541c66a88efc3b0fd50ff656a",
+        "attempted_n": 400,
+        "formal_success_n": 353,
+        "accuracy_function": "delivery recompute_final_summaries.py:40-48: api_result.test_acc first; formal_horizon_test_acc['5'] only if test_acc non-numeric",
+        "test_acc_numeric_n": 353,
+        "formal_horizon_test_acc_5_numeric_n": 353,
+        "test_acc_equals_horizon5_n": 352,
+        "fallback_used_n": 0,
+        "accuracy_n": 353,
+        "mean_accuracy": 0.8814084985835697,
+        "seed": 777
+      }
+    ],
+    "attempted_n": 1200,
+    "formal_success_n": 1087,
+    "seed_mean_accuracy": 0.8807287184197733,
+    "seed_sd_accuracy_sample": 0.0007746809569583697,
+    "pooled_accuracy": 0.8807199632014735
+  },
+  "4pattern": {
+    "seeds": [
+      {
+        "input": "/Users/zhangxi/code/RL/faraz_followup_delivery_20260808/sft_only/raw/4pattern_seed42/generation_samples.jsonl",
+        "input_sha256": "6f8a1c9ce30dd8d3cc75f5f1e03905def516424ab83fb42f174e6396aff35346",
+        "attempted_n": 400,
+        "formal_success_n": 398,
+        "accuracy_function": "delivery recompute_final_summaries.py:40-48: api_result.test_acc first; formal_horizon_test_acc['5'] only if test_acc non-numeric",
+        "test_acc_numeric_n": 398,
+        "formal_horizon_test_acc_5_numeric_n": 398,
+        "test_acc_equals_horizon5_n": 394,
+        "fallback_used_n": 0,
+        "accuracy_n": 398,
+        "mean_accuracy": 0.8686251256281404,
+        "seed": 42
+      },
+      {
+        "input": "/Users/zhangxi/code/RL/faraz_followup_delivery_20260808/sft_only/raw/4pattern_seed123/generation_samples.jsonl",
+        "input_sha256": "21b2fe89df002e560790da815396de809ab65584c7be1b4afba0356a5fee3326",
+        "attempted_n": 400,
+        "formal_success_n": 397,
+        "accuracy_function": "delivery recompute_final_summaries.py:40-48: api_result.test_acc first; formal_horizon_test_acc['5'] only if test_acc non-numeric",
+        "test_acc_numeric_n": 397,
+        "formal_horizon_test_acc_5_numeric_n": 397,
+        "test_acc_equals_horizon5_n": 396,
+        "fallback_used_n": 0,
+        "accuracy_n": 397,
+        "mean_accuracy": 0.8709914357682613,
+        "seed": 123
+      },
+      {
+        "input": "/Users/zhangxi/code/RL/faraz_followup_delivery_20260808/sft_only/raw/4pattern_seed777/generation_samples.jsonl",
+        "input_sha256": "bb511a135e340c1b7c2dc1c1c55f5ec35cfc846ea4e74a4e1175567062546aa5",
+        "attempted_n": 400,
+        "formal_success_n": 399,
+        "accuracy_function": "delivery recompute_final_summaries.py:40-48: api_result.test_acc first; formal_horizon_test_acc['5'] only if test_acc non-numeric",
+        "test_acc_numeric_n": 399,
+        "formal_horizon_test_acc_5_numeric_n": 399,
+        "test_acc_equals_horizon5_n": 396,
+        "fallback_used_n": 0,
+        "accuracy_n": 399,
+        "mean_accuracy": 0.8704751879699241,
+        "seed": 777
+      }
+    ],
+    "attempted_n": 1200,
+    "formal_success_n": 1194,
+    "seed_mean_accuracy": 0.8700305831221086,
+    "seed_sd_accuracy_sample": 0.0012442310970376457,
+    "pooled_accuracy": 0.8700301507537684
+  },
+  "four_minus_one_seed_mean_accuracy": -0.010698135297664724,
+  "cifar100_four_pattern_completed_package": {
+    "seeds": [
+      {
+        "input": "/Users/zhangxi/code/RL/faraz_followup_delivery_20260808/cifar100_four_pattern/raw/seed42/generation_samples.jsonl",
+        "input_sha256": "e8197cd647a5a4d88776b4c6048eb85fe64125efa598ed4d6259fe6b453960b1",
+        "attempted_n": 800,
+        "formal_success_n": 699,
+        "accuracy_function": "delivery recompute_final_summaries.py:40-48: api_result.test_acc first; formal_horizon_test_acc['5'] only if test_acc non-numeric",
+        "test_acc_numeric_n": 699,
+        "formal_horizon_test_acc_5_numeric_n": 699,
+        "test_acc_equals_horizon5_n": 698,
+        "fallback_used_n": 0,
+        "accuracy_n": 699,
+        "mean_accuracy": 0.7166583690987124,
+        "seed": 42,
+        "positive_reward_n": 688
+      },
+      {
+        "input": "/Users/zhangxi/code/RL/faraz_followup_delivery_20260808/cifar100_four_pattern/raw/seed123/generation_samples.jsonl",
+        "input_sha256": "55ee22f28536f7309c9d7515039d0d5ff7e3a3ed45e5d6936e40919e947414b9",
+        "attempted_n": 800,
+        "formal_success_n": 671,
+        "accuracy_function": "delivery recompute_final_summaries.py:40-48: api_result.test_acc first; formal_horizon_test_acc['5'] only if test_acc non-numeric",
+        "test_acc_numeric_n": 671,
+        "formal_horizon_test_acc_5_numeric_n": 670,
+        "test_acc_equals_horizon5_n": 669,
+        "fallback_used_n": 0,
+        "accuracy_n": 671,
+        "mean_accuracy": 0.6586634873323397,
+        "seed": 123,
+        "positive_reward_n": 649
+      },
+      {
+        "input": "/Users/zhangxi/code/RL/faraz_followup_delivery_20260808/cifar100_four_pattern/raw/seed777/generation_samples.jsonl",
+        "input_sha256": "a58fa060cb22615659117b896d96fc22a6d4e33b7ca0bfee33829a741037a0de",
+        "attempted_n": 800,
+        "formal_success_n": 726,
+        "accuracy_function": "delivery recompute_final_summaries.py:40-48: api_result.test_acc first; formal_horizon_test_acc['5'] only if test_acc non-numeric",
+        "test_acc_numeric_n": 726,
+        "formal_horizon_test_acc_5_numeric_n": 726,
+        "test_acc_equals_horizon5_n": 719,
+        "fallback_used_n": 0,
+        "accuracy_n": 726,
+        "mean_accuracy": 0.7118898071625342,
+        "seed": 777,
+        "positive_reward_n": 723
+      }
+    ],
+    "attempted_n": 2400,
+    "formal_success_n": 2096,
+    "positive_reward_n": 2060,
+    "seed_mean_accuracy": 0.6957372211978621,
+    "seed_sd_accuracy_sample": 0.032195203102069095,
+    "pooled_accuracy": 0.6964405534351147,
+    "scope_note": "Only the three completed packaged JSONLs are included; no old interrupted path is merged into these counts."
+  }
+}

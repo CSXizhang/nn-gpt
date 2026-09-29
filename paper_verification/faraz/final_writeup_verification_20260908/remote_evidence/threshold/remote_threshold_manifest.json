@@ -1,0 +1,54 @@
+{
+  "audit_date": "2026-09-09",
+  "host": "julia2.hpc.uni-wuerzburg.de",
+  "account": "s471802",
+  "mode": "read-only",
+  "result": "PARTIAL SEARCH / NOT VERIFIED",
+  "artifact_found_by_completed_searches": false,
+  "generator_found_by_completed_searches": false,
+  "result_file_found_by_completed_searches": false,
+  "exact_concentration_key": null,
+  "four_of_twelve_reproduced": false,
+  "searched_roots": [
+    "/data/42-julia-hpc-ai-cv-students/s471802/nn-gpt-runs",
+    "/home/s471802",
+    "/home/s471802/nn-gpt"
+  ],
+  "completed_searches": {
+    "filename_search": {"exit_code": 0, "matches": []},
+    "git_history_search": {"exit_code": 0, "matches": []},
+    "nearby_listing": {"exit_code": 0, "files_inspected": 4},
+    "archive_search": {
+      "exit_code": 0,
+      "archive_count": 8,
+      "archives": [
+        "/home/s471802/nn-gpt/data/celeba/img_align_celeba.zip",
+        "/home/s471802/nn-gpt/data/imagenette2.tgz",
+        "/home/s471802/nn-gpt/data/cifar-10-python.tar.gz",
+        "/home/s471802/nn-gpt/data/cifar-100-python.tar.gz",
+        "/home/s471802/nn-gpt/data_v2/cifar-10-python.tar.gz",
+        "/home/s471802/tunerl_runtime_5007863e.tgz",
+        "/home/s471802/.venv/lib/python3.13/site-packages/dateutil/zoneinfo/dateutil-zoneinfo.tar.gz",
+        "/home/s471802/.venv/lib/python3.13/site-packages/tensorboard/webfiles.zip"
+      ]
+    },
+    "runtime_archive_member_search": {
+      "archive": "/home/s471802/tunerl_runtime_5007863e.tgz",
+      "sha256": "09ed4995f349cf1154eb1f05b3ddade21b5a4229fe6258808a897c37794fb628",
+      "exit_code": 1,
+      "interpretation": "grep found no matching member name"
+    }
+  },
+  "incomplete_or_nonconclusive": {
+    "content_search": "exit 124; timed out and emitted tokenizer vocabulary false positives",
+    "source_content_search": "exit 124; timed out with no emitted match",
+    "summary_content_search": "interrupted before status file was written; empty stdout is nonconclusive",
+    "history_search": "initial command exit 2 because .zsh_history was absent; empty stdout is nonconclusive"
+  },
+  "excluded": [
+    "model weight contents",
+    "unbounded scan of raw generation JSONL payload bodies"
+  ],
+  "raw_evidence_directory": "final_writeup_verification_20260908/remote_evidence/threshold/raw_search",
+  "reproduction_script": "final_writeup_verification_20260908/scripts/remote_threshold_search.sh"
+}

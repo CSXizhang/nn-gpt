@@ -1,0 +1,25 @@
+{
+  "source": "analysis/plot_g10b_current/a3_full_g10b/generation_samples.jsonl",
+  "line": 464,
+  "selection": "highest test_acc successful sample that uses self.features and _feature_to_input_image in 4-pattern RL trajectory",
+  "test_acc": 0.9424,
+  "train_acc": 0.95374,
+  "reward": 0.9199507521585074,
+  "pattern_declared_in_completion": "see self.pattern line in code",
+  "pattern_name_extracted": "DualBackbone_Fuse_Wide_Deep_c19a34",
+  "backbone_model_names": [
+    "regnet_y_3_2gf",
+    "resnet50"
+  ],
+  "formal_success_candidate": true,
+  "formal_horizon_test_acc": {
+    "1": 0.923,
+    "5": 0.9382,
+    "10": 0.9424
+  },
+  "reward_target_value": 0.938758,
+  "completion_token_count": null,
+  "block_signature": "127fc71dc798e918963e06a119e0efe3f51f1e0a",
+  "cnn_signature": "439d473ee637f6fae3373d698dcf930e3588715b",
+  "backbone_signature": "regnet_y_3_2gf + resnet50"
+}

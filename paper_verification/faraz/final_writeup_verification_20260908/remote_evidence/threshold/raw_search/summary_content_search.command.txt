@@ -1,0 +1,1 @@
+timeout 60 sh -c 'find /data/42-julia-hpc-ai-cv-students/s471802/nn-gpt-runs/parallel_runs -type f -size -10M \( -name "*.json" -o -name "*.csv" -o -name "*.txt" \) ! -path "*/tokenizer/*" ! -path "*/checkpoint-*/*" ! -name "generation_samples.jsonl" -print0 | xargs -0 grep -IlE "threshold[_ -]?sensitivity|four of twelve|4(/| of )12|collapse.*(twelve|12)|(twelve|12).*collapse"'

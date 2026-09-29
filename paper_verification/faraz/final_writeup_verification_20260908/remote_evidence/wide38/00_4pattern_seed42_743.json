@@ -1,0 +1,162 @@
+{
+  "task_id": 0,
+  "candidate": {
+    "selection_index": 0,
+    "candidate_id": "4pattern_seed42_743",
+    "source_label": "4pattern_seed42",
+    "source_run": "20260612_4pattern_a18_cifar10_e5_p3500_c1200_s100_l40s_excl_full_full_reward_seed42",
+    "source_index": 743,
+    "frozen_acc5": 0.6924,
+    "frozen_acc5_source": [
+      "formal_horizon_test_acc.5",
+      "frozen_test_acc_or_test_acc"
+    ],
+    "source_test_acc": 0.6924,
+    "source_formal_horizon_acc5": 0.6924,
+    "frozen_horizon_test_acc": {
+      "1": 0.6792,
+      "5": 0.6924,
+      "10": null
+    },
+    "reward": 0.10311136180555552,
+    "graph_hash": "26a47fc0c56a77c786ec024c0a3ad8bd1b2af397",
+    "family_hash": "3a105335992a8723a61425270a7947cd2c10681c",
+    "backbone_signature": "resnet18 + resnet18"
+  },
+  "eval_mode": "unfrozen_backbones_20epoch",
+  "prm": {
+    "lr": 0.01,
+    "batch": 32,
+    "dropout": 0.3,
+    "momentum": 0.9,
+    "transform": "norm_128_flip",
+    "epoch": 20,
+    "num_workers": 2
+  },
+  "device": "cuda",
+  "backbone_model_names": [
+    "resnet18",
+    "resnet18"
+  ],
+  "result": {
+    "reward": 1.2999999999999998,
+    "components": {
+      "reward": 1.2999999999999998,
+      "r_build": 0.2,
+      "r_forward_shape": 0.2,
+      "r_backward": 0.3,
+      "r_loss_drop": 0.6,
+      "r_forward": 0.2,
+      "r_trainstep": 0.3,
+      "r_metric": 0.0,
+      "r_eff": 0.0,
+      "r_critic": 0.0,
+      "r_kl": 0.0
+    },
+    "val_metric": 0.9308,
+    "test_acc": 0.9308,
+    "built_ok": true,
+    "forward_ok": true,
+    "forward_shape_ok": true,
+    "trained_step_ok": true,
+    "backward_ok": true,
+    "loss_start": 1.6637141051565765,
+    "loss_end": 1.527159201871058,
+    "loss_drop": 0.13655490328551845,
+    "loss_drop_ok": true,
+    "best_epoch_loss": 1.527159201871058,
+    "avg_epoch_loss": 1.5477040605939876,
+    "epochs_completed": 20,
+    "epoch_loss_series": [
+      1.6637141051565765,
+      1.5702653075479398,
+      1.5583620147340616,
+      1.565651363627926,
+      1.5500469951872613,
+      1.542229152029487,
+      1.5416556528419445,
+      1.5427858806719446,
+      1.5351842133102902,
+      1.5383443126253262,
+      1.5348355473986097,
+      1.536199421639655,
+      1.532882589443474,
+      1.540595775197266,
+      1.530714000106617,
+      1.5377825992122578,
+      1.5382622199453366,
+      1.5398723881715422,
+      1.5275384711611801,
+      1.527159201871058
+    ],
+    "training_context_metric_name": "best_epoch_loss",
+    "training_context_metric_value": 1.527159201871058,
+    "train_acc": 0.9673555555555555,
+    "seed_accuracy_baseline": 0.6924,
+    "seed_train_acc_gap": 0.2749555555555555,
+    "seed_train_acc_improved": true,
+    "accuracy_baseline": 0.6924,
+    "train_acc_gain": 0.2749555555555555,
+    "train_acc_improved": true,
+    "group_baseline_train_acc": null,
+    "group_train_acc_gain": null,
+    "group_train_acc_improved": false,
+    "reward_batch_index": null,
+    "reward_group_id": null,
+    "group_warmup": false,
+    "latency_ms": 72.58486747741699,
+    "params_m": 23.252746,
+    "timed_out": false,
+    "estimated_total_seconds": 1911.2669479846954,
+    "eval_limit_seconds": 3600,
+    "warmup_dense_reward": null,
+    "backbone_model_names": [
+      "resnet18",
+      "resnet18"
+    ],
+    "frozen_train_acc": null,
+    "frozen_test_acc": null,
+    "unfrozen_train_acc": null,
+    "unfrozen_test_acc": null,
+    "frozen_eval": null,
+    "unfrozen_eval": null,
+    "reward_target_metric": "frozen_test_acc",
+    "reward_target_value": null,
+    "formal_reward_epochs": [
+      5,
+      10,
+      20
+    ],
+    "formal_reward_max_epoch": 20,
+    "formal_horizon_test_acc": {
+      "1": 0.8002,
+      "5": 0.9092,
+      "10": 0.9196
+    },
+    "formal_horizon_train_acc": {
+      "1": 0.7544444444444445,
+      "5": 0.9180888888888888,
+      "10": 0.9438444444444445
+    },
+    "formal_horizon_scores": {
+      "1": 0.8002,
+      "5": 0.93645,
+      "10": 0.9216799999999999
+    },
+    "formal_reward_target_value": 0.9025535,
+    "error_type": null,
+    "error_stage": null,
+    "error_context": null,
+    "error_hint": null
+  },
+  "used_prm": {
+    "lr": 0.01,
+    "batch": 32,
+    "dropout": 0.3,
+    "momentum": 0.9,
+    "transform": "norm_128_flip",
+    "epoch": 20,
+    "num_workers": 2
+  },
+  "success": true
+}

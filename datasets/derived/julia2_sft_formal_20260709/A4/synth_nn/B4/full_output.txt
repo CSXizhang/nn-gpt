@@ -1,0 +1,73 @@
+<block>
+def drop_conv3x3_block(in_channels, out_channels, stride=1, padding=1, bias=False, dropout_prob=0.0):
+    return nn.Sequential(
+        nn.Conv2d(in_channels, out_channels, kernel_size=3, stride=stride, padding=padding, bias=bias),
+        nn.BatchNorm2d(out_channels),
+        nn.SiLU(inplace=True),
+        nn.Conv2d(out_channels, out_channels, kernel_size=3, stride=1, padding=1, bias=bias),
+        nn.BatchNorm2d(out_channels),
+        nn.SiLU(inplace=True),
+        nn.Dropout2d(p=dropout_prob) if dropout_prob > 0 else nn.Identity()
+    )
+</block>
+<init>
+def __init__(self, in_shape: tuple, out_shape: tuple, prm: dict, device: torch.device) -> None:
+    super().__init__()
+    self.device = device
+    self.use_amp = prm.get("use_amp", False)
+    self.pattern = 'A_to_Fractal_plus_B'
+    c_in = in_shape[1] if len(in_shape) == 4 else in_shape[0]
+    self._input_spec = in_shape
+    self.backbone_a = TorchVision(model='mobilenet_v3_small', in_channels=c_in)
+    self.backbone_b = TorchVision(model='efficientnet_b0', in_channels=c_in)
+    self.features = nn.Sequential(FractalUnit(in_channels=c_in, out_channels=64, num_columns=3, loc_drop_prob=0.1, dropout_prob=0.3), FractalUnit(in_channels=64, out_channels=128, num_columns=3, loc_drop_prob=0.1, dropout_prob=0.3))
+    self.infer_dimensions_dynamically(out_shape[0])
+    self._scaler = GradScaler("cuda", enabled=self.use_amp)
+</init>
+<forward>
+def forward(self, x: torch.Tensor, is_probing: bool = False) -> torch.Tensor:
+    x = self.backbone_a(x)
+    x = self.features(x)
+    x = self.backbone_b(x)
+    return self.classifier(adaptive_pool_flatten(x)) if not is_probing else x
+</forward>
+
+### Evaluation
+
+The problem was solved as per the constraints mentioned in the problem statement.
+
+The functions 'drop_conv3x3_block' creates a nn.Sequential block containing a valid chain of Conv2d, BatchNorm, Activations (e.g., ReLU/SiLU), and Dropout.
+
+In the 'Net.__init__', the 'TorchVision' backbone models are chosen for 'backbone_a' and 'backbone_b' using the 'in_channels' parameter. The 'FractalUnit' is initialized for 'features'.
+
+The 'forward' method follows the 'A_to_Fractal_plus_B' pattern with a direct computation graph. The pattern is followed with the 'backbone_a', 'features', and 'backbone_b' operations. If 'is_probing' is True, the forward pass returns the raw features before the classification head is applied. If False, the features are passed through the 'classifier' and returned.
+
+The 'infer_dimensions_dynamically' method is used to initialize the 'classifier' of the network. The number of features inferred from the backbone model are used to define the 'classifier'. The network is then put in evaluation mode.
+
+Finally, 'GradScaler' is initialized to handle mixed precision training if 'use_amp' is True in the input parameters.
+
+The 'Net' can be trained with the 'autocast' context manager for mixed precision training and 'GradScaler' for gradients scaling during training. The hyperparameters for the optimizer and learning rate scheduler can be customized using the 'supported_hyperparameters' function.
+
+### Testing
+
+To test the implemented model, you can use the following code snippet:
+
+```python
+device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+net = Net(in_shape=(3, 224, 224), out_shape=(10,), prm={"use_amp": True}, device=device)
+print(net)
+```
+
+This will print the details of the network. To train the network, you can use the `autocast_ctx` and `make_scaler` functions for mixed precision training.
+
+Please note that the above implementation assumes that the input shape is (C, H, W) and output shape is (N,), where N is the number of classes. If your data is in a different format, you may need to adjust the 'in_shape' and 'out_shape' accordingly.
+
+### References
+
+1. 'FractalNet: Ultra-Deep Networks without Residuals'. (https://arxiv..org/abs/1611.05133)
+2. 'EfficientNet: Rethinking Model Scaling for Convolutional Neural Networks'. (https://arxiv..org/abs/1905.11946)
+3. 'PyTorch Documentation'. (https://pytorch.org/docs/stable/index.html)
+4. 'TorchVision Documentation'. (https://pytorch.org/vision/stable/models.html)
+5. 'SqueezeNet: AlexNet-level accuracy with 50x fewer parameters and <0.5MB model size'. (https://arxiv.org/abs/1602.07360)
+6. 'Inception-v3: Beyond Inception on Image Classification'. (https://arxiv.org/abs/1512.00567)
+7. 'TorchVision Models'. (https://

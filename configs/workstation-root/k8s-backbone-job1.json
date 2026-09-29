@@ -1,0 +1,102 @@
+{
+    "apiVersion": "batch/v1",
+    "kind": "Job",
+    "metadata": {
+        "name": "nn-gpt-backbone-tune1"
+    },
+    "spec": {
+        "backoffLimit": 0,
+        "parallelism": 1,
+        "ttlSecondsAfterFinished": 86400,
+        "template": {
+            "spec": {
+                "restartPolicy": "Never",
+                "containers": [
+                    {
+                        "name": "backbone-tune",
+                        "image": "abrainone/ai-linux:cu12.6.3-latest",
+                        "imagePullPolicy": "Always",
+                        "env": [
+                            {
+                                "name": "HF_HOME",
+                                "value": "/a/mm/.cache/huggingface"
+                            }
+                        ],
+                        "securityContext": {
+                            "allowPrivilegeEscalation": false,
+                            "runAsUser": 1036,
+                            "runAsGroup": 1376
+                        },
+                        "command": [
+                            "/bin/bash",
+                            "-c"
+                        ],
+                        "args": [
+                            "pip install git+https://github.com/ABrain-One/nn-dataset --upgrade --extra-index-url https://download.pytorch.org/whl/cu126 && python -m ab.gpt.TuneBackbone --llm_conf sft_config.json"
+                        ],
+                        "resources": {
+                            "requests": {
+                                "nvidia.com/gpu": 1,
+                                "cpu": 8,
+                                "memory": "32Gi"
+                            },
+                            "limits": {
+                                "nvidia.com/gpu": 1,
+                                "cpu": 16,
+                                "memory": "128Gi"
+                            }
+                        },
+                        "volumeMounts": [
+                            {
+                                "mountPath": "/dev/shm",
+                                "name": "shm"
+                            },
+                            {
+                                "mountPath": "/a/mm",
+                                "name": "v0"
+                            },
+                            {
+                                "mountPath": "/a/nn-dataset",
+                                "name": "v1"
+                            },
+                            {
+                                "mountPath": "/a/mm/cache/huggingface",
+                                "name": "hf-cache"
+                            }
+                        ]
+                    }
+                ],
+                "volumes": [
+                    {
+                        "name": "shm",
+                        "emptyDir": {
+                            "medium": "Memory",
+                            "sizeLimit": "16Gi"
+                        }
+                    },
+                    {
+                        "name": "v0",
+                        "hostPath": {
+                            "path": "/shared/ssd/home/b-x-0522/nn-gpt",
+                            "type": "Directory"
+                        }
+                    },
+                    {
+                        "name": "v1",
+                        "hostPath": {
+                            "path": "/shared/ssd/home/b-x-0522/lmur/nn-dataset",
+                            "type": "Directory"
+                        }
+                    },
+                    {
+                        "name": "hf-cache",
+                        "hostPath": {
+                            "path": "/shared/ssd/home/b-x-0522/cache/huggingface",
+                            "type": "DirectoryOrCreate"
+                        }
+                    }
+                ]
+            }
+        }
+    }
+}

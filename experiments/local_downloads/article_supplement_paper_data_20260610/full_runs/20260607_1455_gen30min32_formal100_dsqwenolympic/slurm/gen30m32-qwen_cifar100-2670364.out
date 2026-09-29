@@ -1,0 +1,63 @@
+LEMUR root /home/s471802/nn-gpt
+Loading baseline SFT adapter from /data/42-julia-hpc-ai-cv-students/s471802/nn-gpt-runs/parallel_runs/20260607_0120_formal100_qwen_cifar100_kl0005_l40s/grpo_backbone_outputs/checkpoints/stage2_formal_explore/adapter...
+[GEN] Output dtype safety wrappers: model.lm_head
+Loaded 1990 examples for SFT RL prefixes=('rl-bb-test1',) prompt_mode=sft_aligned
+[Trainset Reference] rows=1990, parsed=1990, skipped=0, graph_hashes=230, family_hashes=16, descriptor_keys=12
+Skipping row 22 due to missing target_pattern
+Skipping row 25 due to missing target_pattern
+Skipping row 33 due to missing target_pattern
+Skipping row 83 due to missing target_pattern
+Skipping row 84 due to missing target_pattern
+Skipping row 95 due to missing target_pattern
+Skipping row 113 due to missing target_pattern
+Skipping row 131 due to missing target_pattern
+Skipping row 136 due to missing target_pattern
+Skipping row 165 due to missing target_pattern
+Skipping row 171 due to missing target_pattern
+Skipping row 172 due to missing target_pattern
+Skipping row 183 due to missing target_pattern
+Skipping row 518 due to missing target_pattern
+Skipping row 540 due to missing target_pattern
+Skipping row 1434 due to missing target_pattern
+Skipping row 1635 due to missing target_pattern
+Skipping row 1642 due to missing target_pattern
+Skipping row 1719 due to missing target_pattern
+Skipping row 1734 due to missing target_pattern
+Skipping row 1750 due to missing target_pattern
+Skipping row 1921 due to missing target_pattern
+Skipping row 1924 due to missing target_pattern
+Skipping row 1937 due to missing target_pattern
+Skipping row 1942 due to missing target_pattern
+Skipping row 1948 due to missing target_pattern
+Skipping row 1956 due to missing target_pattern
+[gen_only] qwen_cifar100-0000 error=False
+[gen_only] qwen_cifar100-0001 error=False
+[gen_only] qwen_cifar100-0002 error=False
+[gen_only] qwen_cifar100-0003 error=False
+[gen_only] qwen_cifar100-0004 error=False
+[gen_only] qwen_cifar100-0005 error=False
+[gen_only] qwen_cifar100-0006 error=False
+[gen_only] qwen_cifar100-0007 error=False
+[gen_only] qwen_cifar100-0008 error=False
+[gen_only] qwen_cifar100-0009 error=False
+[gen_only] qwen_cifar100-0010 error=False
+[gen_only] qwen_cifar100-0011 error=False
+[gen_only] qwen_cifar100-0012 error=False
+[gen_only] qwen_cifar100-0013 error=False
+[gen_only] qwen_cifar100-0014 error=False
+[gen_only] qwen_cifar100-0015 error=False
+[gen_only] qwen_cifar100-0016 error=False
+[gen_only] qwen_cifar100-0017 error=False
+[gen_only] qwen_cifar100-0018 error=False
+[gen_only] qwen_cifar100-0019 error=False
+[gen_only] qwen_cifar100-0020 error=False
+[gen_only] qwen_cifar100-0021 error=False
+[gen_only] qwen_cifar100-0022 error=False
+[gen_only] qwen_cifar100-0023 error=False
+[gen_only] qwen_cifar100-0024 error=False
+[gen_only] qwen_cifar100-0025 error=False
+[gen_only] qwen_cifar100-0026 error=False
+[gen_only] qwen_cifar100-0027 error=False
+[gen_only] qwen_cifar100-0028 error=False
+[gen_only] qwen_cifar100-0029 error=False
+Wrote candidates: /data/42-julia-hpc-ai-cv-students/s471802/nn-gpt-runs/parallel_runs/20260607_1455_gen30min32_formal100_dsqwenolympic/candidates/qwen_cifar100/candidates.jsonl

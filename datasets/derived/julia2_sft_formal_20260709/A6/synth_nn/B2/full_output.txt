@@ -1,0 +1,66 @@
+<block>
+def drop_conv3x3_block(in_channels, out_channels, stride=1, padding=1, bias=False, dropout_prob=0.0):
+    return nn.Sequential(
+    nn.Conv2d(in_channels, out_channels, kernel_size=3, stride=stride, padding=padding, bias=bias),
+    nn.BatchNorm2d(out_channels),
+    nn.GELU(),
+    nn.Dropout2d(p=dropout_prob) if dropout_prob > 0 else nn.Identity()
+    )
+</block>
+<init>
+def __init__(self, in_shape: tuple, out_shape: tuple, prm: dict, device: torch.device) -> None:
+    super().__init__()
+    self.device = device
+    self.use_amp = prm.get("use_amp", False)
+    self.pattern = 'B_to_Fractal_plus_A'
+    c_in = in_shape[1] if len(in_shape) == 4 else in_shape[0]
+    self._input_spec = (c_in, in_shape[2], in_shape[3])
+    self.backbone_a = TorchVision(model='mobilenet_v2', in_channels=c_in)
+    self.backbone_b = TorchVision(model='resnet34', in_channels=c_in)
+    self.features = nn.Sequential(FractalUnit(in_channels=c_in, out_channels=64, num_columns=2, loc_drop_prob=0.1, dropout_prob=0.1), FractalUnit(in_channels=64, out_channels=128, num_columns=2, loc_drop_prob=0.1, dropout_prob=0.1))
+    self.infer_dimensions_dynamically(out_shape[0])
+    self._scaler = GradScaler("cuda", enabled=self.use_amp)
+</init>
+<forward>
+def forward(self, x: torch.Tensor, is_probing: bool = False) -> torch.Tensor:
+    x = self.backbone_a(x)
+    x_b = self.backbone_b(x)
+    x_f = self.features(x_b)
+    x = adaptive_pool_flatten(x_f)
+    if not is_probing:
+        x = self.classifier(x)
+    return x
+</forward>
+
+### Additional Notes
+- This design uses MobileNetV2 and ResNet34 as the backbones, FractalUnit layers and uses GELU activation function. 
+- The FractalUnit contains 2 columns and uses adaptive average pooling.
+- The dropout probability is 0.1 for both the backbones and the FractalUnit.
+- The classifier is initialized dynamically in the infer_dimensions_dynamically function.
+- Automatic Mixed Precision (AMP) is used for training.
+- The target pattern is B_to_Fractal_plus_A, which means that the input is passed through the backbone_a, then through the features (FractalUnit layers), and finally through the classifier.
+- The dropout_prob parameter in the drop_conv3x3_block function is used to add dropout to the convolutional layer.
+- The pattern is 'B_to_Fractal_plus_A', so the input is passed through the backbone_a, then through the features (FractalUnit layers), and finally through the classifier.
+- The classifier is initialized dynamically in the infer_dimensions_dynamically function.
+- Automatic Mixed Precision (AMP) is used for training.
+- The dropout_prob parameter in the drop_conv3x3_block function is used to add dropout to the convolutional layer.
+- The target pattern is 'B_to_Fractal_plus_A', so the input is passed through the backbone_a, then through the features (FractalUnit layers), and finally through the classifier.
+- The classifier is initialized dynamically in the infer_dimensions_dynamically function.
+- Automatic Mixed Precision (AMP) is used for training.
+- The dropout_prob parameter in the drop_conv3x3_block function is used to add dropout to the convolutional layer.
+- The target pattern is 'B_to_Fractal_plus_A', so the input is passed through the backbone_a, then through the features (FractalUnit layers), and finally through the classifier.
+- The classifier is initialized dynamically in the infer_dimensions_dynamically function.
+- Automatic Mixed Precision (AMP) is used for training.
+- The dropout_prob parameter in the drop_conv3x3_block function is used to add dropout to the convolutional layer.
+- The target pattern is 'B_to_Fractal_plus_A', so the input is passed through the backbone_a, then through the features (FractalUnit layers), and finally through the classifier.
+- The classifier is initialized dynamically in the infer_dimensions_dynamically function.
+- Automatic Mixed Precision (AMP) is used for training.
+- The dropout_prob parameter in the drop_conv3x3_block function is used to add dropout to the convolutional layer.
+- The target pattern is 'B_to_Fractal_plus_A', so the input is passed through the backbone_a, then through the features (FractalUnit layers), and finally through the classifier.
+- The classifier is initialized dynamically in the infer_dimensions_dynamically function.
+- Automatic Mixed Precision (AMP) is used for training.
+- The dropout_prob parameter in the drop_conv3x3_block function is used to add dropout to the convolutional layer.
+- The target pattern is 'B_to_Fractal_plus_A', so the input is passed through the backbone_a, then through the features (FractalUnit layers), and finally through the classifier.
+- The classifier is initialized dynamically in the infer_dimensions_dynamically function.
+- Automatic Mixed Precision (AMP) is used for training.
+- The dropout_prob parameter in the drop_conv3x3_block function

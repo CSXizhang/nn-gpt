@@ -1,0 +1,10 @@
+/data/42-julia-hpc-ai-cv-students/s471802/nn-gpt-runs/parallel_runs/20260727_proxy_wide38_unfrozen20_standard/proxy_manifest_wide38.jsonl|92996|1785122327|2026-07-27 05:18:47.772269178 +0200
+/data/42-julia-hpc-ai-cv-students/s471802/nn-gpt-runs/parallel_runs/20260727_proxy_wide38_unfrozen20_standard/results/00_4pattern_seed42_743.json|4280|1785124647|2026-07-27 05:57:27.645699233 +0200
+/data/42-julia-hpc-ai-cv-students/s471802/nn-gpt-runs/parallel_runs/20260727_proxy_wide38_unfrozen20_standard/slurm/proxy-wide38-smoke-2968490_0.out|4205|1785124647|2026-07-27 05:57:27.645699233 +0200
+/data/42-julia-hpc-ai-cv-students/s471802/nn-gpt-runs/parallel_runs/20260727_proxy_wide38_unfrozen20_standard/slurm/proxy-wide38-smoke-2968490_0.err|882627|1785124640|2026-07-27 05:57:20.937677222 +0200
+/data/42-julia-hpc-ai-cv-students/s471802/nn-gpt-runs/parallel_runs/20260627_1pattern_a9_cifar10_e5_p3500_c1200_s100_h100x4_shared_full_full_reward_seed514/run_state.json|1726|1782547627|2026-06-27 10:07:07.761391190 +0200
+/data/42-julia-hpc-ai-cv-students/s471802/nn-gpt-runs/parallel_runs/20260627_4pattern_a18_cifar10_e5_p3500_c1200_s100_h100x4_shared_full_full_reward_seed114/run_state.json|1733|1782500213|2026-06-26 20:56:53.372763865 +0200
+/data/42-julia-hpc-ai-cv-students/s471802/nn-gpt-runs/parallel_runs/20260627_4pattern_a18_cifar10_e5_p3500_c1200_s100_h100x4_shared_full_full_reward_seed919/run_state.json|1781|1782584591|2026-06-27 20:23:11.483496521 +0200
+/data/42-julia-hpc-ai-cv-students/s471802/nn-gpt-runs/parallel_runs/20260627_1pattern_a9_cifar10_e5_p3500_c1200_s100_h100x4_shared_full_full_reward_seed114/run_state.json|1726|1782535666|2026-06-27 06:47:46.541049402 +0200
+/data/42-julia-hpc-ai-cv-students/s471802/nn-gpt-runs/parallel_runs/20260627_1pattern_a9_cifar10_e5_p3500_c1200_s100_h100x4_shared_full_full_reward_seed919/run_state.json|1771|1782607045|2026-06-28 02:37:25.001481101 +0200
+/data/42-julia-hpc-ai-cv-students/s471802/nn-gpt-runs/parallel_runs/20260627_4pattern_a18_cifar10_e5_p3500_c1200_s100_h100x4_shared_full_full_reward_seed514/run_state.json|1733|1782535400|2026-06-27 06:43:20.156068589 +0200

@@ -1,0 +1,16 @@
+{
+  "qwen_cifar10_weights_none_top6": {
+    "samples": 6,
+    "format_valid_count": 6,
+    "format_valid_rate": 1.0,
+    "formal_success_count": 5,
+    "formal_success_rate": 0.8333333333333334,
+    "mean_acc": 0.182828025477707,
+    "max_acc": 0.22140127388535033,
+    "median_acc": 0.1778343949044586,
+    "q1_acc": 0.16050955414012738,
+    "q3_acc": 0.19821656050955413,
+    "top5_mean_acc": 0.182828025477707,
+    "top10_mean_acc": 0.182828025477707
+  }
+}

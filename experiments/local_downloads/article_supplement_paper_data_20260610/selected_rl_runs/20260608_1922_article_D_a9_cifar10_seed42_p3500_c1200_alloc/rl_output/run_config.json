@@ -1,0 +1,225 @@
+{
+  "archive": {
+    "append_logs": false,
+    "env": {
+      "NNGPT_SFT_LOG_DIR": "/data/42-julia-hpc-ai-cv-students/s471802/nn-gpt-runs/parallel_runs/20260608_1922_article_D_a9_cifar10_seed42_p3500_c1200_alloc/rl_output",
+      "NNGPT_SFT_MODEL_OUT": "/data/42-julia-hpc-ai-cv-students/s471802/nn-gpt-runs/parallel_runs/20260608_1922_article_D_a9_cifar10_seed42_p3500_c1200_alloc/grpo_backbone_outputs",
+      "NNGPT_SFT_TRAINER_OUT": "/data/42-julia-hpc-ai-cv-students/s471802/nn-gpt-runs/parallel_runs/20260608_1922_article_D_a9_cifar10_seed42_p3500_c1200_alloc/grpo_backbone_outputs_trainer"
+    },
+    "epoch_root": "out/nngpt/llm/epoch_sft",
+    "fresh": true,
+    "log_dir": "/data/42-julia-hpc-ai-cv-students/s471802/nn-gpt-runs/parallel_runs/20260608_1922_article_D_a9_cifar10_seed42_p3500_c1200_alloc/rl_output",
+    "model_out": "/data/42-julia-hpc-ai-cv-students/s471802/nn-gpt-runs/parallel_runs/20260608_1922_article_D_a9_cifar10_seed42_p3500_c1200_alloc/grpo_backbone_outputs",
+    "trainer_out": "/data/42-julia-hpc-ai-cv-students/s471802/nn-gpt-runs/parallel_runs/20260608_1922_article_D_a9_cifar10_seed42_p3500_c1200_alloc/grpo_backbone_outputs_trainer"
+  },
+  "created_at": "2026-06-08T19:22:38+0200",
+  "evaluator": {
+    "batch": 64,
+    "data_root": "data_v2",
+    "dataset": "cifar-10",
+    "download": true,
+    "eval_split_role": "reward_eval",
+    "formal_epoch_limit_minutes": 30,
+    "formal_epochs": "1",
+    "full_test_acc": true,
+    "heldout_test_set": "cifar10-test[10k]",
+    "n_classes": 10,
+    "out_shape": [
+      10
+    ],
+    "resize": 128,
+    "reward_eval_set": "cifar10-train[5k]",
+    "run_unfrozen": false,
+    "split_protocol": "trainvaltest",
+    "split_seed": 42,
+    "train_epochs": 1,
+    "train_set": "cifar10-train[45k]",
+    "train_subset_size": 0,
+    "transform": "norm_128_flip",
+    "val_subset_size": 0,
+    "worker_eval_limit_seconds": 900
+  },
+  "git": {
+    "branch": "",
+    "commit": "",
+    "commit_short": "",
+    "commit_subject": "",
+    "dirty": false
+  },
+  "init": {
+    "adapter_env": {
+      "NNGPT_SFT_INITIAL_ADAPTER_MODE": "trainable",
+      "NNGPT_SFT_INIT_ADAPTER": "/home/s471802/nn-gpt/out/nngpt/llm/20260601_1pattern_three_model_sft_v3_cifar10_dscoder7b/epoch_sft/A9/deepseek-ai/deepseek-coder-6.7b-instruct",
+      "NNGPT_SFT_LOAD_INITIAL_ADAPTER": "1"
+    },
+    "init_adapter": "/home/s471802/nn-gpt/out/nngpt/llm/20260601_1pattern_three_model_sft_v3_cifar10_dscoder7b/epoch_sft/A9/deepseek-ai/deepseek-coder-6.7b-instruct",
+    "initial_adapter_dtype": "fp32",
+    "initial_adapter_mode": "trainable",
+    "load_initial_adapter": true,
+    "restored_runtime_state_path": null,
+    "resume": {
+      "active": false,
+      "mode": "fresh",
+      "stage_adapter_dir": null,
+      "stage_checkpoint_dir": null,
+      "trainer_checkpoint": null
+    }
+  },
+  "model_source": "ABrain/NNGPT-Backbone-deepseek-coder-6.7b-instruct",
+  "phase": "four_pattern_reward_ablation",
+  "prompt": {
+    "feedback_char_budget": 0,
+    "nn_prefixes": [
+      "rl-bb-test1"
+    ],
+    "prompt_mode": "sft_aligned"
+  },
+  "reward": {
+    "env": {
+      "NNGPT_RL_FORMAL_DATASET": "cifar-10",
+      "NNGPT_RL_FORMAL_REWARD_EPOCHS": "1",
+      "NNGPT_RL_RESUME_STAGE": "stage2_formal_explore",
+      "NNGPT_RL_SEED": "42"
+    },
+    "formal_epochs": "1",
+    "variant": "full"
+  },
+  "runtime": {
+    "deepspeed_config_path": null,
+    "distributed": {
+      "distributed": false,
+      "local_rank": 0,
+      "rank": 0,
+      "raw_local_rank": 0,
+      "reward_gpu_indices": [
+        1,
+        2
+      ],
+      "reward_gpu_tokens": [
+        "1",
+        "2"
+      ],
+      "train_gpu": 0,
+      "train_gpu_token": "0",
+      "visible_gpu_count": 3,
+      "visible_gpu_tokens": [
+        "0",
+        "1",
+        "2"
+      ],
+      "world_size": 1
+    },
+    "gpu_role_plan": {
+      "requested_mode": "auto",
+      "resolved_mode": "split",
+      "reward_exclude_train_gpu": true,
+      "reward_gpu_tokens": [
+        "1",
+        "2"
+      ],
+      "train_gpu_tokens": [
+        "0"
+      ],
+      "visible_gpu_tokens": [
+        "0",
+        "1",
+        "2"
+      ]
+    },
+    "reward_worker_plan": {
+      "deepspeed_enabled": false,
+      "distributed": false,
+      "dynamic_scaling": false,
+      "gpu_memory_snapshots": [
+        {
+          "allocated_gib": 0.0,
+          "device_index": 1,
+          "device_token": "1",
+          "free_gib": 43.97003173828125,
+          "is_train_gpu": false,
+          "reserved_gib": 0.0,
+          "total_gib": 44.39404296875,
+          "used_gib": 0.42401123046875
+        },
+        {
+          "allocated_gib": 0.0,
+          "device_index": 2,
+          "device_token": "2",
+          "free_gib": 43.97003173828125,
+          "is_train_gpu": false,
+          "reserved_gib": 0.0,
+          "total_gib": 44.39404296875,
+          "used_gib": 0.42401123046875
+        }
+      ],
+      "local_rank": 0,
+      "mode": "single_rank_dedicated_fixed_pool",
+      "per_gpu_worker_counts": [
+        0,
+        1,
+        1
+      ],
+      "pool_size": 2,
+      "rank": 0,
+      "reason": "fixed_workers_override",
+      "reserved_headroom_gib": null,
+      "reward_gpu_indices": [
+        1,
+        2
+      ],
+      "reward_gpu_tokens": [
+        "1",
+        "2"
+      ],
+      "shared_train_gpu": false,
+      "train_gpu": 0,
+      "visible_gpu_count": 3,
+      "worker_budget_gib": null,
+      "workers_per_gpu": 1,
+      "world_size": 1
+    },
+    "use_deepspeed": false
+  },
+  "sampling": {
+    "env": {
+      "NNGPT_SFT_GENERATION_BATCH_SIZE": "8",
+      "NNGPT_SFT_MAX_COMPLETION_LENGTH": "1200",
+      "NNGPT_SFT_MAX_PROMPT_LENGTH": "3500",
+      "NNGPT_SFT_MAX_STEPS": "125",
+      "NNGPT_SFT_NUM_GENERATIONS": "8"
+    },
+    "generation_kwargs": {
+      "eos_token_id": 32021,
+      "pad_token_id": 32021,
+      "stop_strings": [
+        "</forward>"
+      ],
+      "use_cache": true
+    },
+    "runtime_settings": {
+      "dataset_limit": 500,
+      "effective_global_num_generations": 8,
+      "effective_train_batch_size": 8,
+      "generation_batch_size": 8,
+      "global_num_generations": 8,
+      "global_num_generations_adapted": 0,
+      "grad_accum": 8,
+      "max_completion_length": 1200,
+      "max_prompt_length": 3500,
+      "max_steps": 125,
+      "requested_global_num_generations": 8,
+      "steps_per_generation": null,
+      "valid_generation_values": [
+        2,
+        4,
+        8
+      ]
+    },
+    "seed": 42,
+    "temperature": 0.8,
+    "top_k": 50,
+    "top_p": 0.95
+  },
+  "source_mode": "model-id-download",
+  "tokenizer_source": "ABrain/NNGPT-Backbone-deepseek-coder-6.7b-instruct"
+}

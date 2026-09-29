@@ -1,0 +1,1 @@
+find /data/42-julia-hpc-ai-cv-students/s471802/nn-gpt-runs/parallel_runs -type f \( -iname "*threshold*" -o -iname "*sensitivity*" -o -iname "*canonical*" -o -iname "*granular*" -o -iname "*collapse*" \) -printf "%p\n"

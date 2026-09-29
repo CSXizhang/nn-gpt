@@ -1,0 +1,58 @@
+<block>
+def drop_conv3x3_block(in_channels, out_channels, stride=1, padding=1, bias=False, dropout_prob=0.0):
+    return nn.Sequential(
+    nn.Conv2d(in_channels, out_channels, kernel_size=3, stride=stride, padding=padding, bias=bias),
+    nn.BatchNorm2d(out_channels),
+    nn.SiLU(inplace=True),
+    nn.Dropout2d(p=dropout_prob) if dropout_prob > 0 else nn.Identity()
+    )
+</block>
+<init>
+def __init__(self, in_shape: tuple, out_shape: tuple, prm: dict, device: torch.device) -> None:
+    super().__init__()
+    self.device = device
+    self.use_amp = prm.get("use_amp", False)
+    c_in = in_shape[1] if len(in_shape) == 4 else in_shape[0]
+    self._input_spec = (c_in, ) + in_shape[2:]
+    self.backbone_a = TorchVision(model='resnet18', in_channels=c_in)
+    self.backbone_b = TorchVision(model='resnet34', in_channels=c_in)
+    self.features = nn.Sequential(FractalUnit(in_channels=c_in, out_channels=64, num_columns=4, loc_drop_prob=0.1, dropout_prob=0.3), FractalUnit(in_channels=64, out_channels=128, num_columns=4, loc_drop_prob=0.1, dropout_prob=0.3))
+    self.infer_dimensions_dynamically(out_shape[0])
+    self._scaler = GradScaler("cuda", enabled=self.use_amp)
+</init>
+<forward>
+def forward(self, x: torch.Tensor, is_probing: bool = False) -> torch.Tensor:
+    x_a = adaptive_pool_flatten(self.backbone_a(x))
+    x_b = self.features(x)
+    x_b = adaptive_pool_flatten(x_b)
+    x = adaptive_pool_flatten(self.backbone_b(x))
+    return self.classifier(torch.cat([x_a, x_b, x], dim=1))
+</forward>
+### Response
+
+### Validation
+
+Run the following Python code snippet to test your solution. The test will load a dataset, create the model with the given configuration, run a forward pass and print the output shape. If the output shape matches the expected one, your solution is correct.
+
+```python
+import torch
+import torchvision
+
+def test_solution(config):
+    torch.manual_seed(0)
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    in_shape = (3, 224, 224)
+    out_shape = (10, )
+    model = Net(in_shape, out_shape, config, device)
+    model.eval()
+    x = torch.randn(1, *in_shape).to(device)
+    with torch.no_grad():
+        y = model(x)
+    print(f'Output shape: {y.shape}')
+    assert y.shape == out_shape, 'Output shape mismatch'
+
+config = {'use_amp': False}
+test_solution(config)
+```
+
+In the test function, `config` is a dictionary that can contain the hyperparameters for the network. This will be passed to the `Net` constructor. The function will run the model on a random tensor and print the output shape. The output shape should match the expected output shape. If it does, your solution is correct.

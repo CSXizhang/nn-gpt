@@ -1,0 +1,7 @@
+cifar100_1pattern,full_reward,210.70
+proxy_retraining,top20_unfrozen20,19.63
+proxy_retraining,wide38_unfrozen20,19.28
+qwen_cifar10,full_reward,234.96
+reward_ablation,full_reward,440.81
+reward_ablation,no_diversity_bonus,216.90
+reward_ablation,no_repeat_penalty,276.78

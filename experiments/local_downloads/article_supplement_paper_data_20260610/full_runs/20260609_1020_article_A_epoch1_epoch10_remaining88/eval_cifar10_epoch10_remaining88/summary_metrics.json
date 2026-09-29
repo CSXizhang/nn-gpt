@@ -1,0 +1,16 @@
+{
+  "article_A_cifar10_epoch1_epoch10": {
+    "samples": 88,
+    "format_valid_count": 88,
+    "format_valid_rate": 1.0,
+    "formal_success_count": 76,
+    "formal_success_rate": 0.8636363636363636,
+    "mean_acc": 0.9302289473684211,
+    "max_acc": 0.9738,
+    "median_acc": 0.9216,
+    "q1_acc": 0.9095,
+    "q3_acc": 0.9537,
+    "top5_mean_acc": 0.9716799999999999,
+    "top10_mean_acc": 0.96918
+  }
+}

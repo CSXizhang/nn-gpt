@@ -1,0 +1,73 @@
+{
+  "apiVersion": "batch/v1",
+  "kind": "Job",
+  "metadata": {
+    "name": "nn-gpt-exp-nneval-001"
+  },
+  "spec": {
+    "parallelism": 1,
+    "ttlSecondsAfterFinished": 86400,
+    "template": {
+      "spec": {
+        "restartPolicy": "Never",
+        "containers": [
+          {
+            "securityContext": {
+              "allowPrivilegeEscalation": false,
+              "runAsUser": 1036,
+              "runAsGroup": 1376
+            },
+            "name": "nneval-exp",
+            "image": "abrainone/ai-linux:cu12.6.3-latest",
+            "imagePullPolicy": "Always",
+            "command": [
+              "/bin/bash",
+              "-c"
+            ],
+            "args": [
+              "export PYTHONPATH=/a/nn-dataset:/a/mm:$PYTHONPATH && python -m ab.gpt.NNEval --nn_alter_epochs 1 --nn_train_epochs 1 --batch_size 32 --nn_name_prefix rl-bb-test1"
+            ],
+            "resources": {
+              "requests": {
+                "nvidia.com/gpu": 1,
+                "cpu": 8,
+                "memory": "32Gi"
+              },
+              "limits": {
+                "nvidia.com/gpu": 1,
+                "cpu": 16,
+                "memory": "128Gi"
+              }
+            },
+            "volumeMounts": [
+              {
+                "mountPath": "/dev/shm",
+                "name": "shm"
+              },
+              {
+                "mountPath": "/a/mm",
+                "name": "v0"
+              }
+            ]
+          }
+        ],
+        "volumes": [
+          {
+            "name": "shm",
+            "emptyDir": {
+              "medium": "Memory",
+              "sizeLimit": "16Gi"
+            }
+          },
+          {
+            "name": "v0",
+            "hostPath": {
+              "path": "/shared/ssd/home/b-x-0522/nn-gpt_exp",
+              "type": "Directory"
+            }
+          }
+        ]
+      }
+    }
+  }
+}

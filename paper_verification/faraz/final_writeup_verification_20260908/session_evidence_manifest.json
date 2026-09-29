@@ -1,0 +1,47 @@
+{
+  "session_id": "019f2703-a6dc-76b2-ada2-dccb85045e27",
+  "session_path": "/Users/zhangxi/.codex/sessions/2026/07/03/rollout-2026-07-03T16-06-18-019f2703-a6dc-76b2-ada2-dccb85045e27.jsonl",
+  "session_sha256": "999884e0100b4d316226af2f160516bfd435d5d33696c3a4a5c51988828db96c",
+  "source_events": [
+    {
+      "jsonl_line": 3258,
+      "ordinal": 3257,
+      "timestamp": "2026-07-04T10:33:49.015Z",
+      "role": "superseded first pass",
+      "note": "Read window_metrics.csv and lacked the corrected per-metric denominator >=20 gate."
+    },
+    {
+      "jsonl_line": 3274,
+      "ordinal": 3273,
+      "timestamp": "2026-07-04T10:35:07.102Z",
+      "role": "corrected generator tool call",
+      "note": "Direct raw JSONL recomputation; explicit field map and formal-success filtering."
+    },
+    {
+      "jsonl_line": 3275,
+      "ordinal": 3274,
+      "timestamp": "2026-07-04T10:35:08.722Z",
+      "role": "paired generator output",
+      "note": "Twelve-run CSV and 70/80/90 summaries."
+    }
+  ],
+  "raw_input": {
+    "path": "/Users/zhangxi/code/RL/faraz_delivery_20260726/article_raw_data_archive_20260718_resend_20260726.zip",
+    "sha256": "afd723be7e0e3c47de145c4c2b764786047df05a0003a833a6d24b69939ac74f",
+    "member_prefix": "article_raw_data_archive_20260704/01_six_seed_robustness",
+    "runs": 12,
+    "rows": 9600
+  },
+  "reconstruction": {
+    "script": "scripts/session_recompute_threshold.py",
+    "changes_from_historical_logic": [
+      "Redirected input from unpacked archive paths to the delivered ZIP.",
+      "Redirected outputs to final_writeup_verification_20260908/session_evidence.",
+      "Made JSON parsing strict instead of silently skipping malformed lines; all 9600 rows parsed, so this did not affect results.",
+      "Added field-source and valid-denominator accounting without changing onset results.",
+      "Used stable folder-derived run labels; condition, seed, role, rows, and all onset fields match historical output."
+    ],
+    "result_csv": "session_evidence/threshold_sensitivity_recomputed.csv",
+    "coverage_json": "session_evidence/threshold_field_coverage.json"
+  }
+}

@@ -1,0 +1,35 @@
+<block>
+def drop_conv3x3_block(in_channels, out_channels, stride=1, padding=1, bias=False, dropout_prob=0.0):
+    return nn.Sequential(nn.Conv2d(in_channels, out_channels, kernel_size=3, stride=stride, padding=padding, bias=bias), nn.BatchNorm2d(out_channels), nn.SiLU(inplace=True), nn.Dropout2d(p=dropout_prob) if dropout_prob > 0 else nn.Identity(), nn.Conv2d(out_channels, out_channels, kernel_size=3, stride=1, padding=1, bias=bias), nn.BatchNorm2d(out_channels), nn.SiLU(inplace=True))
+</block>
+<init>
+def __init__(self, in_shape: tuple, out_shape: tuple, prm: dict, device: torch.device) -> None:
+    super().__init__()
+    self.device = device
+    self.use_amp = prm.get("use_amp", False)
+    c_in = in_shape[1] if len(in_shape) == 4 else in_shape[0]
+    self._input_spec = (c_in, ) + in_shape[2:]
+    self.backbone_a = TorchVision(model='mobilenet_v3_small', in_channels=c_in)
+    self.backbone_b = TorchVision(model='shufflenet_v2_x2_0', in_channels=c_in)
+    self.features = nn.Sequential(FractalUnit(in_channels=c_in, out_channels=64, num_columns=2, loc_drop_prob=0.1, dropout_prob=0.1), FractalUnit(in_channels=64, out_channels=128, num_columns=2, loc_drop_prob=0.1, dropout_prob=0.1))
+    self.infer_dimensions_dynamically(out_shape[0])
+    self._scaler = GradScaler("cuda", enabled=self.use_amp)
+</init>
+<forward>
+def forward(self, x: torch.Tensor, is_probing: bool = False) -> torch.Tensor:
+    x_a = self.backbone_a(x)
+    x_a = self.features(x_a)
+    x_b = adaptive_pool_flatten(self.backbone_b(x))
+    x_f = adaptive_pool_flatten(x_a)
+    return self.classifier(torch.cat([x_f, x_b], dim=1))
+</forward>
+
+
+### Explanation:
+The 'A_to_Fractal_to_B' pattern is implemented by first applying the backbone_a (MobilenetV3Small) followed by the FractalUnit feature blocks and then backbone_b (ShufflenetV2X2_0). The FractalUnit feature blocks are applied to the output of backbone_a and the output of backbone_b is applied directly. The outputs from these branches are concatenated and passed through a fully connected layer.
+
+The drop_conv3x3_block function is a block that contains a 3x3 convolution, a BatchNorm, a SiLU (Sigmoid linear unit) activation, a Dropout and another 3x3 convolution.
+
+The Net class's init function initializes two backbone networks (backbone_a and backbone_b) and two feature blocks (features). The input image spec is stored in _input_spec for dynamic sizing of the classifier. The classifier is then initialized with the output dimension of the forward pass. The GradScaler is initialized as well.
+
+The forward function follows the implemented pattern: backbone_a is applied to the input, features are applied to the output of backbone_a and the output of backbone_b is applied directly. The outputs from these branches are concatenated and passed through a fully connected layer. The output of this function is the output of the network.

@@ -1,0 +1,43 @@
+<block>
+def drop_conv3x3_block(in_channels, out_channels, stride=1, padding=1, bias=False, dropout_prob=0.0):
+    return nn.Sequential(
+    nn.Conv2d(in_channels, out_channels, kernel_size=3, stride=stride, padding=padding, bias=bias),
+    nn.BatchNorm2d(out_channels),
+    nn.SiLU(inplace=True),
+    nn.Dropout2d(p=dropout_prob) if dropout_prob > 0 else nn.Identity(),
+    nn.Conv2d(out_channels, out_channels, kernel_size=3, stride=1, padding=1, bias=bias),
+    nn.BatchNorm2d(out_channels),
+    nn.SiLU(inplace=True)
+    )
+</block>
+<init>
+def __init__(self, in_shape: tuple, out_shape: tuple, prm: dict, device: torch.device) -> None:
+    super().__init__()
+    self.device = device
+    self.use_amp = prm.get('use_amp', False)
+    c_in = in_shape[1] if len(in_shape) == 4 else in_shape[0]
+    self.pattern = 'A_to_Fractal_plus_B'
+    self._input_spec = in_shape
+    self.backbone_a = TorchVision(model='resnet34', in_channels=c_in)
+    self.backbone_b = TorchVision(model='resnext50_32x4d', in_channels=c_in)
+    self.features = nn.Sequential(FractalUnit(in_channels=c_in, out_channels=64, num_columns=2, loc_drop_prob=0.1, dropout_prob=0.1))
+    self.features.add_module('FractalUnit-1', FractalUnit(in_channels=64, out_channels=128, num_columns=2, loc_drop_prob=0.1, dropout_prob=0.1))
+    self.infer_dimensions_dynamically(out_shape[0])
+    self._scaler = GradScaler('cuda', enabled=self.use_amp)
+</init>
+<forward>
+def forward(self, x: torch.Tensor, is_probing: bool=False) -> torch.Tensor:
+    x = self.backbone_a(x)
+    x = self.features(x)
+    x = self.backbone_b(x, is_probing=is_probing)
+    return x
+</forward>
+
+### Explanation:
+In the forward function, the input tensor is passed through two backbone networks (backbone_a and backbone_b). The output of backbone_a is passed to the FractalUnit layers (features). The output of the FractalUnit layers is passed through backbone_b. This forms the pattern 'A_to_Fractal_plus_B'. The function returns the output of the last layer in the network.
+
+The drop_conv3x3_block function implements a sequence of operations: a 2D convolution, batch normalization, SiLU activation, and dropout. The dropout probability is set to 0 if it is not provided. The output of this function is a block of operations that can be used in the forward function.
+
+The __init__ function initializes the network. It sets the device, uses automatic mixed precision if the 'use_amp' key is in the prm dictionary. It also sets the pattern to 'A_to_Fractal_plus_B'. The input image spec is stored in _input_spec. The network is initialized with two backbone networks (backbone_a and backbone_b), and two FractalUnit layers (features). The infer_dimensions_dynamically function is called with the number of classes. The GradScaler is initialized in the __init__ function.
+
+The pattern 'A_to_Fractal_plus_B' is implemented in the forward function. The input tensor is passed through backbone_a, then through the FractalUnit layers, and finally through backbone_b. The output of the last layer in the network is returned.

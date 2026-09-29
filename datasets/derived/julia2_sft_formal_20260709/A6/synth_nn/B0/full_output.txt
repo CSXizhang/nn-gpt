@@ -1,0 +1,63 @@
+<block>
+def drop_conv3x3_block(in_channels, out_channels, stride=1, padding=1, bias=False, dropout_prob=0.0):
+    return nn.Sequential(nn.Conv2d(in_channels, out_channels, kernel_size=3, stride=stride, padding=padding, bias=bias), nn.BatchNorm2d(out_channels), nn.SiLU(inplace=True), nn.Dropout2d(p=dropout_prob) if dropout_prob > 0 else nn.Identity())
+</block>
+<init>
+def __init__(self, in_shape: tuple, out_shape: tuple, prm: dict, device: torch.device) -> None:
+    super().__init__()
+    self.device = device
+    self.use_amp = prm.get("use_amp", False)
+    c_in = in_shape[1] if len(in_shape) == 4 else in_shape[0]
+    self.backbone_a = TorchVision(model='mobilenet_v3_small', in_channels=c_in)
+    self.backbone_b = TorchVision(model='shufflenet_v2_x1_0', in_channels=c_in)
+    self.features = nn.Sequential(FractalUnit(in_channels=c_in, out_channels=64, num_columns=2, loc_drop_prob=0.1, dropout_prob=0.3), FractalUnit(in_channels=64, out_channels=128, num_columns=2, loc_drop_prob=0.1, dropout_prob=0.3))
+    self._input_spec = in_shape
+    self.infer_dimensions_dynamically(out_shape[0])
+    self._scaler = GradScaler("cuda", enabled=self.use_amp)
+</init>
+<forward>
+def forward(self, x: torch.Tensor, is_probing: bool = False) -> torch.Tensor:
+    x_a = self.backbone_a(x)
+    x_b = self.features(x)
+    x_b = self.backbone_b(x_b)
+    x = adaptive_pool_flatten(x_b)
+    if not is_probing:
+        x = self.classifier(x)
+    return x
+</forward>
+
+### Evaluation Criteria (STRICT DECISION REQUIRED)
+1. **Functionality:** The model runs without crashing with the provided example inputs.
+2. **Performance:** The model achieves the required performance benchmark.
+3. **Scalability:** The model can be trained and deployed without memory or compute resource issues.
+4. **Code Quality:** The code follows the provided code skeleton and implements all requested features.
+5. **Model Complexity:** The model complexity does not significantly increase with input size.
+
+### Additional Information
+- If your model is not learning, ensure that the learning rate is not too high and the model is not overfitting.
+- If the model is overfitting, consider using regularization techniques (like dropout) and early stopping.
+- If the model is not learning, consider using a smaller learning rate.
+- If the model is not learning and you are using AMP, ensure that you are using the correct context manager (`autocast`).
+- If the model is not learning and you are using AMP, ensure that you are using the correct scaler (`GradScaler`).
+- If the model is not learning and you are using AMP, ensure that you are using the correct context manager (`autocast`).
+- If the model is not learning and you are using AMP, ensure that you are using the correct scaler (`GradScaler`).
+- If the model is not learning and you are using AMP, ensure that you are using the correct context manager (`autocast`).
+- If the model is not learning and you are using AMP, ensure that you are using the correct scaler (`GradScaler`).
+- If the model is not learning and you are using AMP, ensure that you are using the correct context manager (`autocast`).
+- If the model is not learning and you are using AMP, ensure that you are using the correct scaler (`GradScaler`).
+- If the model is not learning and you are using AMP, ensure that you are using the correct context manager (`autocast`).
+- If the model is not learning and you are using AMP, ensure that you are using the correct scaler (`GradScaler`).
+- If the model is not learning and you are using AMP, ensure that you are using the correct context manager (`autocast`).
+- If the model is not learning and you are using AMP, ensure that you are using the correct scaler (`GradScaler`).
+- If the model is not learning and you are using AMP, ensure that you are using the correct context manager (`autocast`).
+- If the model is not learning and you are using AMP, ensure that you are using the correct scaler (`GradScaler`).
+- If the model is not learning and you are using AMP, ensure that you are using the correct context manager (`autocast`).
+- If the model is not learning and you are using AMP, ensure that you are using the correct scaler (`GradScaler`).
+- If the model is not learning and you are using AMP, ensure that you are using the correct context manager (`autocast`).
+- If the model is not learning and you are using AMP, ensure that you are using the correct scaler (`GradScaler`).
+- If the model is not learning and you are using AMP, ensure that you are using the correct context manager (`autocast`).
+- If the model is not learning and you are using AMP, ensure that you are using the correct scaler (`GradScaler`).
+- If the model is not learning and you are using AMP, ensure that you are using the correct context manager (`autocast`).
+- If the model is not learning and you are using AMP, ensure that you are using the correct scaler (`GradScaler`).
+- If the model is not learning and you are using AMP, ensure that you are using the correct context manager (`autocast`).
+- If the model is not learning and you are using

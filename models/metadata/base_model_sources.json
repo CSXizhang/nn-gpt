@@ -1,0 +1,21 @@
+{
+  "observed_on": "2026-09-29",
+  "source_host": "julia2",
+  "models": [
+    {
+      "model_id": "deepseek-ai/deepseek-coder-6.7b-instruct",
+      "local_model_path": "/home/s471802/nn-gpt/out/llm/deepseek-ai/deepseek-coder-6.7b-instruct",
+      "huggingface_refs_main": "e5d64addd26a6a1db0f9b863abf6ee3141936807",
+      "used_by": ["DeepSeek CIFAR-10 A9", "DeepSeek four-pattern A18"],
+      "revision_limit": "The local Hugging Face refs/main was observed, but the exact download-time revision used to create every experiment adapter is not independently proven."
+    },
+    {
+      "model_id": "Qwen/Qwen2.5-Coder-7B-Instruct",
+      "local_model_path": "/home/s471802/nn-gpt/out/llm/Qwen/Qwen2.5-Coder-7B-Instruct",
+      "huggingface_refs_main": "c03e6d358207e414f1eca0bb1891e29f1db0e242",
+      "used_by": ["Qwen CIFAR-10 A7"],
+      "revision_limit": "The local Hugging Face refs/main was observed, but the exact download-time revision used to create the adapter is not independently proven."
+    }
+  ],
+  "quantization": "The archived c91714d source and Faraz verification package document a 4-bit NF4 model-loading path with double quantization for RL. Post-load runtime metadata was not retained."
+}

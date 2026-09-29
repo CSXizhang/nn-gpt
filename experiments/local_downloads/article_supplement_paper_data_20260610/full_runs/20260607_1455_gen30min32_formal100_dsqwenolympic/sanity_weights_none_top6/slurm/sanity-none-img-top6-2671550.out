@@ -1,0 +1,70 @@
+LEMUR root /home/s471802/nn-gpt
+[Reward Worker Warmup] start mode=single_rank_dedicated_fixed_pool require_gpu=True planned_gpu_workers=4 per_gpu_worker_counts=[1, 1, 1, 1] reward_gpu_indices=[0, 1, 2, 3] reward_gpu_tokens=['0', '1', '2', '3'] timeout_seconds=60
+[Reward Worker] Ready slot=0 pid=2854196, assigned_gpu=0, assigned_cuda_visible_device='0', worker_device=cuda:0, cuda_visible_devices='0', cuda_available=True, cuda_device_count=1, rss_gib=0.53, torch_home='', physical_gpu_index=0, physical_gpu_bus_id='00000000:01:00.0', physical_gpu_uuid='GPU-a523b211-6f59-0e8b-0023-2b216840877b', physical_binding_verified=True
+[Reward Worker] Ready slot=1 pid=2854227, assigned_gpu=1, assigned_cuda_visible_device='1', worker_device=cuda:0, cuda_visible_devices='1', cuda_available=True, cuda_device_count=1, rss_gib=0.53, torch_home='', physical_gpu_index=1, physical_gpu_bus_id='00000000:21:00.0', physical_gpu_uuid='GPU-9e583553-6b3c-6b64-96a1-021cd73086be', physical_binding_verified=True
+[Reward Worker] Ready slot=2 pid=2854258, assigned_gpu=2, assigned_cuda_visible_device='2', worker_device=cuda:0, cuda_visible_devices='2', cuda_available=True, cuda_device_count=1, rss_gib=0.53, torch_home='', physical_gpu_index=2, physical_gpu_bus_id='00000000:41:00.0', physical_gpu_uuid='GPU-b8ffc91b-d7b0-e310-cfad-3f8c76e9c50b', physical_binding_verified=True
+[Reward Worker] Ready slot=3 pid=2854289, assigned_gpu=3, assigned_cuda_visible_device='3', worker_device=cuda:0, cuda_visible_devices='3', cuda_available=True, cuda_device_count=1, rss_gib=0.53, torch_home='', physical_gpu_index=3, physical_gpu_bus_id='00000000:61:00.0', physical_gpu_uuid='GPU-4a38d25e-dee4-8512-7c38-28f66cfab0d4', physical_binding_verified=True
+[Reward Worker Pool] mode=single_rank_dedicated_fixed_pool visible_gpu_count=4 deepspeed_enabled=False rank=0 local_rank=0 world_size=1 train_gpu=0 workers_per_gpu=1 per_gpu_worker_counts=[1, 1, 1, 1] reward_gpu_indices=[0, 1, 2, 3] reward_gpu_tokens=['0', '1', '2', '3'] reason='fixed_workers_override'
+[Reward Worker Warmup] end mode=single_rank_dedicated_fixed_pool pool_size=4 verified_workers=4 worker_pids=[2854196, 2854227, 2854258, 2854289] workers=["slot=0 pid=2854196 assigned_gpu=0 assigned_cuda_visible_device='0' physical_gpu_index=0 physical_gpu_bus_id='00000000:01:00.0' physical_binding_verified=True alive=True", "slot=1 pid=2854227 assigned_gpu=1 assigned_cuda_visible_device='1' physical_gpu_index=1 physical_gpu_bus_id='00000000:21:00.0' physical_binding_verified=True alive=True", "slot=2 pid=2854258 assigned_gpu=2 assigned_cuda_visible_device='2' physical_gpu_index=2 physical_gpu_bus_id='00000000:41:00.0' physical_binding_verified=True alive=True", "slot=3 pid=2854289 assigned_gpu=3 assigned_cuda_visible_device='3' physical_gpu_index=3 physical_gpu_bus_id='00000000:61:00.0' physical_binding_verified=True alive=True"]
+{"reward_worker_warmup": {"pid": 2854196, "assigned_gpu": 0, "assigned_cuda_visible_device": "0", "worker_device": "cuda:0", "cuda_visible_devices": "0", "cuda_available": true, "cuda_device_count": 1, "rss_gib": 0.5301094055175781, "torch_home": "", "physical_gpu_index": 0, "physical_gpu_uuid": "GPU-a523b211-6f59-0e8b-0023-2b216840877b", "physical_gpu_bus_id": "00000000:01:00.0", "physical_gpu_name": "NVIDIA L40S", "physical_binding_verified": true, "slot": 0, "alive": true, "mode": "single_rank_dedicated_fixed_pool", "visible_gpu_count": 4, "distributed": false, "rank": 0, "local_rank": 0, "world_size": 1, "train_gpu": 0, "reward_gpu_indices": [0, 1, 2, 3], "reward_gpu_tokens": ["0", "1", "2", "3"], "shared_train_gpu": true, "pool_size": 4, "workers_per_gpu": 1, "per_gpu_worker_counts": [1, 1, 1, 1], "deepspeed_enabled": false, "dynamic_scaling": false, "reason": "fixed_workers_override", "gpu_memory_snapshots": [{"device_index": 0, "device_token": "0", "total_gib": 44.39404296875, "free_gib": 43.97003173828125, "used_gib": 0.42401123046875, "allocated_gib": 0.0, "reserved_gib": 0.0, "is_train_gpu": true}, {"device_index": 1, "device_token": "1", "total_gib": 44.39404296875, "free_gib": 43.97003173828125, "used_gib": 0.42401123046875, "allocated_gib": 0.0, "reserved_gib": 0.0, "is_train_gpu": false}, {"device_index": 2, "device_token": "2", "total_gib": 44.39404296875, "free_gib": 43.97003173828125, "used_gib": 0.42401123046875, "allocated_gib": 0.0, "reserved_gib": 0.0, "is_train_gpu": false}, {"device_index": 3, "device_token": "3", "total_gib": 44.39404296875, "free_gib": 43.97003173828125, "used_gib": 0.42401123046875, "allocated_gib": 0.0, "reserved_gib": 0.0, "is_train_gpu": false}], "worker_budget_gib": null, "reserved_headroom_gib": null, "total_rss_gib": 2.1180458068847656, "workers": [{"pid": 2854196, "assigned_gpu": 0, "assigned_cuda_visible_device": "0", "worker_device": "cuda:0", "cuda_visible_devices": "0", "cuda_available": true, "cuda_device_count": 1, "rss_gib": 0.5301094055175781, "torch_home": "", "physical_gpu_index": 0, "physical_gpu_uuid": "GPU-a523b211-6f59-0e8b-0023-2b216840877b", "physical_gpu_bus_id": "00000000:01:00.0", "physical_gpu_name": "NVIDIA L40S", "physical_binding_verified": true, "slot": 0, "alive": true}, {"pid": 2854227, "assigned_gpu": 1, "assigned_cuda_visible_device": "1", "worker_device": "cuda:0", "cuda_visible_devices": "1", "cuda_available": true, "cuda_device_count": 1, "rss_gib": 0.5289573669433594, "torch_home": "", "physical_gpu_index": 1, "physical_gpu_uuid": "GPU-9e583553-6b3c-6b64-96a1-021cd73086be", "physical_gpu_bus_id": "00000000:21:00.0", "physical_gpu_name": "NVIDIA L40S", "physical_binding_verified": true, "slot": 1, "alive": true}, {"pid": 2854258, "assigned_gpu": 2, "assigned_cuda_visible_device": "2", "worker_device": "cuda:0", "cuda_visible_devices": "2", "cuda_available": true, "cuda_device_count": 1, "rss_gib": 0.528778076171875, "torch_home": "", "physical_gpu_index": 2, "physical_gpu_uuid": "GPU-b8ffc91b-d7b0-e310-cfad-3f8c76e9c50b", "physical_gpu_bus_id": "00000000:41:00.0", "physical_gpu_name": "NVIDIA L40S", "physical_binding_verified": true, "slot": 2, "alive": true}, {"pid": 2854289, "assigned_gpu": 3, "assigned_cuda_visible_device": "3", "worker_device": "cuda:0", "cuda_visible_devices": "3", "cuda_available": true, "cuda_device_count": 1, "rss_gib": 0.5302009582519531, "torch_home": "", "physical_gpu_index": 3, "physical_gpu_uuid": "GPU-4a38d25e-dee4-8512-7c38-28f66cfab0d4", "physical_gpu_bus_id": "00000000:61:00.0", "physical_gpu_name": "NVIDIA L40S", "physical_binding_verified": true, "slot": 3, "alive": true}], "worker_pids": [2854196, 2854227, 2854258, 2854289]}}
+[eval_only] eval_concurrency=4 warmup_pool_size=4
+[Reward Assign] reward_batch_index=0 batch_item=1/4 completion_index=0 worker_slot=0 assigned_gpu=0 physical_gpu=0 worker_device=cuda:0 gpu_name='NVIDIA L40S' gpu_free_gib=43.55 gpu_used_gib=0.85 gpu_total_gib=44.99 timeout_seconds=1920
+[Reward Assign] reward_batch_index=0 batch_item=2/4 completion_index=1 worker_slot=1 assigned_gpu=1 physical_gpu=1 worker_device=cuda:0 gpu_name='NVIDIA L40S' gpu_free_gib=43.55 gpu_used_gib=0.85 gpu_total_gib=44.99 timeout_seconds=1920
+[Reward Assign] reward_batch_index=0 batch_item=3/4 completion_index=2 worker_slot=2 assigned_gpu=2 physical_gpu=2 worker_device=cuda:0 gpu_name='NVIDIA L40S' gpu_free_gib=43.55 gpu_used_gib=0.85 gpu_total_gib=44.99 timeout_seconds=1920
+[Reward Assign] reward_batch_index=0 batch_item=4/4 completion_index=3 worker_slot=3 assigned_gpu=3 physical_gpu=3 worker_device=cuda:0 gpu_name='NVIDIA L40S' gpu_free_gib=43.55 gpu_used_gib=0.85 gpu_total_gib=44.99 timeout_seconds=1920
+LEMUR root /home/s471802/nn-gptLEMUR root /home/s471802/nn-gpt
+
+LEMUR root /home/s471802/nn-gpt
+LEMUR root /home/s471802/nn-gpt
+Evaluating /home/s471802/nn-gpt/out/nn/tmp/22f9a290f04f5db5b0e8aa5a0ebeb0e3.py...
+Evaluating /home/s471802/nn-gpt/out/nn/tmp/22e56438b75a8ace3211ae7fcde7efe9.py...
+Evaluating /home/s471802/nn-gpt/out/nn/tmp/219faa4f6e4fdca37b51b77a671d52f3.py...
+Evaluating /home/s471802/nn-gpt/out/nn/tmp/39dcde76b89ffb884658dd3c7d4c8351.py...
+epoch 1
+epoch 1
+epoch 1
+epoch 1
+  Train Loss: 100.3758, Test Loss: 78.6658
+  Train Acc: 0.1029, Test Acc: 0.1042
+  LR: 0.010000, Grad Norm: 3.0000, Throughput: 118.0 samples/s
+accuracy_to_time_metric 0.006612211165373237
+Error during training: (0.10420382165605095, 63576639507, "Accuracy is too low: 0.10420382165605095. The minimum accepted accuracy for the 'imagenette' dataset is 0.1.")
+  Train Loss: 2.2824, Test Loss: 2.2556
+  Train Acc: 0.1395, Test Acc: 0.1605
+  LR: 0.010000, Grad Norm: 1.1667, Throughput: 116.4 samples/s
+accuracy_to_time_metric 0.09388754095903402
+Training summary saved to /home/s471802/nn-gpt/out/training_summary.json
+  Train Loss: 2.2667, Test Loss: 2.2437
+  Train Acc: 0.1509, Test Acc: 0.1562
+  LR: 0.010000, Grad Norm: 1.8375, Throughput: 115.4 samples/s
+accuracy_to_time_metric 0.08641055748170724
+Training summary saved to /home/s471802/nn-gpt/out/training_summary.json
+  Train Loss: 2.2811, Test Loss: 2.2521
+  Train Acc: 0.1349, Test Acc: 0.1778
+  LR: 0.010000, Grad Norm: 1.8232, Throughput: 115.3 samples/s
+accuracy_to_time_metric 0.11960461726545783
+Training summary saved to /home/s471802/nn-gpt/out/training_summary.json
+[eval_only] 1/6 qwen_cifar10_top01_weights_none formal_success=False acc=None
+[eval_only] 2/6 qwen_cifar10_top02_weights_none formal_success=True acc=0.1561783439490446
+[eval_only] 3/6 qwen_cifar10_top03_weights_none formal_success=True acc=0.16050955414012738
+[eval_only] 4/6 qwen_cifar10_top04_weights_none formal_success=True acc=0.1778343949044586
+[Reward Assign] reward_batch_index=0 batch_item=1/2 completion_index=4 worker_slot=0 assigned_gpu=0 physical_gpu=0 worker_device=cuda:0 gpu_name='NVIDIA L40S' gpu_free_gib=43.42 gpu_used_gib=0.98 gpu_total_gib=44.99 timeout_seconds=1920
+[Reward Assign] reward_batch_index=0 batch_item=2/2 completion_index=5 worker_slot=1 assigned_gpu=1 physical_gpu=1 worker_device=cuda:0 gpu_name='NVIDIA L40S' gpu_free_gib=43.41 gpu_used_gib=0.98 gpu_total_gib=44.99 timeout_seconds=1920
+Evaluating /home/s471802/nn-gpt/out/nn/tmp/04b065c68c6b098c50e53c84b2fe91b8.py...
+Evaluating /home/s471802/nn-gpt/out/nn/tmp/3c591efcc92b8b745a24bd270d1c5646.py...
+epoch 1
+epoch 1
+  Train Loss: 2.2106, Test Loss: 2.1662
+  Train Acc: 0.1807, Test Acc: 0.1982
+  LR: 0.010000, Grad Norm: 1.2766, Throughput: 173.1 samples/s
+accuracy_to_time_metric 0.22661092897830196
+Training summary saved to /home/s471802/nn-gpt/out/training_summary.json
+  Train Loss: 2.2129, Test Loss: 2.1511
+  Train Acc: 0.1725, Test Acc: 0.2214
+  LR: 0.010000, Grad Norm: 1.3441, Throughput: 142.7 samples/s
+accuracy_to_time_metric 0.23090524865955578
+Training summary saved to /home/s471802/nn-gpt/out/training_summary.json
+[eval_only] 5/6 qwen_cifar10_top05_weights_none formal_success=True acc=0.22140127388535033
+[eval_only] 6/6 qwen_cifar10_top06_weights_none formal_success=True acc=0.19821656050955413
+[Reward Worker Pool] Shutdown mode=single_rank_dedicated_fixed_pool pool_size=4 workers_per_gpu=1 per_gpu_worker_counts=[1, 1, 1, 1] worker_pids=[2854196, 2854227, 2854258, 2854289] total_rss_gib=2.12
+Wrote summaries under /data/42-julia-hpc-ai-cv-students/s471802/nn-gpt-runs/parallel_runs/20260607_1455_gen30min32_formal100_dsqwenolympic/sanity_weights_none_top6/eval_imagenette_heldout

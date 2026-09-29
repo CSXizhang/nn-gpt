@@ -1,0 +1,664 @@
+LEMUR root /home/s471802/nn-gpt
+[Reward Worker Warmup] start mode=single_rank_dedicated_fixed_pool require_gpu=True planned_gpu_workers=4 per_gpu_worker_counts=[1, 1, 1, 1] reward_gpu_indices=[0, 1, 2, 3] reward_gpu_tokens=['0', '1', '2', '3'] timeout_seconds=60
+[Reward Worker] Ready slot=0 pid=2868947, assigned_gpu=0, assigned_cuda_visible_device='0', worker_device=cuda:0, cuda_visible_devices='0', cuda_available=True, cuda_device_count=1, rss_gib=0.53, torch_home='', physical_gpu_index=0, physical_gpu_bus_id='00000000:21:00.0', physical_gpu_uuid='GPU-9e583553-6b3c-6b64-96a1-021cd73086be', physical_binding_verified=True
+[Reward Worker] Ready slot=1 pid=2868979, assigned_gpu=1, assigned_cuda_visible_device='1', worker_device=cuda:0, cuda_visible_devices='1', cuda_available=True, cuda_device_count=1, rss_gib=0.53, torch_home='', physical_gpu_index=1, physical_gpu_bus_id='00000000:81:00.0', physical_gpu_uuid='GPU-e2209d83-4b8e-b5e2-ad20-776b44c05cf9', physical_binding_verified=True
+[Reward Worker] Ready slot=2 pid=2869010, assigned_gpu=2, assigned_cuda_visible_device='2', worker_device=cuda:0, cuda_visible_devices='2', cuda_available=True, cuda_device_count=1, rss_gib=0.53, torch_home='', physical_gpu_index=2, physical_gpu_bus_id='00000000:C1:00.0', physical_gpu_uuid='GPU-e33fd947-ccdb-57ce-2c86-3019380e39c5', physical_binding_verified=True
+[Reward Worker] Ready slot=3 pid=2869041, assigned_gpu=3, assigned_cuda_visible_device='3', worker_device=cuda:0, cuda_visible_devices='3', cuda_available=True, cuda_device_count=1, rss_gib=0.53, torch_home='', physical_gpu_index=3, physical_gpu_bus_id='00000000:E1:00.0', physical_gpu_uuid='GPU-b2b4aebb-6a48-8783-8316-ab3496c55f3a', physical_binding_verified=True
+[Reward Worker Pool] mode=single_rank_dedicated_fixed_pool visible_gpu_count=4 deepspeed_enabled=False rank=0 local_rank=0 world_size=1 train_gpu=0 workers_per_gpu=1 per_gpu_worker_counts=[1, 1, 1, 1] reward_gpu_indices=[0, 1, 2, 3] reward_gpu_tokens=['0', '1', '2', '3'] reason='fixed_workers_override'
+[Reward Worker Warmup] end mode=single_rank_dedicated_fixed_pool pool_size=4 verified_workers=4 worker_pids=[2868947, 2868979, 2869010, 2869041] workers=["slot=0 pid=2868947 assigned_gpu=0 assigned_cuda_visible_device='0' physical_gpu_index=0 physical_gpu_bus_id='00000000:21:00.0' physical_binding_verified=True alive=True", "slot=1 pid=2868979 assigned_gpu=1 assigned_cuda_visible_device='1' physical_gpu_index=1 physical_gpu_bus_id='00000000:81:00.0' physical_binding_verified=True alive=True", "slot=2 pid=2869010 assigned_gpu=2 assigned_cuda_visible_device='2' physical_gpu_index=2 physical_gpu_bus_id='00000000:C1:00.0' physical_binding_verified=True alive=True", "slot=3 pid=2869041 assigned_gpu=3 assigned_cuda_visible_device='3' physical_gpu_index=3 physical_gpu_bus_id='00000000:E1:00.0' physical_binding_verified=True alive=True"]
+{"reward_worker_warmup": {"pid": 2868947, "assigned_gpu": 0, "assigned_cuda_visible_device": "0", "worker_device": "cuda:0", "cuda_visible_devices": "0", "cuda_available": true, "cuda_device_count": 1, "rss_gib": 0.5288162231445312, "torch_home": "", "physical_gpu_index": 0, "physical_gpu_uuid": "GPU-9e583553-6b3c-6b64-96a1-021cd73086be", "physical_gpu_bus_id": "00000000:21:00.0", "physical_gpu_name": "NVIDIA L40S", "physical_binding_verified": true, "slot": 0, "alive": true, "mode": "single_rank_dedicated_fixed_pool", "visible_gpu_count": 4, "distributed": false, "rank": 0, "local_rank": 0, "world_size": 1, "train_gpu": 0, "reward_gpu_indices": [0, 1, 2, 3], "reward_gpu_tokens": ["0", "1", "2", "3"], "shared_train_gpu": true, "pool_size": 4, "workers_per_gpu": 1, "per_gpu_worker_counts": [1, 1, 1, 1], "deepspeed_enabled": false, "dynamic_scaling": false, "reason": "fixed_workers_override", "gpu_memory_snapshots": [{"device_index": 0, "device_token": "0", "total_gib": 44.39404296875, "free_gib": 43.97003173828125, "used_gib": 0.42401123046875, "allocated_gib": 0.0, "reserved_gib": 0.0, "is_train_gpu": true}, {"device_index": 1, "device_token": "1", "total_gib": 44.39404296875, "free_gib": 43.97003173828125, "used_gib": 0.42401123046875, "allocated_gib": 0.0, "reserved_gib": 0.0, "is_train_gpu": false}, {"device_index": 2, "device_token": "2", "total_gib": 44.39404296875, "free_gib": 43.97003173828125, "used_gib": 0.42401123046875, "allocated_gib": 0.0, "reserved_gib": 0.0, "is_train_gpu": false}, {"device_index": 3, "device_token": "3", "total_gib": 44.39404296875, "free_gib": 43.97003173828125, "used_gib": 0.42401123046875, "allocated_gib": 0.0, "reserved_gib": 0.0, "is_train_gpu": false}], "worker_budget_gib": null, "reserved_headroom_gib": null, "total_rss_gib": 2.11480712890625, "workers": [{"pid": 2868947, "assigned_gpu": 0, "assigned_cuda_visible_device": "0", "worker_device": "cuda:0", "cuda_visible_devices": "0", "cuda_available": true, "cuda_device_count": 1, "rss_gib": 0.5288162231445312, "torch_home": "", "physical_gpu_index": 0, "physical_gpu_uuid": "GPU-9e583553-6b3c-6b64-96a1-021cd73086be", "physical_gpu_bus_id": "00000000:21:00.0", "physical_gpu_name": "NVIDIA L40S", "physical_binding_verified": true, "slot": 0, "alive": true}, {"pid": 2868979, "assigned_gpu": 1, "assigned_cuda_visible_device": "1", "worker_device": "cuda:0", "cuda_visible_devices": "1", "cuda_available": true, "cuda_device_count": 1, "rss_gib": 0.5281562805175781, "torch_home": "", "physical_gpu_index": 1, "physical_gpu_uuid": "GPU-e2209d83-4b8e-b5e2-ad20-776b44c05cf9", "physical_gpu_bus_id": "00000000:81:00.0", "physical_gpu_name": "NVIDIA L40S", "physical_binding_verified": true, "slot": 1, "alive": true}, {"pid": 2869010, "assigned_gpu": 2, "assigned_cuda_visible_device": "2", "worker_device": "cuda:0", "cuda_visible_devices": "2", "cuda_available": true, "cuda_device_count": 1, "rss_gib": 0.5296630859375, "torch_home": "", "physical_gpu_index": 2, "physical_gpu_uuid": "GPU-e33fd947-ccdb-57ce-2c86-3019380e39c5", "physical_gpu_bus_id": "00000000:C1:00.0", "physical_gpu_name": "NVIDIA L40S", "physical_binding_verified": true, "slot": 2, "alive": true}, {"pid": 2869041, "assigned_gpu": 3, "assigned_cuda_visible_device": "3", "worker_device": "cuda:0", "cuda_visible_devices": "3", "cuda_available": true, "cuda_device_count": 1, "rss_gib": 0.5281715393066406, "torch_home": "", "physical_gpu_index": 3, "physical_gpu_uuid": "GPU-b2b4aebb-6a48-8783-8316-ab3496c55f3a", "physical_gpu_bus_id": "00000000:E1:00.0", "physical_gpu_name": "NVIDIA L40S", "physical_binding_verified": true, "slot": 3, "alive": true}], "worker_pids": [2868947, 2868979, 2869010, 2869041]}}
+[eval_only] eval_concurrency=4 warmup_pool_size=4
+[Reward Assign] reward_batch_index=0 batch_item=2/4 completion_index=1 worker_slot=1 assigned_gpu=1 physical_gpu=1 worker_device=cuda:0 gpu_name='NVIDIA L40S' gpu_free_gib=43.55 gpu_used_gib=0.85 gpu_total_gib=44.99 timeout_seconds=1920
+[Reward Assign] reward_batch_index=0 batch_item=3/4 completion_index=2 worker_slot=2 assigned_gpu=2 physical_gpu=2 worker_device=cuda:0 gpu_name='NVIDIA L40S' gpu_free_gib=43.55 gpu_used_gib=0.85 gpu_total_gib=44.99 timeout_seconds=1920
+[Reward Assign] reward_batch_index=0 batch_item=1/4 completion_index=0 worker_slot=0 assigned_gpu=0 physical_gpu=0 worker_device=cuda:0 gpu_name='NVIDIA L40S' gpu_free_gib=43.55 gpu_used_gib=0.85 gpu_total_gib=44.99 timeout_seconds=1920
+[Reward Assign] reward_batch_index=0 batch_item=4/4 completion_index=3 worker_slot=3 assigned_gpu=3 physical_gpu=3 worker_device=cuda:0 gpu_name='NVIDIA L40S' gpu_free_gib=43.55 gpu_used_gib=0.85 gpu_total_gib=44.99 timeout_seconds=1920
+LEMUR root /home/s471802/nn-gpt
+LEMUR root /home/s471802/nn-gpt
+LEMUR root /home/s471802/nn-gpt
+LEMUR root /home/s471802/nn-gpt
+Evaluating /home/s471802/nn-gpt/out/nn/tmp/4612ffd56f9fa2d97f0d63364ef3d53b.py...
+Evaluating /home/s471802/nn-gpt/out/nn/tmp/57233172e4ebc789c3ef19873f247502.py...
+Evaluating /home/s471802/nn-gpt/out/nn/tmp/8c6bb0b6d5cf6dbc6dab67eede88d07d.py...
+Evaluating /home/s471802/nn-gpt/out/nn/tmp/46694868667a9922944392f7834b0bdc.py...
+epoch 1
+epoch 1
+epoch 1
+epoch 1
+  Train Loss: 0.1554, Test Loss: 0.0296
+  Train Acc: 0.9681, Test Acc: 0.9936
+  LR: 0.010000, Grad Norm: 2.0197, Throughput: 137.8 samples/s
+accuracy_to_time_metric 1.6413961668193213
+  Train Loss: 0.1542, Test Loss: 0.0287
+  Train Acc: 0.9712, Test Acc: 0.9946
+  LR: 0.010000, Grad Norm: 0.4699, Throughput: 136.9 samples/s
+accuracy_to_time_metric 1.6334746049096869
+Training summary saved to /home/s471802/nn-gpt/out/training_summary.json
+Training summary saved to /home/s471802/nn-gpt/out/training_summary.json
+  Train Loss: 0.4081, Test Loss: 0.1735
+  Train Acc: 0.9175, Test Acc: 0.9610
+  LR: 0.010000, Grad Norm: 0.8586, Throughput: 137.6 samples/s
+accuracy_to_time_metric 1.5791563673167617
+  Train Loss: 0.5949, Test Loss: 0.3014
+  Train Acc: 0.8607, Test Acc: 0.9256
+  LR: 0.010000, Grad Norm: 0.8895, Throughput: 141.9 samples/s
+accuracy_to_time_metric 1.5621306216036344
+Training summary saved to /home/s471802/nn-gpt/out/training_summary.json
+Training summary saved to /home/s471802/nn-gpt/out/training_summary.json
+[eval_only] 1/72 dscoder_cifar10-0002-a_only formal_success=True acc=0.9936305732484076
+[eval_only] 2/72 dscoder_cifar10-0002-b_only formal_success=True acc=0.9610191082802548
+[eval_only] 3/72 dscoder_cifar10-0026-a_only formal_success=True acc=0.9946496815286624
+[eval_only] 4/72 dscoder_cifar10-0026-b_only formal_success=True acc=0.9256050955414012
+[Reward Assign] reward_batch_index=0 batch_item=4/4 completion_index=7 worker_slot=3 assigned_gpu=3 physical_gpu=3 worker_device=cuda:0 gpu_name='NVIDIA L40S' gpu_free_gib=43.41 gpu_used_gib=0.98 gpu_total_gib=44.99 timeout_seconds=1920
+[Reward Assign] reward_batch_index=0 batch_item=2/4 completion_index=5 worker_slot=1 assigned_gpu=1 physical_gpu=1 worker_device=cuda:0 gpu_name='NVIDIA L40S' gpu_free_gib=43.41 gpu_used_gib=0.98 gpu_total_gib=44.99 timeout_seconds=1920
+[Reward Assign] reward_batch_index=0 batch_item=3/4 completion_index=6 worker_slot=2 assigned_gpu=2 physical_gpu=2 worker_device=cuda:0 gpu_name='NVIDIA L40S' gpu_free_gib=43.40 gpu_used_gib=1.00 gpu_total_gib=44.99 timeout_seconds=1920
+[Reward Assign] reward_batch_index=0 batch_item=1/4 completion_index=4 worker_slot=0 assigned_gpu=0 physical_gpu=0 worker_device=cuda:0 gpu_name='NVIDIA L40S' gpu_free_gib=43.40 gpu_used_gib=1.00 gpu_total_gib=44.99 timeout_seconds=1920
+Evaluating /home/s471802/nn-gpt/out/nn/tmp/b28b43662e91837d02a64dd5482fba20.py...
+Evaluating /home/s471802/nn-gpt/out/nn/tmp/fa87c8d1a438675c6df0fa8db81d9ef6.py...
+Evaluating /home/s471802/nn-gpt/out/nn/tmp/9284b9209b1cc5ecde084c969c76399f.py...
+Evaluating /home/s471802/nn-gpt/out/nn/tmp/f787bafa020af94524f287ff96537ecf.py...
+epoch 1
+epoch 1
+epoch 1
+epoch 1
+  Train Loss: 0.1546, Test Loss: 0.0283
+  Train Acc: 0.9681, Test Acc: 0.9939
+  LR: 0.010000, Grad Norm: 0.0264, Throughput: 110.9 samples/s
+accuracy_to_time_metric 1.321808839822984
+Training summary saved to /home/s471802/nn-gpt/out/training_summary.json
+  Train Loss: 0.3526, Test Loss: 0.1127
+  Train Acc: 0.9357, Test Acc: 0.9748
+  LR: 0.010000, Grad Norm: 1.4701, Throughput: 107.6 samples/s
+accuracy_to_time_metric 1.2549333901204922
+Training summary saved to /home/s471802/nn-gpt/out/training_summary.json
+  Train Loss: 0.1591, Test Loss: 0.0295
+  Train Acc: 0.9640, Test Acc: 0.9944
+  LR: 0.010000, Grad Norm: 0.3852, Throughput: 106.8 samples/s
+accuracy_to_time_metric 1.273694181611363
+Training summary saved to /home/s471802/nn-gpt/out/training_summary.json
+  Train Loss: 0.3564, Test Loss: 0.1167
+  Train Acc: 0.9323, Test Acc: 0.9743
+  LR: 0.010000, Grad Norm: 0.8860, Throughput: 107.0 samples/s
+accuracy_to_time_metric 1.2468119260945447
+Training summary saved to /home/s471802/nn-gpt/out/training_summary.json
+[eval_only] 5/72 dscoder_cifar10-0001-a_only formal_success=True acc=0.9938853503184714
+[eval_only] 6/72 dscoder_cifar10-0001-b_only formal_success=True acc=0.9747770700636943
+[eval_only] 7/72 dscoder_cifar10-0017-a_only formal_success=True acc=0.9943949044585987
+[eval_only] 8/72 dscoder_cifar10-0017-b_only formal_success=True acc=0.9742675159235669
+[Reward Assign] reward_batch_index=0 batch_item=4/4 completion_index=11 worker_slot=3 assigned_gpu=3 physical_gpu=3 worker_device=cuda:0 gpu_name='NVIDIA L40S' gpu_free_gib=43.41 gpu_used_gib=0.98 gpu_total_gib=44.99 timeout_seconds=1920
+[Reward Assign] reward_batch_index=0 batch_item=3/4 completion_index=10 worker_slot=2 assigned_gpu=2 physical_gpu=2 worker_device=cuda:0 gpu_name='NVIDIA L40S' gpu_free_gib=43.40 gpu_used_gib=1.00 gpu_total_gib=44.99 timeout_seconds=1920
+[Reward Assign] reward_batch_index=0 batch_item=2/4 completion_index=9 worker_slot=1 assigned_gpu=1 physical_gpu=1 worker_device=cuda:0 gpu_name='NVIDIA L40S' gpu_free_gib=43.41 gpu_used_gib=0.98 gpu_total_gib=44.99 timeout_seconds=1920
+[Reward Assign] reward_batch_index=0 batch_item=1/4 completion_index=8 worker_slot=0 assigned_gpu=0 physical_gpu=0 worker_device=cuda:0 gpu_name='NVIDIA L40S' gpu_free_gib=43.40 gpu_used_gib=1.00 gpu_total_gib=44.99 timeout_seconds=1920
+Evaluating /home/s471802/nn-gpt/out/nn/tmp/109e15e204c5da53cd0a0e4e479df22b.py...
+Evaluating /home/s471802/nn-gpt/out/nn/tmp/06f84b11a494db972f5f6f66f798e4ac.py...
+Evaluating /home/s471802/nn-gpt/out/nn/tmp/ba9a991b59a0993c5706bc4fdc8fcb64.py...
+Evaluating /home/s471802/nn-gpt/out/nn/tmp/2855eaeb0543d6f59fdd217b8bd716b2.py...
+epoch 1
+epoch 1
+epoch 1
+epoch 1
+  Train Loss: 0.2000, Test Loss: 0.0695
+  Train Acc: 0.9459, Test Acc: 0.9794
+  LR: 0.010000, Grad Norm: 1.7353, Throughput: 165.8 samples/s
+accuracy_to_time_metric 1.9437720930897953
+Training summary saved to /home/s471802/nn-gpt/out/training_summary.json
+  Train Loss: 0.2040, Test Loss: 0.0697
+  Train Acc: 0.9477, Test Acc: 0.9778
+  LR: 0.010000, Grad Norm: 3.0000, Throughput: 164.8 samples/s
+accuracy_to_time_metric 1.9283789433701524
+Training summary saved to /home/s471802/nn-gpt/out/training_summary.json
+  Train Loss: 0.1377, Test Loss: 0.0307
+  Train Acc: 0.9611, Test Acc: 0.9911
+  LR: 0.010000, Grad Norm: 0.0004, Throughput: 164.9 samples/s
+accuracy_to_time_metric 1.9588251940460204
+Training summary saved to /home/s471802/nn-gpt/out/training_summary.json
+  Train Loss: 0.1273, Test Loss: 0.0367
+  Train Acc: 0.9663, Test Acc: 0.9898
+  LR: 0.010000, Grad Norm: 0.0038, Throughput: 165.7 samples/s
+accuracy_to_time_metric 1.965916136573058
+Training summary saved to /home/s471802/nn-gpt/out/training_summary.json
+[eval_only] 9/72 dscoder_cifar100-0008-a_only formal_success=True acc=0.9898089171974522
+[eval_only] 10/72 dscoder_cifar100-0008-b_only formal_success=True acc=0.9793630573248407
+[eval_only] 11/72 dscoder_cifar100-0025-a_only formal_success=True acc=0.9910828025477707
+[eval_only] 12/72 dscoder_cifar100-0025-b_only formal_success=True acc=0.9778343949044586
+[Reward Assign] reward_batch_index=0 batch_item=1/4 completion_index=12 worker_slot=0 assigned_gpu=0 physical_gpu=0 worker_device=cuda:0 gpu_name='NVIDIA L40S' gpu_free_gib=43.40 gpu_used_gib=1.00 gpu_total_gib=44.99 timeout_seconds=1920
+[Reward Assign] reward_batch_index=0 batch_item=3/4 completion_index=14 worker_slot=2 assigned_gpu=2 physical_gpu=2 worker_device=cuda:0 gpu_name='NVIDIA L40S' gpu_free_gib=43.40 gpu_used_gib=1.00 gpu_total_gib=44.99 timeout_seconds=1920
+[Reward Assign] reward_batch_index=0 batch_item=4/4 completion_index=15 worker_slot=3 assigned_gpu=3 physical_gpu=3 worker_device=cuda:0 gpu_name='NVIDIA L40S' gpu_free_gib=43.41 gpu_used_gib=0.98 gpu_total_gib=44.99 timeout_seconds=1920
+[Reward Assign] reward_batch_index=0 batch_item=2/4 completion_index=13 worker_slot=1 assigned_gpu=1 physical_gpu=1 worker_device=cuda:0 gpu_name='NVIDIA L40S' gpu_free_gib=43.41 gpu_used_gib=0.98 gpu_total_gib=44.99 timeout_seconds=1920
+Evaluating /home/s471802/nn-gpt/out/nn/tmp/3bbfabddd3fb3706c75ffae4ddd324bc.py...
+Evaluating /home/s471802/nn-gpt/out/nn/tmp/5b6732404d5ff760f9ed6ed66db7d27e.py...
+Evaluating /home/s471802/nn-gpt/out/nn/tmp/37bba8b94089aaaef26d430398475526.py...
+Evaluating /home/s471802/nn-gpt/out/nn/tmp/e331b31c47dae0f4131b1695b6345660.py...
+epoch 1
+epoch 1
+epoch 1
+epoch 1
+  Train Loss: 0.4045, Test Loss: 0.1744
+  Train Acc: 0.9239, Test Acc: 0.9618
+  LR: 0.010000, Grad Norm: 1.1494, Throughput: 169.0 samples/s
+accuracy_to_time_metric 1.9420381086927085
+Training summary saved to /home/s471802/nn-gpt/out/training_summary.json
+  Train Loss: 0.1255, Test Loss: 0.0309
+  Train Acc: 0.9685, Test Acc: 0.9918
+  LR: 0.010000, Grad Norm: 0.0006, Throughput: 171.3 samples/s
+accuracy_to_time_metric 2.037414831784103
+Training summary saved to /home/s471802/nn-gpt/out/training_summary.json
+  Train Loss: 0.1496, Test Loss: 0.0282
+  Train Acc: 0.9719, Test Acc: 0.9944
+  LR: 0.010000, Grad Norm: 0.0091, Throughput: 159.0 samples/s
+accuracy_to_time_metric 1.8960102882015928
+Training summary saved to /home/s471802/nn-gpt/out/training_summary.json
+  Train Loss: 0.2116, Test Loss: 0.0793
+  Train Acc: 0.9372, Test Acc: 0.9722
+  LR: 0.010000, Grad Norm: 0.2399, Throughput: 133.5 samples/s
+accuracy_to_time_metric 1.5522581076283726
+Training summary saved to /home/s471802/nn-gpt/out/training_summary.json
+[eval_only] 13/72 dscoder_cifar100-0028-a_only formal_success=True acc=0.9918471337579617
+[eval_only] 14/72 dscoder_cifar100-0028-b_only formal_success=True acc=0.9617834394904459
+[eval_only] 15/72 dscoder_cifar100-0009-a_only formal_success=True acc=0.9722292993630574
+[eval_only] 16/72 dscoder_cifar100-0009-b_only formal_success=True acc=0.9943949044585987
+[Reward Assign] reward_batch_index=0 batch_item=3/4 completion_index=18 worker_slot=2 assigned_gpu=2 physical_gpu=2 worker_device=cuda:0 gpu_name='NVIDIA L40S' gpu_free_gib=43.40 gpu_used_gib=1.00 gpu_total_gib=44.99 timeout_seconds=1920
+[Reward Assign] reward_batch_index=0 batch_item=4/4 completion_index=19 worker_slot=3 assigned_gpu=3 physical_gpu=3 worker_device=cuda:0 gpu_name='NVIDIA L40S' gpu_free_gib=43.41 gpu_used_gib=0.98 gpu_total_gib=44.99 timeout_seconds=1920
+[Reward Assign] reward_batch_index=0 batch_item=1/4 completion_index=16 worker_slot=0 assigned_gpu=0 physical_gpu=0 worker_device=cuda:0 gpu_name='NVIDIA L40S' gpu_free_gib=43.40 gpu_used_gib=1.00 gpu_total_gib=44.99 timeout_seconds=1920
+[Reward Assign] reward_batch_index=0 batch_item=2/4 completion_index=17 worker_slot=1 assigned_gpu=1 physical_gpu=1 worker_device=cuda:0 gpu_name='NVIDIA L40S' gpu_free_gib=43.41 gpu_used_gib=0.98 gpu_total_gib=44.99 timeout_seconds=1920
+Evaluating /home/s471802/nn-gpt/out/nn/tmp/06e972b85f108eb7d3b8bd0020afe2c0.py...
+Evaluating /home/s471802/nn-gpt/out/nn/tmp/cf9c3b90e1fb51586c5aa6521772ac58.py...
+Evaluating /home/s471802/nn-gpt/out/nn/tmp/918036a3d5643ca288ac54e9c6d74ad1.py...
+Evaluating /home/s471802/nn-gpt/out/nn/tmp/7c0b25a187c60cf84e97abc5b8996f6e.py...
+epoch 1
+epoch 1
+epoch 1
+epoch 1
+  Train Loss: 1.5947, Test Loss: 1.4796
+  Train Acc: 0.9232, Test Acc: 0.9921
+  LR: 0.010000, Grad Norm: 0.0163, Throughput: 157.6 samples/s
+accuracy_to_time_metric 1.8748326474877703
+Training summary saved to /home/s471802/nn-gpt/out/training_summary.json
+  Train Loss: 1.8226, Test Loss: 1.5297
+  Train Acc: 0.8487, Test Acc: 0.9847
+  LR: 0.010000, Grad Norm: 0.3846, Throughput: 150.4 samples/s
+accuracy_to_time_metric 1.7738151443618067
+Training summary saved to /home/s471802/nn-gpt/out/training_summary.json
+  Train Loss: 0.1531, Test Loss: 0.0265
+  Train Acc: 0.9629, Test Acc: 0.9931
+  LR: 0.010000, Grad Norm: 0.0105, Throughput: 90.6 samples/s
+accuracy_to_time_metric 1.0784299867501093
+Training summary saved to /home/s471802/nn-gpt/out/training_summary.json
+  Train Loss: 0.2978, Test Loss: 0.0732
+  Train Acc: 0.9401, Test Acc: 0.9868
+  LR: 0.010000, Grad Norm: 2.4251, Throughput: 89.3 samples/s
+accuracy_to_time_metric 1.0563547050187647
+Training summary saved to /home/s471802/nn-gpt/out/training_summary.json
+[eval_only] 17/72 dscoder_imagenette-0016-a_only formal_success=True acc=0.9921019108280255
+[eval_only] 18/72 dscoder_imagenette-0016-b_only formal_success=True acc=0.9847133757961783
+[eval_only] 19/72 dscoder_imagenette-0021-a_only formal_success=True acc=0.9931210191082802
+[eval_only] 20/72 dscoder_imagenette-0021-b_only formal_success=True acc=0.9867515923566879
+[Reward Assign] reward_batch_index=0 batch_item=1/4 completion_index=20 worker_slot=0 assigned_gpu=0 physical_gpu=0 worker_device=cuda:0 gpu_name='NVIDIA L40S' gpu_free_gib=43.39 gpu_used_gib=1.00 gpu_total_gib=44.99 timeout_seconds=1920
+[Reward Assign] reward_batch_index=0 batch_item=4/4 completion_index=23 worker_slot=3 assigned_gpu=3 physical_gpu=3 worker_device=cuda:0 gpu_name='NVIDIA L40S' gpu_free_gib=43.41 gpu_used_gib=0.98 gpu_total_gib=44.99 timeout_seconds=1920
+[Reward Assign] reward_batch_index=0 batch_item=2/4 completion_index=21 worker_slot=1 assigned_gpu=1 physical_gpu=1 worker_device=cuda:0 gpu_name='NVIDIA L40S' gpu_free_gib=43.41 gpu_used_gib=0.98 gpu_total_gib=44.99 timeout_seconds=1920
+[Reward Assign] reward_batch_index=0 batch_item=3/4 completion_index=22 worker_slot=2 assigned_gpu=2 physical_gpu=2 worker_device=cuda:0 gpu_name='NVIDIA L40S' gpu_free_gib=43.39 gpu_used_gib=1.00 gpu_total_gib=44.99 timeout_seconds=1920
+Evaluating /home/s471802/nn-gpt/out/nn/tmp/bf194d06650126681dc0ef9924fcd07d.py...
+Evaluating /home/s471802/nn-gpt/out/nn/tmp/f33dcd962fc10586570c0254fe4f91d9.py...
+Evaluating /home/s471802/nn-gpt/out/nn/tmp/2a26022db3c5eb216a9d8f3e7916292e.py...
+Evaluating /home/s471802/nn-gpt/out/nn/tmp/f0c626d81b487548baf64ca5f24f5792.py...
+epoch 1
+epoch 1
+epoch 1
+epoch 1
+  Train Loss: 0.1566, Test Loss: 0.0276
+  Train Acc: 0.9604, Test Acc: 0.9939
+  LR: 0.010000, Grad Norm: 2.6601, Throughput: 162.1 samples/s
+accuracy_to_time_metric 1.9324055138741587
+Training summary saved to /home/s471802/nn-gpt/out/training_summary.json
+  Train Loss: 0.2799, Test Loss: 0.0688
+  Train Acc: 0.9468, Test Acc: 0.9888
+  LR: 0.010000, Grad Norm: 0.6351, Throughput: 159.0 samples/s
+accuracy_to_time_metric 1.8842959796620014
+Training summary saved to /home/s471802/nn-gpt/out/training_summary.json
+  Train Loss: 0.1602, Test Loss: 0.0287
+  Train Acc: 0.9584, Test Acc: 0.9926
+  LR: 0.010000, Grad Norm: 0.0075, Throughput: 93.1 samples/s
+accuracy_to_time_metric 1.1083767170484105
+Training summary saved to /home/s471802/nn-gpt/out/training_summary.json
+  Train Loss: 0.1358, Test Loss: 0.0347
+  Train Acc: 0.9624, Test Acc: 0.9893
+  LR: 0.010000, Grad Norm: 0.0009, Throughput: 90.6 samples/s
+accuracy_to_time_metric 1.0737278407970317
+Training summary saved to /home/s471802/nn-gpt/out/training_summary.json
+[eval_only] 21/72 dscoder_imagenette-0028-a_only formal_success=True acc=0.9926114649681529
+[eval_only] 22/72 dscoder_imagenette-0028-b_only formal_success=True acc=0.9892993630573248
+[eval_only] 23/72 dscoder_imagenette-0022-a_only formal_success=True acc=0.9938853503184714
+[eval_only] 24/72 dscoder_imagenette-0022-b_only formal_success=True acc=0.9887898089171975
+[Reward Assign] reward_batch_index=0 batch_item=2/4 completion_index=25 worker_slot=1 assigned_gpu=1 physical_gpu=1 worker_device=cuda:0 gpu_name='NVIDIA L40S' gpu_free_gib=43.41 gpu_used_gib=0.98 gpu_total_gib=44.99 timeout_seconds=1920
+[Reward Assign] reward_batch_index=0 batch_item=4/4 completion_index=27 worker_slot=3 assigned_gpu=3 physical_gpu=3 worker_device=cuda:0 gpu_name='NVIDIA L40S' gpu_free_gib=43.41 gpu_used_gib=0.98 gpu_total_gib=44.99 timeout_seconds=1920
+[Reward Assign] reward_batch_index=0 batch_item=3/4 completion_index=26 worker_slot=2 assigned_gpu=2 physical_gpu=2 worker_device=cuda:0 gpu_name='NVIDIA L40S' gpu_free_gib=43.39 gpu_used_gib=1.00 gpu_total_gib=44.99 timeout_seconds=1920
+[Reward Assign] reward_batch_index=0 batch_item=1/4 completion_index=24 worker_slot=0 assigned_gpu=0 physical_gpu=0 worker_device=cuda:0 gpu_name='NVIDIA L40S' gpu_free_gib=43.39 gpu_used_gib=1.00 gpu_total_gib=44.99 timeout_seconds=1920
+Evaluating /home/s471802/nn-gpt/out/nn/tmp/e5a016d3cd06f1cbdd522a8e029f9c80.py...
+Evaluating /home/s471802/nn-gpt/out/nn/tmp/2f38d90ef97a40104dc67f960fdc885b.py...
+Evaluating /home/s471802/nn-gpt/out/nn/tmp/18588c5b3b86fdbf28471438e7fb6b6c.py...
+Evaluating /home/s471802/nn-gpt/out/nn/tmp/4ffc02fa2b8c7a774a3d41d209725add.py...
+epoch 1
+epoch 1
+epoch 1
+epoch 1
+  Train Loss: 0.2076, Test Loss: 0.0682
+  Train Acc: 0.9439, Test Acc: 0.9794
+  LR: 0.010000, Grad Norm: 0.0134, Throughput: 169.1 samples/s
+accuracy_to_time_metric 1.9827043975713206
+Training summary saved to /home/s471802/nn-gpt/out/training_summary.json
+  Train Loss: 0.1546, Test Loss: 0.0276
+  Train Acc: 0.9583, Test Acc: 0.9931
+  LR: 0.010000, Grad Norm: 0.1270, Throughput: 171.8 samples/s
+accuracy_to_time_metric 2.046062829306421
+  Train Loss: 0.2050, Test Loss: 0.0737
+  Train Acc: 0.9455, Test Acc: 0.9781
+  LR: 0.010000, Grad Norm: 0.3808, Throughput: 170.6 samples/s
+accuracy_to_time_metric 1.9972870866716133
+Training summary saved to /home/s471802/nn-gpt/out/training_summary.json
+Training summary saved to /home/s471802/nn-gpt/out/training_summary.json
+  Train Loss: 0.1424, Test Loss: 0.0273
+  Train Acc: 0.9651, Test Acc: 0.9934
+  LR: 0.010000, Grad Norm: 0.1103, Throughput: 170.3 samples/s
+accuracy_to_time_metric 2.028609467293396
+Training summary saved to /home/s471802/nn-gpt/out/training_summary.json
+[eval_only] 25/72 olympic_cifar10-0014-a_only formal_success=True acc=0.9931210191082802
+[eval_only] 26/72 olympic_cifar10-0014-b_only formal_success=True acc=0.9793630573248407
+[eval_only] 27/72 olympic_cifar10-0009-a_only formal_success=True acc=0.9933757961783439
+[eval_only] 28/72 olympic_cifar10-0009-b_only formal_success=True acc=0.9780891719745223
+[Reward Assign] reward_batch_index=0 batch_item=1/4 completion_index=28 worker_slot=0 assigned_gpu=0 physical_gpu=0 worker_device=cuda:0 gpu_name='NVIDIA L40S' gpu_free_gib=43.39 gpu_used_gib=1.00 gpu_total_gib=44.99 timeout_seconds=1920
+[Reward Assign] reward_batch_index=0 batch_item=3/4 completion_index=30 worker_slot=2 assigned_gpu=2 physical_gpu=2 worker_device=cuda:0 gpu_name='NVIDIA L40S' gpu_free_gib=43.39 gpu_used_gib=1.00 gpu_total_gib=44.99 timeout_seconds=1920
+[Reward Assign] reward_batch_index=0 batch_item=4/4 completion_index=31 worker_slot=3 assigned_gpu=3 physical_gpu=3 worker_device=cuda:0 gpu_name='NVIDIA L40S' gpu_free_gib=43.41 gpu_used_gib=0.98 gpu_total_gib=44.99 timeout_seconds=1920
+[Reward Assign] reward_batch_index=0 batch_item=2/4 completion_index=29 worker_slot=1 assigned_gpu=1 physical_gpu=1 worker_device=cuda:0 gpu_name='NVIDIA L40S' gpu_free_gib=43.41 gpu_used_gib=0.98 gpu_total_gib=44.99 timeout_seconds=1920
+Evaluating /home/s471802/nn-gpt/out/nn/tmp/e82782fc8792dfdc1fc43c2838e4e67e.py...
+Evaluating /home/s471802/nn-gpt/out/nn/tmp/e27842ac36d6ffcae1b04b3ed01f64f5.py...
+Evaluating /home/s471802/nn-gpt/out/nn/tmp/f4ac50a5e0fca7ac486a3fbab3307f81.py...
+Evaluating /home/s471802/nn-gpt/out/nn/tmp/89d89e65b86a8d9f5cc092e057f73f7c.py...
+epoch 1
+epoch 1
+epoch 1
+epoch 1
+  Train Loss: 0.2040, Test Loss: 0.0678
+  Train Acc: 0.9440, Test Acc: 0.9801
+  LR: 0.010000, Grad Norm: 3.0000, Throughput: 170.4 samples/s
+accuracy_to_time_metric 1.999993407373881
+Training summary saved to /home/s471802/nn-gpt/out/training_summary.json
+  Train Loss: 0.1369, Test Loss: 0.0277
+  Train Acc: 0.9691, Test Acc: 0.9934
+  LR: 0.010000, Grad Norm: 0.0141, Throughput: 172.3 samples/s
+accuracy_to_time_metric 2.0527134597159495
+  Train Loss: 0.2043, Test Loss: 0.0773
+  Train Acc: 0.9447, Test Acc: 0.9763
+  LR: 0.010000, Grad Norm: 3.0000, Throughput: 171.0 samples/s
+accuracy_to_time_metric 1.9979816175721528
+Training summary saved to /home/s471802/nn-gpt/out/training_summary.json
+Training summary saved to /home/s471802/nn-gpt/out/training_summary.json
+  Train Loss: 0.1398, Test Loss: 0.0276
+  Train Acc: 0.9675, Test Acc: 0.9934
+  LR: 0.010000, Grad Norm: 0.0011, Throughput: 173.0 samples/s
+accuracy_to_time_metric 2.0604562445733636
+Training summary saved to /home/s471802/nn-gpt/out/training_summary.json
+[eval_only] 29/72 olympic_cifar10-0016-a_only formal_success=True acc=0.9933757961783439
+[eval_only] 30/72 olympic_cifar10-0016-b_only formal_success=True acc=0.9801273885350319
+[eval_only] 31/72 olympic_cifar10-0021-a_only formal_success=True acc=0.9933757961783439
+[eval_only] 32/72 olympic_cifar10-0021-b_only formal_success=True acc=0.9763057324840765
+[Reward Assign] reward_batch_index=0 batch_item=2/4 completion_index=33 worker_slot=1 assigned_gpu=1 physical_gpu=1 worker_device=cuda:0 gpu_name='NVIDIA L40S' gpu_free_gib=43.41 gpu_used_gib=0.98 gpu_total_gib=44.99 timeout_seconds=1920
+[Reward Assign] reward_batch_index=0 batch_item=1/4 completion_index=32 worker_slot=0 assigned_gpu=0 physical_gpu=0 worker_device=cuda:0 gpu_name='NVIDIA L40S' gpu_free_gib=43.39 gpu_used_gib=1.00 gpu_total_gib=44.99 timeout_seconds=1920
+[Reward Assign] reward_batch_index=0 batch_item=3/4 completion_index=34 worker_slot=2 assigned_gpu=2 physical_gpu=2 worker_device=cuda:0 gpu_name='NVIDIA L40S' gpu_free_gib=43.39 gpu_used_gib=1.00 gpu_total_gib=44.99 timeout_seconds=1920
+[Reward Assign] reward_batch_index=0 batch_item=4/4 completion_index=35 worker_slot=3 assigned_gpu=3 physical_gpu=3 worker_device=cuda:0 gpu_name='NVIDIA L40S' gpu_free_gib=43.41 gpu_used_gib=0.98 gpu_total_gib=44.99 timeout_seconds=1920
+Evaluating /home/s471802/nn-gpt/out/nn/tmp/cedd61ac156d366b39e55c2219ee92c5.py...
+Evaluating /home/s471802/nn-gpt/out/nn/tmp/88511409e4f1fc00539d8e5f83dc9c6e.py...
+Evaluating /home/s471802/nn-gpt/out/nn/tmp/4324d41ed3e20dfaca0f11e5c129ba5b.py...
+Evaluating /home/s471802/nn-gpt/out/nn/tmp/b06ed95a27d290f41d629a261c677943.py...
+epoch 1
+epoch 1
+epoch 1
+epoch 1
+  Train Loss: 0.2077, Test Loss: 0.0702
+  Train Acc: 0.9425, Test Acc: 0.9783
+  LR: 0.010000, Grad Norm: 1.0444, Throughput: 172.7 samples/s
+accuracy_to_time_metric 2.0222866443947525
+Training summary saved to /home/s471802/nn-gpt/out/training_summary.json
+  Train Loss: 0.2048, Test Loss: 0.0690
+  Train Acc: 0.9452, Test Acc: 0.9801
+  LR: 0.010000, Grad Norm: 0.4414, Throughput: 170.5 samples/s
+accuracy_to_time_metric 2.0007125648405
+Training summary saved to /home/s471802/nn-gpt/out/training_summary.json
+  Train Loss: 0.1316, Test Loss: 0.0341
+  Train Acc: 0.9667, Test Acc: 0.9908
+  LR: 0.010000, Grad Norm: 0.0060, Throughput: 174.0 samples/s
+accuracy_to_time_metric 2.067142505808853
+  Train Loss: 0.1328, Test Loss: 0.0343
+  Train Acc: 0.9633, Test Acc: 0.9898
+  LR: 0.010000, Grad Norm: 0.0073, Throughput: 172.6 samples/s
+accuracy_to_time_metric 2.047533583316875
+Training summary saved to /home/s471802/nn-gpt/out/training_summary.json
+Training summary saved to /home/s471802/nn-gpt/out/training_summary.json
+[eval_only] 33/72 olympic_cifar100-0020-a_only formal_success=True acc=0.990828025477707
+[eval_only] 34/72 olympic_cifar100-0020-b_only formal_success=True acc=0.978343949044586
+[eval_only] 35/72 olympic_cifar100-0013-a_only formal_success=True acc=0.9898089171974522
+[eval_only] 36/72 olympic_cifar100-0013-b_only formal_success=True acc=0.9801273885350319
+[Reward Assign] reward_batch_index=0 batch_item=3/4 completion_index=38 worker_slot=2 assigned_gpu=2 physical_gpu=2 worker_device=cuda:0 gpu_name='NVIDIA L40S' gpu_free_gib=43.39 gpu_used_gib=1.00 gpu_total_gib=44.99 timeout_seconds=1920
+[Reward Assign] reward_batch_index=0 batch_item=4/4 completion_index=39 worker_slot=3 assigned_gpu=3 physical_gpu=3 worker_device=cuda:0 gpu_name='NVIDIA L40S' gpu_free_gib=43.41 gpu_used_gib=0.98 gpu_total_gib=44.99 timeout_seconds=1920
+[Reward Assign] reward_batch_index=0 batch_item=2/4 completion_index=37 worker_slot=1 assigned_gpu=1 physical_gpu=1 worker_device=cuda:0 gpu_name='NVIDIA L40S' gpu_free_gib=43.41 gpu_used_gib=0.98 gpu_total_gib=44.99 timeout_seconds=1920
+[Reward Assign] reward_batch_index=0 batch_item=1/4 completion_index=36 worker_slot=0 assigned_gpu=0 physical_gpu=0 worker_device=cuda:0 gpu_name='NVIDIA L40S' gpu_free_gib=43.39 gpu_used_gib=1.00 gpu_total_gib=44.99 timeout_seconds=1920
+Evaluating /home/s471802/nn-gpt/out/nn/tmp/274406ab894d7fef9a61c422b0bb9b9f.py...
+Evaluating /home/s471802/nn-gpt/out/nn/tmp/7b22606b3e48f864c9c673b7fba22662.py...
+Evaluating /home/s471802/nn-gpt/out/nn/tmp/d5972277fec7c2786f20efd2f51df445.py...
+Evaluating /home/s471802/nn-gpt/out/nn/tmp/fe266e488a0eb42ad1295fb6aca94e09.py...
+epoch 1
+epoch 1
+epoch 1
+epoch 1
+  Train Loss: 0.1986, Test Loss: 0.0689
+  Train Acc: 0.9512, Test Acc: 0.9811
+  LR: 0.010000, Grad Norm: 1.6952, Throughput: 170.2 samples/s
+accuracy_to_time_metric 1.99974361906093
+Training summary saved to /home/s471802/nn-gpt/out/training_summary.json
+  Train Loss: 0.2034, Test Loss: 0.0686
+  Train Acc: 0.9453, Test Acc: 0.9781
+  LR: 0.010000, Grad Norm: 0.4077, Throughput: 173.0 samples/s
+accuracy_to_time_metric 2.025200406254764
+Training summary saved to /home/s471802/nn-gpt/out/training_summary.json
+  Train Loss: 0.1349, Test Loss: 0.0344
+  Train Acc: 0.9627, Test Acc: 0.9901
+  LR: 0.010000, Grad Norm: 0.0067, Throughput: 172.3 samples/s
+accuracy_to_time_metric 2.044562530425392
+Training summary saved to /home/s471802/nn-gpt/out/training_summary.json
+  Train Loss: 0.1457, Test Loss: 0.0333
+  Train Acc: 0.9565, Test Acc: 0.9903
+  LR: 0.010000, Grad Norm: 0.0013, Throughput: 173.3 samples/s
+accuracy_to_time_metric 2.0573878490372937
+Training summary saved to /home/s471802/nn-gpt/out/training_summary.json
+[eval_only] 37/72 olympic_cifar100-0023-a_only formal_success=True acc=0.9903184713375797
+[eval_only] 38/72 olympic_cifar100-0023-b_only formal_success=True acc=0.9811464968152867
+[eval_only] 39/72 olympic_cifar100-0002-a_only formal_success=True acc=0.990063694267516
+[eval_only] 40/72 olympic_cifar100-0002-b_only formal_success=True acc=0.9780891719745223
+[Reward Assign] reward_batch_index=0 batch_item=4/4 completion_index=43 worker_slot=3 assigned_gpu=3 physical_gpu=3 worker_device=cuda:0 gpu_name='NVIDIA L40S' gpu_free_gib=43.41 gpu_used_gib=0.98 gpu_total_gib=44.99 timeout_seconds=1920
+[Reward Assign] reward_batch_index=0 batch_item=3/4 completion_index=42 worker_slot=2 assigned_gpu=2 physical_gpu=2 worker_device=cuda:0 gpu_name='NVIDIA L40S' gpu_free_gib=43.39 gpu_used_gib=1.00 gpu_total_gib=44.99 timeout_seconds=1920
+[Reward Assign] reward_batch_index=0 batch_item=2/4 completion_index=41 worker_slot=1 assigned_gpu=1 physical_gpu=1 worker_device=cuda:0 gpu_name='NVIDIA L40S' gpu_free_gib=43.41 gpu_used_gib=0.98 gpu_total_gib=44.99 timeout_seconds=1920
+[Reward Assign] reward_batch_index=0 batch_item=1/4 completion_index=40 worker_slot=0 assigned_gpu=0 physical_gpu=0 worker_device=cuda:0 gpu_name='NVIDIA L40S' gpu_free_gib=43.39 gpu_used_gib=1.00 gpu_total_gib=44.99 timeout_seconds=1920
+Evaluating /home/s471802/nn-gpt/out/nn/tmp/32cf3d5b0f439173e761b45f250ade7d.py...
+Evaluating /home/s471802/nn-gpt/out/nn/tmp/e9afca9e3d273f682c508a3fe1249284.py...
+Evaluating /home/s471802/nn-gpt/out/nn/tmp/e5d5d686d794f9c56982107c88371162.py...
+Evaluating /home/s471802/nn-gpt/out/nn/tmp/325c20aec4b7492c4acd254bf497c1a0.py...
+epoch 1
+epoch 1
+epoch 1
+epoch 1
+  Train Loss: 0.2095, Test Loss: 0.0693
+  Train Acc: 0.9448, Test Acc: 0.9786
+  LR: 0.010000, Grad Norm: 0.1535, Throughput: 140.5 samples/s
+accuracy_to_time_metric 1.6456178476124936
+Training summary saved to /home/s471802/nn-gpt/out/training_summary.json
+  Train Loss: 0.1497, Test Loss: 0.0295
+  Train Acc: 0.9617, Test Acc: 0.9936
+  LR: 0.010000, Grad Norm: 0.0298, Throughput: 142.1 samples/s
+accuracy_to_time_metric 1.6929435911047834
+Training summary saved to /home/s471802/nn-gpt/out/training_summary.json
+  Train Loss: 0.1358, Test Loss: 0.0271
+  Train Acc: 0.9697, Test Acc: 0.9924
+  LR: 0.010000, Grad Norm: 0.0031, Throughput: 142.3 samples/s
+accuracy_to_time_metric 1.692703841407087
+Training summary saved to /home/s471802/nn-gpt/out/training_summary.json
+  Train Loss: 1.9318, Test Loss: 1.6566
+  Train Acc: 0.3781, Test Acc: 0.5287
+  LR: 0.010000, Grad Norm: 2.6460, Throughput: 141.6 samples/s
+accuracy_to_time_metric 0.8094783640496588
+Training summary saved to /home/s471802/nn-gpt/out/training_summary.json
+[eval_only] 41/72 olympic_imagenette-0006-a_only formal_success=True acc=0.9936305732484076
+[eval_only] 42/72 olympic_imagenette-0006-b_only formal_success=True acc=0.9785987261146497
+[eval_only] 43/72 olympic_imagenette-0005-a_only formal_success=True acc=0.9923566878980892
+[eval_only] 44/72 olympic_imagenette-0005-b_only formal_success=True acc=0.5286624203821656
+[Reward Assign] reward_batch_index=0 batch_item=3/4 completion_index=46 worker_slot=2 assigned_gpu=2 physical_gpu=2 worker_device=cuda:0 gpu_name='NVIDIA L40S' gpu_free_gib=43.39 gpu_used_gib=1.00 gpu_total_gib=44.99 timeout_seconds=1920
+[Reward Assign] reward_batch_index=0 batch_item=2/4 completion_index=45 worker_slot=1 assigned_gpu=1 physical_gpu=1 worker_device=cuda:0 gpu_name='NVIDIA L40S' gpu_free_gib=43.41 gpu_used_gib=0.98 gpu_total_gib=44.99 timeout_seconds=1920
+[Reward Assign] reward_batch_index=0 batch_item=4/4 completion_index=47 worker_slot=3 assigned_gpu=3 physical_gpu=3 worker_device=cuda:0 gpu_name='NVIDIA L40S' gpu_free_gib=43.41 gpu_used_gib=0.98 gpu_total_gib=44.99 timeout_seconds=1920
+[Reward Assign] reward_batch_index=0 batch_item=1/4 completion_index=44 worker_slot=0 assigned_gpu=0 physical_gpu=0 worker_device=cuda:0 gpu_name='NVIDIA L40S' gpu_free_gib=43.39 gpu_used_gib=1.00 gpu_total_gib=44.99 timeout_seconds=1920
+Evaluating /home/s471802/nn-gpt/out/nn/tmp/e870e304a01f0344052969d35110ea3a.py...
+Evaluating /home/s471802/nn-gpt/out/nn/tmp/ad324614b070a67c0774e1f4e081bcf6.py...
+Evaluating /home/s471802/nn-gpt/out/nn/tmp/82756ab1892fbc7262b433e8c1432af6.py...
+Evaluating /home/s471802/nn-gpt/out/nn/tmp/7de27f207f305d4a248c9c4cc2d5c177.py...
+epoch 1
+epoch 1
+epoch 1
+epoch 1
+  Train Loss: 0.1504, Test Loss: 0.0307
+  Train Acc: 0.9612, Test Acc: 0.9929
+  LR: 0.010000, Grad Norm: 0.0025, Throughput: 168.5 samples/s
+accuracy_to_time_metric 2.005547766085727
+Training summary saved to /home/s471802/nn-gpt/out/training_summary.json
+  Train Loss: 0.1516, Test Loss: 0.0281
+  Train Acc: 0.9615, Test Acc: 0.9934
+  LR: 0.010000, Grad Norm: 0.0224, Throughput: 169.0 samples/s
+accuracy_to_time_metric 2.0127553615228226
+Training summary saved to /home/s471802/nn-gpt/out/training_summary.json
+  Train Loss: 1.9183, Test Loss: 1.6506
+  Train Acc: 0.3895, Test Acc: 0.5478
+  LR: 0.010000, Grad Norm: 2.8553, Throughput: 162.8 samples/s
+accuracy_to_time_metric 0.9721674959851745
+  Train Loss: 1.9215, Test Loss: 1.6348
+  Train Acc: 0.3728, Test Acc: 0.5878
+  LR: 0.010000, Grad Norm: 2.8677, Throughput: 162.5 samples/s
+accuracy_to_time_metric 1.0569465224653412
+Training summary saved to /home/s471802/nn-gpt/out/training_summary.json
+Training summary saved to /home/s471802/nn-gpt/out/training_summary.json
+[eval_only] 45/72 olympic_imagenette-0027-a_only formal_success=True acc=0.9928662420382166
+[eval_only] 46/72 olympic_imagenette-0027-b_only formal_success=True acc=0.5877707006369427
+[eval_only] 47/72 olympic_imagenette-0000-a_only formal_success=True acc=0.9933757961783439
+[eval_only] 48/72 olympic_imagenette-0000-b_only formal_success=True acc=0.5477707006369427
+[Reward Assign] reward_batch_index=0 batch_item=2/4 completion_index=49 worker_slot=1 assigned_gpu=1 physical_gpu=1 worker_device=cuda:0 gpu_name='NVIDIA L40S' gpu_free_gib=43.41 gpu_used_gib=0.98 gpu_total_gib=44.99 timeout_seconds=1920
+[Reward Assign] reward_batch_index=0 batch_item=3/4 completion_index=50 worker_slot=2 assigned_gpu=2 physical_gpu=2 worker_device=cuda:0 gpu_name='NVIDIA L40S' gpu_free_gib=43.39 gpu_used_gib=1.00 gpu_total_gib=44.99 timeout_seconds=1920
+[Reward Assign] reward_batch_index=0 batch_item=1/4 completion_index=48 worker_slot=0 assigned_gpu=0 physical_gpu=0 worker_device=cuda:0 gpu_name='NVIDIA L40S' gpu_free_gib=43.39 gpu_used_gib=1.00 gpu_total_gib=44.99 timeout_seconds=1920
+[Reward Assign] reward_batch_index=0 batch_item=4/4 completion_index=51 worker_slot=3 assigned_gpu=3 physical_gpu=3 worker_device=cuda:0 gpu_name='NVIDIA L40S' gpu_free_gib=43.41 gpu_used_gib=0.98 gpu_total_gib=44.99 timeout_seconds=1920
+Evaluating /home/s471802/nn-gpt/out/nn/tmp/169f50e8bd3004c562199f2fd237f40c.py...
+epoch 1
+Evaluating /home/s471802/nn-gpt/out/nn/tmp/5eed1aebed6ff4f0a707d6712df117b2.py...
+Evaluating /home/s471802/nn-gpt/out/nn/tmp/d97a61d072ee01213980d41092d5a04a.py...
+Evaluating /home/s471802/nn-gpt/out/nn/tmp/5f2c294c76fc620b631ac58c341d13c6.py...
+epoch 1
+epoch 1
+epoch 1
+  Train Loss: 0.1525, Test Loss: 0.0281
+  Train Acc: 0.9701, Test Acc: 0.9936
+  LR: 0.010000, Grad Norm: 1.0832, Throughput: 153.6 samples/s
+accuracy_to_time_metric 1.8300846793295673
+Training summary saved to /home/s471802/nn-gpt/out/training_summary.json
+  Train Loss: 0.2329, Test Loss: 0.0293
+  Train Acc: 0.9728, Test Acc: 0.9969
+  LR: 0.010000, Grad Norm: 0.0203, Throughput: 146.3 samples/s
+accuracy_to_time_metric 1.7493214083964423
+Training summary saved to /home/s471802/nn-gpt/out/training_summary.json
+  Train Loss: 0.2341, Test Loss: 0.0284
+  Train Acc: 0.9728, Test Acc: 0.9980
+  LR: 0.010000, Grad Norm: 0.0335, Throughput: 146.0 samples/s
+accuracy_to_time_metric 1.7480927799142538
+Training summary saved to /home/s471802/nn-gpt/out/training_summary.json
+  Train Loss: 0.2468, Test Loss: 0.0352
+  Train Acc: 0.9719, Test Acc: 0.9957
+  LR: 0.010000, Grad Norm: 0.0343, Throughput: 139.9 samples/s
+accuracy_to_time_metric 1.670766212258643
+Training summary saved to /home/s471802/nn-gpt/out/training_summary.json
+[eval_only] 49/72 qwen_cifar10-0026-a_only formal_success=True acc=0.9979617834394905
+[eval_only] 50/72 qwen_cifar10-0026-b_only formal_success=True acc=0.9936305732484076
+[eval_only] 51/72 qwen_cifar10-0004-a_only formal_success=True acc=0.9969426751592356
+[eval_only] 52/72 qwen_cifar10-0004-b_only formal_success=True acc=0.9956687898089172
+[Reward Assign] reward_batch_index=0 batch_item=1/4 completion_index=52 worker_slot=0 assigned_gpu=0 physical_gpu=0 worker_device=cuda:0 gpu_name='NVIDIA L40S' gpu_free_gib=43.39 gpu_used_gib=1.00 gpu_total_gib=44.99 timeout_seconds=1920
+[Reward Assign] reward_batch_index=0 batch_item=3/4 completion_index=54 worker_slot=2 assigned_gpu=2 physical_gpu=2 worker_device=cuda:0 gpu_name='NVIDIA L40S' gpu_free_gib=43.39 gpu_used_gib=1.00 gpu_total_gib=44.99 timeout_seconds=1920
+[Reward Assign] reward_batch_index=0 batch_item=4/4 completion_index=55 worker_slot=3 assigned_gpu=3 physical_gpu=3 worker_device=cuda:0 gpu_name='NVIDIA L40S' gpu_free_gib=43.41 gpu_used_gib=0.98 gpu_total_gib=44.99 timeout_seconds=1920
+[Reward Assign] reward_batch_index=0 batch_item=2/4 completion_index=53 worker_slot=1 assigned_gpu=1 physical_gpu=1 worker_device=cuda:0 gpu_name='NVIDIA L40S' gpu_free_gib=43.41 gpu_used_gib=0.98 gpu_total_gib=44.99 timeout_seconds=1920
+Evaluating /home/s471802/nn-gpt/out/nn/tmp/b0695f27afbbc6323fa40f0f4399c19f.py...
+Evaluating /home/s471802/nn-gpt/out/nn/tmp/63d81a1b50893f7f3f25de41d93a85f1.py...
+Evaluating /home/s471802/nn-gpt/out/nn/tmp/0b2909164fedc3eaeccc5e39cef57283.py...
+Evaluating /home/s471802/nn-gpt/out/nn/tmp/1c091b16f4caad97ab622cbd1dcfa3ea.py...
+epoch 1
+epoch 1
+epoch 1
+epoch 1
+  Train Loss: 0.2364, Test Loss: 0.0293
+  Train Acc: 0.9705, Test Acc: 0.9980
+  LR: 0.010000, Grad Norm: 0.1368, Throughput: 171.7 samples/s
+accuracy_to_time_metric 2.0550537054403097
+Training summary saved to /home/s471802/nn-gpt/out/training_summary.json
+  Train Loss: 0.2322, Test Loss: 0.0292
+  Train Acc: 0.9744, Test Acc: 0.9972
+  LR: 0.010000, Grad Norm: 0.0683, Throughput: 169.0 samples/s
+accuracy_to_time_metric 2.0209916872125264
+Training summary saved to /home/s471802/nn-gpt/out/training_summary.json
+  Train Loss: 0.2489, Test Loss: 0.0343
+  Train Acc: 0.9735, Test Acc: 0.9959
+  LR: 0.010000, Grad Norm: 0.0362, Throughput: 172.6 samples/s
+accuracy_to_time_metric 2.061425891398442
+Training summary saved to /home/s471802/nn-gpt/out/training_summary.json
+  Train Loss: 0.2521, Test Loss: 0.0354
+  Train Acc: 0.9719, Test Acc: 0.9962
+  LR: 0.010000, Grad Norm: 0.0632, Throughput: 140.7 samples/s
+accuracy_to_time_metric 1.6814075193102442
+Training summary saved to /home/s471802/nn-gpt/out/training_summary.json
+[eval_only] 53/72 qwen_cifar10-0025-a_only formal_success=True acc=0.9971974522292993
+[eval_only] 54/72 qwen_cifar10-0025-b_only formal_success=True acc=0.9961783439490446
+[eval_only] 55/72 qwen_cifar10-0010-a_only formal_success=True acc=0.9979617834394905
+[eval_only] 56/72 qwen_cifar10-0010-b_only formal_success=True acc=0.9959235668789809
+[Reward Assign] reward_batch_index=0 batch_item=3/4 completion_index=58 worker_slot=2 assigned_gpu=2 physical_gpu=2 worker_device=cuda:0 gpu_name='NVIDIA L40S' gpu_free_gib=43.39 gpu_used_gib=1.00 gpu_total_gib=44.99 timeout_seconds=1920
+[Reward Assign] reward_batch_index=0 batch_item=1/4 completion_index=56 worker_slot=0 assigned_gpu=0 physical_gpu=0 worker_device=cuda:0 gpu_name='NVIDIA L40S' gpu_free_gib=43.39 gpu_used_gib=1.00 gpu_total_gib=44.99 timeout_seconds=1920
+[Reward Assign] reward_batch_index=0 batch_item=4/4 completion_index=59 worker_slot=3 assigned_gpu=3 physical_gpu=3 worker_device=cuda:0 gpu_name='NVIDIA L40S' gpu_free_gib=43.41 gpu_used_gib=0.98 gpu_total_gib=44.99 timeout_seconds=1920
+[Reward Assign] reward_batch_index=0 batch_item=2/4 completion_index=57 worker_slot=1 assigned_gpu=1 physical_gpu=1 worker_device=cuda:0 gpu_name='NVIDIA L40S' gpu_free_gib=43.41 gpu_used_gib=0.98 gpu_total_gib=44.99 timeout_seconds=1920
+Evaluating /home/s471802/nn-gpt/out/nn/tmp/30c0056cd7219175d701450edf12f727.py...
+Evaluating /home/s471802/nn-gpt/out/nn/tmp/92fafc4f19f81b12f34ad0adf66f55f9.py...
+Evaluating /home/s471802/nn-gpt/out/nn/tmp/2591aeb677adc4455310d1af5a88d6d7.py...
+Evaluating /home/s471802/nn-gpt/out/nn/tmp/7b6da7d5f2b21db7ffc05a7c30615522.py...
+epoch 1
+epoch 1
+epoch 1
+epoch 1
+  Train Loss: 0.2653, Test Loss: 0.0675
+  Train Acc: 0.9539, Test Acc: 0.9883
+  LR: 0.010000, Grad Norm: 0.2123, Throughput: 170.9 samples/s
+accuracy_to_time_metric 2.024301248158113
+Training summary saved to /home/s471802/nn-gpt/out/training_summary.json
+  Train Loss: 0.1512, Test Loss: 0.0285
+  Train Acc: 0.9713, Test Acc: 0.9944
+  LR: 0.010000, Grad Norm: 0.3966, Throughput: 172.5 samples/s
+accuracy_to_time_metric 2.057171657992136
+Training summary saved to /home/s471802/nn-gpt/out/training_summary.json
+  Train Loss: 0.2710, Test Loss: 0.0615
+  Train Acc: 0.9587, Test Acc: 0.9918
+  LR: 0.010000, Grad Norm: 0.1343, Throughput: 170.6 samples/s
+accuracy_to_time_metric 2.028954346278372
+Training summary saved to /home/s471802/nn-gpt/out/training_summary.json
+  Train Loss: 0.1353, Test Loss: 0.0294
+  Train Acc: 0.9695, Test Acc: 0.9926
+  LR: 0.010000, Grad Norm: 0.0338, Throughput: 159.2 samples/s
+accuracy_to_time_metric 1.8946937695790216
+Training summary saved to /home/s471802/nn-gpt/out/training_summary.json
+[eval_only] 57/72 qwen_cifar100-0029-a_only formal_success=True acc=0.9926114649681529
+[eval_only] 58/72 qwen_cifar100-0029-b_only formal_success=True acc=0.9918471337579617
+[eval_only] 59/72 qwen_cifar100-0004-a_only formal_success=True acc=0.9943949044585987
+[eval_only] 60/72 qwen_cifar100-0004-b_only formal_success=True acc=0.98828025477707
+[Reward Assign] reward_batch_index=0 batch_item=3/4 completion_index=62 worker_slot=2 assigned_gpu=2 physical_gpu=2 worker_device=cuda:0 gpu_name='NVIDIA L40S' gpu_free_gib=43.39 gpu_used_gib=1.00 gpu_total_gib=44.99 timeout_seconds=1920
+[Reward Assign] reward_batch_index=0 batch_item=2/4 completion_index=61 worker_slot=1 assigned_gpu=1 physical_gpu=1 worker_device=cuda:0 gpu_name='NVIDIA L40S' gpu_free_gib=43.41 gpu_used_gib=0.98 gpu_total_gib=44.99 timeout_seconds=1920
+[Reward Assign] reward_batch_index=0 batch_item=4/4 completion_index=63 worker_slot=3 assigned_gpu=3 physical_gpu=3 worker_device=cuda:0 gpu_name='NVIDIA L40S' gpu_free_gib=43.41 gpu_used_gib=0.98 gpu_total_gib=44.99 timeout_seconds=1920
+[Reward Assign] reward_batch_index=0 batch_item=1/4 completion_index=60 worker_slot=0 assigned_gpu=0 physical_gpu=0 worker_device=cuda:0 gpu_name='NVIDIA L40S' gpu_free_gib=43.39 gpu_used_gib=1.00 gpu_total_gib=44.99 timeout_seconds=1920
+Evaluating /home/s471802/nn-gpt/out/nn/tmp/0c71a010c38ef07d1726382ba14fcfbf.py...
+Evaluating /home/s471802/nn-gpt/out/nn/tmp/d327373547b1a3e53c524841495c2ede.py...
+Evaluating /home/s471802/nn-gpt/out/nn/tmp/54a4ef64e6d42bac9e56db34eb8f3225.py...
+Evaluating /home/s471802/nn-gpt/out/nn/tmp/637eef0e118087d4df939dc56012e5b9.py...
+epoch 1
+epoch 1
+epoch 1
+epoch 1
+  Train Loss: 0.1456, Test Loss: 0.0276
+  Train Acc: 0.9617, Test Acc: 0.9934
+  LR: 0.010000, Grad Norm: 0.3977, Throughput: 169.4 samples/s
+accuracy_to_time_metric 2.017197818857865
+Training summary saved to /home/s471802/nn-gpt/out/training_summary.json
+  Train Loss: 0.1437, Test Loss: 0.0275
+  Train Acc: 0.9629, Test Acc: 0.9931
+  LR: 0.010000, Grad Norm: 0.0608, Throughput: 168.5 samples/s
+accuracy_to_time_metric 2.006096887673475
+Training summary saved to /home/s471802/nn-gpt/out/training_summary.json
+  Train Loss: 0.3679, Test Loss: 0.1439
+  Train Acc: 0.9160, Test Acc: 0.9615
+  LR: 0.010000, Grad Norm: 2.2719, Throughput: 164.8 samples/s
+accuracy_to_time_metric 1.8925692335710855
+Training summary saved to /home/s471802/nn-gpt/out/training_summary.json
+  Train Loss: 0.1333, Test Loss: 0.0275
+  Train Acc: 0.9676, Test Acc: 0.9926
+  LR: 0.010000, Grad Norm: 0.0007, Throughput: 157.1 samples/s
+accuracy_to_time_metric 1.8700610726433367
+Training summary saved to /home/s471802/nn-gpt/out/training_summary.json
+[eval_only] 61/72 qwen_cifar100-0010-a_only formal_success=True acc=0.9933757961783439
+[eval_only] 62/72 qwen_cifar100-0010-b_only formal_success=True acc=0.9926114649681529
+[eval_only] 63/72 qwen_cifar100-0002-a_only formal_success=True acc=0.9931210191082802
+[eval_only] 64/72 qwen_cifar100-0002-b_only formal_success=True acc=0.9615286624203822
+[Reward Assign] reward_batch_index=0 batch_item=2/4 completion_index=65 worker_slot=1 assigned_gpu=1 physical_gpu=1 worker_device=cuda:0 gpu_name='NVIDIA L40S' gpu_free_gib=43.41 gpu_used_gib=0.98 gpu_total_gib=44.99 timeout_seconds=1920
+[Reward Assign] reward_batch_index=0 batch_item=4/4 completion_index=67 worker_slot=3 assigned_gpu=3 physical_gpu=3 worker_device=cuda:0 gpu_name='NVIDIA L40S' gpu_free_gib=43.41 gpu_used_gib=0.98 gpu_total_gib=44.99 timeout_seconds=1920
+[Reward Assign] reward_batch_index=0 batch_item=3/4 completion_index=66 worker_slot=2 assigned_gpu=2 physical_gpu=2 worker_device=cuda:0 gpu_name='NVIDIA L40S' gpu_free_gib=43.39 gpu_used_gib=1.00 gpu_total_gib=44.99 timeout_seconds=1920
+[Reward Assign] reward_batch_index=0 batch_item=1/4 completion_index=64 worker_slot=0 assigned_gpu=0 physical_gpu=0 worker_device=cuda:0 gpu_name='NVIDIA L40S' gpu_free_gib=43.39 gpu_used_gib=1.00 gpu_total_gib=44.99 timeout_seconds=1920
+Evaluating /home/s471802/nn-gpt/out/nn/tmp/b4732cbca6835b64f7320718130b700c.py...
+Evaluating /home/s471802/nn-gpt/out/nn/tmp/7cebdf31bee0e6011434556fb42318dd.py...
+Evaluating /home/s471802/nn-gpt/out/nn/tmp/3b1152de8579c8dde14c77491eac6486.py...
+Evaluating /home/s471802/nn-gpt/out/nn/tmp/5c87fb71fd21abc3d28d1515b5fec11a.py...
+epoch 1
+epoch 1
+epoch 1
+epoch 1
+  Train Loss: 0.2509, Test Loss: 0.0985
+  Train Acc: 0.9327, Test Acc: 0.9710
+  LR: 0.010000, Grad Norm: 0.6835, Throughput: 168.1 samples/s
+accuracy_to_time_metric 1.951554685735488
+  Train Loss: 0.2419, Test Loss: 0.0994
+  Train Acc: 0.9348, Test Acc: 0.9710
+  LR: 0.010000, Grad Norm: 2.0022, Throughput: 163.9 samples/s
+accuracy_to_time_metric 1.9027721176450787
+Training summary saved to /home/s471802/nn-gpt/out/training_summary.json
+Training summary saved to /home/s471802/nn-gpt/out/training_summary.json
+  Train Loss: 0.1310, Test Loss: 0.0323
+  Train Acc: 0.9639, Test Acc: 0.9908
+  LR: 0.010000, Grad Norm: 0.1702, Throughput: 172.3 samples/s
+accuracy_to_time_metric 2.046184094137276
+Training summary saved to /home/s471802/nn-gpt/out/training_summary.json
+  Train Loss: 0.1260, Test Loss: 0.0357
+  Train Acc: 0.9669, Test Acc: 0.9898
+  LR: 0.010000, Grad Norm: 0.0200, Throughput: 170.5 samples/s
+accuracy_to_time_metric 2.022592379363447
+Training summary saved to /home/s471802/nn-gpt/out/training_summary.json
+[eval_only] 65/72 qwen_imagenette-0000-a_only formal_success=True acc=0.9898089171974522
+[eval_only] 66/72 qwen_imagenette-0000-b_only formal_success=True acc=0.9709554140127389
+[eval_only] 67/72 qwen_imagenette-0019-a_only formal_success=True acc=0.990828025477707
+[eval_only] 68/72 qwen_imagenette-0019-b_only formal_success=True acc=0.9709554140127389
+[Reward Assign] reward_batch_index=0 batch_item=1/4 completion_index=68 worker_slot=0 assigned_gpu=0 physical_gpu=0 worker_device=cuda:0 gpu_name='NVIDIA L40S' gpu_free_gib=43.39 gpu_used_gib=1.00 gpu_total_gib=44.99 timeout_seconds=1920
+[Reward Assign] reward_batch_index=0 batch_item=4/4 completion_index=71 worker_slot=3 assigned_gpu=3 physical_gpu=3 worker_device=cuda:0 gpu_name='NVIDIA L40S' gpu_free_gib=43.41 gpu_used_gib=0.98 gpu_total_gib=44.99 timeout_seconds=1920
+[Reward Assign] reward_batch_index=0 batch_item=2/4 completion_index=69 worker_slot=1 assigned_gpu=1 physical_gpu=1 worker_device=cuda:0 gpu_name='NVIDIA L40S' gpu_free_gib=43.41 gpu_used_gib=0.98 gpu_total_gib=44.99 timeout_seconds=1920
+[Reward Assign] reward_batch_index=0 batch_item=3/4 completion_index=70 worker_slot=2 assigned_gpu=2 physical_gpu=2 worker_device=cuda:0 gpu_name='NVIDIA L40S' gpu_free_gib=43.39 gpu_used_gib=1.00 gpu_total_gib=44.99 timeout_seconds=1920
+Evaluating /home/s471802/nn-gpt/out/nn/tmp/ef09a2eca1c213f020ad6d9c52aa6e4d.py...
+Evaluating /home/s471802/nn-gpt/out/nn/tmp/1165951ae42bd9c01042c37930822708.py...
+Evaluating /home/s471802/nn-gpt/out/nn/tmp/56e601b58f825159101bd05ddb20f40d.py...
+Evaluating /home/s471802/nn-gpt/out/nn/tmp/3d7f64a26da7f5ada5b735174f26049b.py...
+epoch 1
+epoch 1
+epoch 1
+epoch 1
+  Train Loss: 0.2362, Test Loss: 0.0990
+  Train Acc: 0.9387, Test Acc: 0.9702
+  LR: 0.010000, Grad Norm: 2.5973, Throughput: 166.0 samples/s
+accuracy_to_time_metric 1.9258470516595299
+Training summary saved to /home/s471802/nn-gpt/out/training_summary.json
+  Train Loss: 0.2450, Test Loss: 0.0986
+  Train Acc: 0.9364, Test Acc: 0.9717
+  LR: 0.010000, Grad Norm: 1.3210, Throughput: 171.7 samples/s
+accuracy_to_time_metric 1.9951377184233043
+Training summary saved to /home/s471802/nn-gpt/out/training_summary.json
+  Train Loss: 0.1375, Test Loss: 0.0339
+  Train Acc: 0.9625, Test Acc: 0.9918
+  LR: 0.010000, Grad Norm: 0.0610, Throughput: 171.3 samples/s
+accuracy_to_time_metric 2.037270962469801
+Training summary saved to /home/s471802/nn-gpt/out/training_summary.json
+  Train Loss: 0.1410, Test Loss: 0.0331
+  Train Acc: 0.9624, Test Acc: 0.9918
+  LR: 0.010000, Grad Norm: 0.0044, Throughput: 169.1 samples/s
+accuracy_to_time_metric 2.0110304749820926
+Training summary saved to /home/s471802/nn-gpt/out/training_summary.json
+[eval_only] 69/72 qwen_imagenette-0014-a_only formal_success=True acc=0.9918471337579617
+[eval_only] 70/72 qwen_imagenette-0014-b_only formal_success=True acc=0.9701910828025477
+[eval_only] 71/72 qwen_imagenette-0015-a_only formal_success=True acc=0.9918471337579617
+[eval_only] 72/72 qwen_imagenette-0015-b_only formal_success=True acc=0.9717197452229299
+[Reward Worker Pool] Shutdown mode=single_rank_dedicated_fixed_pool pool_size=4 workers_per_gpu=1 per_gpu_worker_counts=[1, 1, 1, 1] worker_pids=[2868947, 2868979, 2869010, 2869041] total_rss_gib=2.11
+Wrote summaries under /data/42-julia-hpc-ai-cv-students/s471802/nn-gpt-runs/parallel_runs/20260608_1345_article_B_single_dual_imagenette/eval_single_variants_imagenette_epoch1

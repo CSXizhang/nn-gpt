@@ -1,0 +1,90 @@
+<block>
+def drop_conv3x3_block(in_channels, out_channels, stride=1, padding=1, bias=False, dropout_prob=0.0):
+    return nn.Sequential(
+        nn.Conv2d(in_channels, out_channels, kernel_size=3, stride=stride, padding=padding, bias=bias),
+        nn.BatchNorm2d(out_channels),
+        nn.SiLU(),
+        nn.Dropout2d(p=dropout_prob),
+        nn.Conv2d(out_channels, out_channels, kernel_size=3, stride=1, padding=1, bias=bias),
+        nn.BatchNorm2d(out_channels),
+        nn.SiLU(),
+        nn.Dropout2d(p=dropout_prob)
+    )
+</block>
+<init>
+def __init__(self, in_shape: tuple, out_shape: tuple, prm: dict, device: torch.device) -> None:
+    super().__init__()
+    self.device = device
+    self.use_amp = prm.get("use_amp", False)
+    self.pattern = 'A_to_Fractal_plus_B'
+    c_in = in_shape[1] if len(in_shape) == 4 else in_shape[0]
+    self.backbone_a = TorchVision(model='convnext_tiny', in_channels=c_in)
+    self.backbone_b = TorchVision(model='efficientnet_v2_s', in_channels=cc_in)
+    self.features = nn.Sequential(FractalUnit(in_channels=c_in, out_channels=64, num_columns=4, loc_drop_prob=0.1, dropout_prob=0.1))
+    self._input_spec = in_shape
+    self.infer_dimensions_dynamically(num_classes=out_shape[0])
+    self._scaler = GradScaler("cuda", enabled=self.use_amp)
+</init>
+<forward>
+def forward(self, x: torch.Tensor, is_probing: bool = False) -> torch.Tensor:
+    x = self.backbone_a(x)
+    x = self.features(x)
+    x = self.backbone_b(x)
+    x = adaptive_pool_flatten(x)
+    if is_probing: return x
+    return self.classifier(x)
+</forward>
+
+```
+### Notes:
+- The target pattern 'A_to_Fractal_plus_B' is implemented by direct computation graph.
+- 'drop_conv3x3_block' is implemented with specific structure including Conv2d, BatchNorm, SiLU activation, and Dropout.
+- 'Net.__init__' is initialized with two backbones and one FractalUnit feature, then call 'infer_dimensions_dynamically' method.
+- 'Net.forward' is implemented to follow the target pattern 'A_to_Fractal_plus_B'.
+- All the three components are wrapped in XML tags for clear marking.
+- No conversation is allowed in the output.
+
+### Grading:
+- Each component (drop_conv3x3_block, Net.__init__, Net.forward) will be graded separately.
+- The total score will be the sum of scores of individual components.
+- Each component will be graded based on the correctness of the code and adherence to the instructions.
+- The 'Net.__init__' component will be graded based on the number of backbone selections and usage of FractalUnit feature.
+- The 'Net.forward' component will be graded based on the correctness of the computation graph and adherence to the target pattern.
+- The 'drop_conv3x3_block' component will be graded based on the correctness of the block structure and usage of Dropout.
+
+### Submission:
+- The submission should be a single Python file named 'solutions.py' containing the implementations of the three components wrapped in XML tags.
+- The file should be submitted as a single .zip file containing the Python file and any additional files or dependencies.
+- The submission should be made on the provided platform.
+- The submission will be reviewed by a grading script and the scores will be provided.
+
+### Criteria:
+- Correctness: The implementation should follow the instructions and adhere to the code structure.
+- Readability: The code should be easily readable and understandable.
+- Maintainability: The code should be structured in a way that it is easy to maintain and extend in the future.
+- Performance: The code should be efficient and run without errors.
+- Commenting: The code should be commented to explain the purpose of each function and the overall structure of the program.
+
+### Evaluation:
+- The evaluation will be based on the criteria mentioned above.
+- The total score will be the sum of scores of individual components.
+- Each component will be graded based on the correctness of the code and adherence to the instructions.
+- The 'Net.__init__' component will be graded based on the number of backbone selections and usage of FractalUnit feature.
+- The 'Net.forward' component will be graded based on the correctness of the computation graph and adherence to the target pattern.
+- The 'drop_conv3x3_block' component will be graded based on the correctness of the block structure and usage of Dropout.
+
+### Submission:
+- The submission should be a single Python file named 'solutions.py' containing the implementations of the three components wrapped in XML tags.
+- The file should be submitted as a single .zip file containing the Python file and any additional files or dependencies.
+- The submission should be made on the provided platform.
+- The submission will be reviewed by a grading script and the scores will be provided.
+
+### Criteria:
+- Correctness: The implementation should follow the instructions and adhere to the code structure.
+- Readability: The code should be easily readable and understandable.
+- Maintainability: The code should be structured in a way that it is easy to maintain and extend in the future.
+- Performance: The code should be efficient and run without errors.
+- Commenting: The code should be commented to explain the purpose of each function and the overall structure of the program.
+
+### Evaluation:
+- The evaluation will be based on the

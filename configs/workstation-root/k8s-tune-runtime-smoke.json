@@ -1,0 +1,104 @@
+{
+  "apiVersion": "batch/v1",
+  "kind": "Job",
+  "metadata": {
+    "name": "tune-runtime-smoke"
+  },
+  "spec": {
+    "backoffLimit": 0,
+    "parallelism": 1,
+    "ttlSecondsAfterFinished": 86400,
+    "template": {
+      "spec": {
+        "restartPolicy": "Never",
+        "containers": [
+          {
+            "name": "tune-runtime-smoke",
+            "image": "abrainone/ai-linux:cu12.6.3-latest",
+            "imagePullPolicy": "Always",
+            "env": [
+              {
+                "name": "HF_HOME",
+                "value": "/a/mm/out/hf_home"
+              },
+              {
+                "name": "TORCH_HOME",
+                "value": "/a/mm/out/torch_home"
+              },
+              {
+                "name": "HF_TOKEN_PATH",
+                "value": "/tmp/hf_token"
+              },
+              {
+                "name": "HF_HUB_DISABLE_IMPLICIT_TOKEN",
+                "value": "1"
+              }
+            ],
+            "securityContext": {
+              "allowPrivilegeEscalation": false,
+              "runAsUser": 1036,
+              "runAsGroup": 1376
+            },
+            "command": [
+              "/bin/bash",
+              "-lc"
+            ],
+            "args": [
+              "set -euxo pipefail\nexport PYTHONPATH=/a/nn-dataset:/a/mm:${PYTHONPATH:-}\ncd /a/mm\n: > \"$HF_TOKEN_PATH\"\ncommand -v torchrun\nRUN_ROOT=/a/mm/out/runtime_smoke_tune_20260408e\npython3 -m py_compile smoke_tune_runtime.py\ntorchrun --standalone --nnodes=1 --nproc_per_node=2 --master_port=29531 smoke_tune_runtime.py --phase fresh --run-root \"$RUN_ROOT\"\nCKPT=$(find \"$RUN_ROOT/outputs\" -maxdepth 1 -type d -name 'checkpoint-*' | sort -V | tail -n 1)\ntest -n \"$CKPT\"\nexport NNGPT_TRAIN_RESUME_TRAINER_CHECKPOINT=\"$CKPT\"\ntorchrun --standalone --nnodes=1 --nproc_per_node=2 --master_port=29532 smoke_tune_runtime.py --phase resume --run-root \"$RUN_ROOT\"\nls -R \"$RUN_ROOT\""
+            ],
+            "workingDir": "/a/mm",
+            "resources": {
+              "requests": {
+                "nvidia.com/gpu": 2,
+                "cpu": 8,
+                "memory": "64Gi"
+              },
+              "limits": {
+                "nvidia.com/gpu": 2,
+                "cpu": 16,
+                "memory": "80Gi"
+              }
+            },
+            "volumeMounts": [
+              {
+                "mountPath": "/dev/shm",
+                "name": "shm"
+              },
+              {
+                "mountPath": "/a/mm",
+                "name": "v-exp"
+              },
+              {
+                "mountPath": "/a/nn-dataset",
+                "name": "v-data"
+              }
+            ]
+          }
+        ],
+        "volumes": [
+          {
+            "name": "shm",
+            "emptyDir": {
+              "medium": "Memory",
+              "sizeLimit": "32Gi"
+            }
+          },
+          {
+            "name": "v-exp",
+            "hostPath": {
+              "path": "/shared/ssd/home/b-x-0522/nn-gpt_runtime_test",
+              "type": "Directory"
+            }
+          },
+          {
+            "name": "v-data",
+            "hostPath": {
+              "path": "/shared/ssd/home/b-x-0522/lmur/nn-dataset",
+              "type": "Directory"
+            }
+          }
+        ]
+      }
+    }
+  }
+}

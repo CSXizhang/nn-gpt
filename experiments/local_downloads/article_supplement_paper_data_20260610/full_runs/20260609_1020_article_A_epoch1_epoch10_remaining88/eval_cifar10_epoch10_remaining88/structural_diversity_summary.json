@@ -1,0 +1,36 @@
+{
+  "article_A_cifar10_epoch1_epoch10": {
+    "backbone": {
+      "unique": 48,
+      "normalized_unique_ratio": 0.631578947368421,
+      "top1": "regnet_x_3_2gf + shufflenet_v2_x2_0",
+      "top1_count": 15,
+      "top1_share": 0.19736842105263158,
+      "effective_number": 32.55180963724032
+    },
+    "cnn": {
+      "unique": 6,
+      "normalized_unique_ratio": 0.07894736842105263,
+      "top1": "86ab858e3845e7128fa6117d06a68dc414a53cbd",
+      "top1_count": 27,
+      "top1_share": 0.35526315789473684,
+      "effective_number": 4.861190137950796
+    },
+    "backbone_cnn": {
+      "unique": 57,
+      "normalized_unique_ratio": 0.75,
+      "top1": "regnet_x_3_2gf + shufflenet_v2_x2_0::86ab858e3845e7128fa6117d06a68dc414a53cbd",
+      "top1_count": 12,
+      "top1_share": 0.15789473684210525,
+      "effective_number": 43.26432434374062
+    },
+    "forward_graph": {
+      "unique": 61,
+      "normalized_unique_ratio": 0.8026315789473685,
+      "top1": "4736b98a81be96649d52c21dbd930d48e26cd5b7",
+      "top1_count": 10,
+      "top1_share": 0.13157894736842105,
+      "effective_number": 49.40623400072495
+    }
+  }
+}

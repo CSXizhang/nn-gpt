@@ -1,0 +1,13 @@
+condition,seed,role,run_id,rows,family_top1_ge_70_onset,family_top1_ge_80_onset,family_top1_ge_90_onset,descriptor_top1_ge_70_onset,descriptor_top1_ge_80_onset,descriptor_top1_ge_90_onset,graph_top1_ge_70_onset,graph_top1_ge_80_onset,graph_top1_ge_90_onset
+1-pattern,42,original,1pattern_seed42,800,100,100,100,100,100,100,never,never,never
+1-pattern,123,original,1pattern_seed123,800,100,100,100,100,100,100,never,never,never
+1-pattern,777,original,1pattern_seed777,800,100,100,100,100,100,100,never,never,never
+1-pattern,114,added,1pattern_seed114,800,200,200,200,200,200,200,500,never,never
+1-pattern,514,added,1pattern_seed514,800,100,100,100,100,100,100,100,100,100
+1-pattern,919,added,1pattern_seed919,800,100,100,100,100,100,100,300,300,500
+4-pattern,42,original,4pattern_seed42,800,300,400,500,400,400,500,never,never,never
+4-pattern,123,original,4pattern_seed123,800,never,never,never,never,never,never,never,never,never
+4-pattern,777,original,4pattern_seed777,800,never,never,never,300,never,never,never,never,never
+4-pattern,114,added,4pattern_seed114,800,never,never,never,never,never,never,never,never,never
+4-pattern,514,added,4pattern_seed514,800,300,300,300,300,300,300,700,700,never
+4-pattern,919,added,4pattern_seed919,800,200,200,200,200,200,200,never,never,never

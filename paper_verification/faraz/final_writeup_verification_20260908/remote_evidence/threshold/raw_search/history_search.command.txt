@@ -1,0 +1,1 @@
+grep -inE "threshold[_ -]?sensitivity|70[^[:alnum:]]+80[^[:alnum:]]+90|four of twelve|4(/| of )12" /home/s471802/.bash_history /home/s471802/.zsh_history

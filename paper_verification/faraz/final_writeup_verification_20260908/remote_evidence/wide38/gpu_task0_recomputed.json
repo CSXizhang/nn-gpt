@@ -1,0 +1,26 @@
+{
+  "definition": "allocated GPU-hours = elapsed wall time * allocated GPU count / 3600",
+  "task0": {
+    "job_id": "2968490_0",
+    "job_id_raw": "2968490",
+    "state": "COMPLETED",
+    "elapsed_seconds": 1920,
+    "allocated_gpu_count": 1,
+    "gpu_type": "L40S",
+    "gpu_hours": "0.5333333333333333333333333333",
+    "candidate_id": "4pattern_seed42_743",
+    "result_file": "00_4pattern_seed42_743.json"
+  },
+  "wide38": {
+    "previous_37_task_gpu_seconds": 69423,
+    "corrected_38_task_gpu_seconds": 71343,
+    "corrected_gpu_hours": "19.8175"
+  },
+  "extended_unique_total": {
+    "previous_supplied_row_gpu_seconds": 6789290,
+    "corrected_gpu_seconds": 6791210,
+    "corrected_gpu_hours": "1886.447222222222222222222222",
+    "rounded_2dp": "1886.45"
+  },
+  "scope_note": "Excludes failed 2968450 array allocations, consistent with the retained successful-result accounting scope."
+}

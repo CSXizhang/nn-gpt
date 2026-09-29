@@ -1,0 +1,12 @@
+IMAGENETTE_SACCT
+JobID|JobIDRaw|JobName|State|ElapsedRaw|AllocTRES|Start|End|ExitCode|NodeList
+2666209|2666209|tunerl-dscoder_imagenette_h100|COMPLETED|19703|billing=16,cpu=16,gres/gpu:h100=4,gres/gpu=4,gres/tmp=1073741824,mem=80G,node=1|2026-06-05T11:40:26|2026-06-05T17:08:49|0:0|jnultra01
+NNDATASET_REMOTE
+origin	https://github.com/ABrain-One/nn-dataset.git (fetch)
+origin	https://github.com/ABrain-One/nn-dataset.git (push)
+6dbf65b9a3bf6ed93cb1f655d2110276312f1157
+?? build/
+IMAGENETTE_FILE
+/data/42-julia-hpc-ai-cv-students/s471802/nn-gpt-runs/parallel_runs/20260605_0925_dscoder_imagenette_h100/rl_output/generation_samples.jsonl|24938907|1780672104|2026-06-05 17:08:24.663303238 +0200
+9e43736e9a4b1a69c3047d5a620a7ade743a7c9800520ee4fab9127c4dbbe2fc  /data/42-julia-hpc-ai-cv-students/s471802/nn-gpt-runs/parallel_runs/20260605_0925_dscoder_imagenette_h100/rl_output/generation_samples.jsonl
+1000 /data/42-julia-hpc-ai-cv-students/s471802/nn-gpt-runs/parallel_runs/20260605_0925_dscoder_imagenette_h100/rl_output/generation_samples.jsonl

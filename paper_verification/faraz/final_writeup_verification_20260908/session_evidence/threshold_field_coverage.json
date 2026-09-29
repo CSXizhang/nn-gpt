@@ -1,0 +1,701 @@
+{
+  "input_zip": "/Users/zhangxi/code/RL/faraz_delivery_20260726/article_raw_data_archive_20260718_resend_20260726.zip",
+  "runs": [
+    {
+      "condition": "1-pattern",
+      "seed": 42,
+      "rows": 800,
+      "formal_success_by_window": [
+        92,
+        100,
+        99,
+        95,
+        96,
+        94,
+        98,
+        91
+      ],
+      "metric_valid_denominator_by_window": {
+        "family": [
+          92,
+          100,
+          99,
+          95,
+          96,
+          94,
+          98,
+          91
+        ],
+        "descriptor": [
+          92,
+          100,
+          99,
+          95,
+          96,
+          94,
+          98,
+          91
+        ],
+        "graph": [
+          92,
+          100,
+          99,
+          95,
+          96,
+          94,
+          98,
+          91
+        ]
+      },
+      "field_source_counts": {
+        "family": {
+          "family_hash": 765
+        },
+        "descriptor": {
+          "descriptor_key": 765
+        },
+        "graph": {
+          "graph_hash": 765
+        }
+      }
+    },
+    {
+      "condition": "1-pattern",
+      "seed": 123,
+      "rows": 800,
+      "formal_success_by_window": [
+        89,
+        98,
+        95,
+        98,
+        97,
+        100,
+        100,
+        100
+      ],
+      "metric_valid_denominator_by_window": {
+        "family": [
+          89,
+          98,
+          95,
+          98,
+          97,
+          100,
+          100,
+          100
+        ],
+        "descriptor": [
+          89,
+          98,
+          95,
+          98,
+          97,
+          100,
+          100,
+          100
+        ],
+        "graph": [
+          89,
+          98,
+          95,
+          98,
+          97,
+          100,
+          100,
+          100
+        ]
+      },
+      "field_source_counts": {
+        "family": {
+          "family_hash": 777
+        },
+        "descriptor": {
+          "descriptor_key": 777
+        },
+        "graph": {
+          "graph_hash": 777
+        }
+      }
+    },
+    {
+      "condition": "1-pattern",
+      "seed": 777,
+      "rows": 800,
+      "formal_success_by_window": [
+        89,
+        91,
+        92,
+        93,
+        95,
+        96,
+        93,
+        99
+      ],
+      "metric_valid_denominator_by_window": {
+        "family": [
+          89,
+          91,
+          92,
+          93,
+          95,
+          96,
+          93,
+          99
+        ],
+        "descriptor": [
+          89,
+          91,
+          92,
+          93,
+          95,
+          96,
+          93,
+          99
+        ],
+        "graph": [
+          89,
+          91,
+          92,
+          93,
+          95,
+          96,
+          93,
+          99
+        ]
+      },
+      "field_source_counts": {
+        "family": {
+          "family_hash": 748
+        },
+        "descriptor": {
+          "descriptor_key": 748
+        },
+        "graph": {
+          "graph_hash": 748
+        }
+      }
+    },
+    {
+      "condition": "1-pattern",
+      "seed": 114,
+      "rows": 800,
+      "formal_success_by_window": [
+        1,
+        45,
+        96,
+        100,
+        97,
+        100,
+        99,
+        99
+      ],
+      "metric_valid_denominator_by_window": {
+        "family": [
+          1,
+          45,
+          96,
+          100,
+          97,
+          100,
+          99,
+          99
+        ],
+        "descriptor": [
+          1,
+          45,
+          96,
+          100,
+          97,
+          100,
+          99,
+          99
+        ],
+        "graph": [
+          1,
+          45,
+          96,
+          100,
+          97,
+          100,
+          99,
+          99
+        ]
+      },
+      "field_source_counts": {
+        "family": {
+          "family_hash": 637
+        },
+        "descriptor": {
+          "descriptor_key": 637
+        },
+        "graph": {
+          "graph_hash": 637
+        }
+      }
+    },
+    {
+      "condition": "1-pattern",
+      "seed": 514,
+      "rows": 800,
+      "formal_success_by_window": [
+        77,
+        93,
+        99,
+        97,
+        100,
+        100,
+        100,
+        100
+      ],
+      "metric_valid_denominator_by_window": {
+        "family": [
+          77,
+          93,
+          99,
+          97,
+          100,
+          100,
+          100,
+          100
+        ],
+        "descriptor": [
+          77,
+          93,
+          99,
+          97,
+          100,
+          100,
+          100,
+          100
+        ],
+        "graph": [
+          77,
+          93,
+          99,
+          97,
+          100,
+          100,
+          100,
+          100
+        ]
+      },
+      "field_source_counts": {
+        "family": {
+          "family_hash": 766
+        },
+        "descriptor": {
+          "descriptor_key": 766
+        },
+        "graph": {
+          "graph_hash": 766
+        }
+      }
+    },
+    {
+      "condition": "1-pattern",
+      "seed": 919,
+      "rows": 800,
+      "formal_success_by_window": [
+        38,
+        100,
+        97,
+        96,
+        98,
+        98,
+        100,
+        100
+      ],
+      "metric_valid_denominator_by_window": {
+        "family": [
+          38,
+          100,
+          97,
+          96,
+          98,
+          98,
+          100,
+          100
+        ],
+        "descriptor": [
+          38,
+          100,
+          97,
+          96,
+          98,
+          98,
+          100,
+          100
+        ],
+        "graph": [
+          38,
+          100,
+          97,
+          96,
+          98,
+          98,
+          100,
+          100
+        ]
+      },
+      "field_source_counts": {
+        "family": {
+          "family_hash": 727
+        },
+        "descriptor": {
+          "descriptor_key": 727
+        },
+        "graph": {
+          "graph_hash": 727
+        }
+      }
+    },
+    {
+      "condition": "4-pattern",
+      "seed": 42,
+      "rows": 800,
+      "formal_success_by_window": [
+        99,
+        97,
+        95,
+        97,
+        94,
+        100,
+        100,
+        100
+      ],
+      "metric_valid_denominator_by_window": {
+        "family": [
+          99,
+          97,
+          95,
+          97,
+          94,
+          100,
+          100,
+          100
+        ],
+        "descriptor": [
+          99,
+          97,
+          95,
+          97,
+          94,
+          100,
+          100,
+          100
+        ],
+        "graph": [
+          99,
+          97,
+          95,
+          97,
+          94,
+          100,
+          100,
+          100
+        ]
+      },
+      "field_source_counts": {
+        "family": {
+          "family_hash": 782
+        },
+        "descriptor": {
+          "descriptor_key": 782
+        },
+        "graph": {
+          "graph_hash": 782
+        }
+      }
+    },
+    {
+      "condition": "4-pattern",
+      "seed": 123,
+      "rows": 800,
+      "formal_success_by_window": [
+        99,
+        99,
+        100,
+        95,
+        96,
+        99,
+        92,
+        96
+      ],
+      "metric_valid_denominator_by_window": {
+        "family": [
+          99,
+          99,
+          100,
+          95,
+          96,
+          99,
+          92,
+          96
+        ],
+        "descriptor": [
+          99,
+          99,
+          100,
+          95,
+          96,
+          99,
+          92,
+          96
+        ],
+        "graph": [
+          99,
+          99,
+          100,
+          95,
+          96,
+          99,
+          92,
+          96
+        ]
+      },
+      "field_source_counts": {
+        "family": {
+          "family_hash": 776
+        },
+        "descriptor": {
+          "descriptor_key": 776
+        },
+        "graph": {
+          "graph_hash": 776
+        }
+      }
+    },
+    {
+      "condition": "4-pattern",
+      "seed": 777,
+      "rows": 800,
+      "formal_success_by_window": [
+        99,
+        97,
+        95,
+        93,
+        95,
+        97,
+        97,
+        98
+      ],
+      "metric_valid_denominator_by_window": {
+        "family": [
+          99,
+          97,
+          95,
+          93,
+          95,
+          97,
+          97,
+          98
+        ],
+        "descriptor": [
+          99,
+          97,
+          95,
+          93,
+          95,
+          97,
+          97,
+          98
+        ],
+        "graph": [
+          99,
+          97,
+          95,
+          93,
+          95,
+          97,
+          97,
+          98
+        ]
+      },
+      "field_source_counts": {
+        "family": {
+          "family_hash": 771
+        },
+        "descriptor": {
+          "descriptor_key": 771
+        },
+        "graph": {
+          "graph_hash": 771
+        }
+      }
+    },
+    {
+      "condition": "4-pattern",
+      "seed": 114,
+      "rows": 800,
+      "formal_success_by_window": [
+        0,
+        4,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "metric_valid_denominator_by_window": {
+        "family": [
+          0,
+          4,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "descriptor": [
+          0,
+          4,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "graph": [
+          0,
+          4,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "field_source_counts": {
+        "family": {
+          "family_hash": 4
+        },
+        "descriptor": {
+          "descriptor_key": 4
+        },
+        "graph": {
+          "graph_hash": 4
+        }
+      }
+    },
+    {
+      "condition": "4-pattern",
+      "seed": 514,
+      "rows": 800,
+      "formal_success_by_window": [
+        5,
+        58,
+        96,
+        98,
+        99,
+        100,
+        100,
+        100
+      ],
+      "metric_valid_denominator_by_window": {
+        "family": [
+          5,
+          58,
+          96,
+          98,
+          99,
+          100,
+          100,
+          100
+        ],
+        "descriptor": [
+          5,
+          58,
+          96,
+          98,
+          99,
+          100,
+          100,
+          100
+        ],
+        "graph": [
+          5,
+          58,
+          96,
+          98,
+          99,
+          100,
+          100,
+          100
+        ]
+      },
+      "field_source_counts": {
+        "family": {
+          "family_hash": 656
+        },
+        "descriptor": {
+          "descriptor_key": 656
+        },
+        "graph": {
+          "graph_hash": 656
+        }
+      }
+    },
+    {
+      "condition": "4-pattern",
+      "seed": 919,
+      "rows": 800,
+      "formal_success_by_window": [
+        0,
+        35,
+        90,
+        97,
+        100,
+        100,
+        99,
+        100
+      ],
+      "metric_valid_denominator_by_window": {
+        "family": [
+          0,
+          35,
+          90,
+          97,
+          100,
+          100,
+          99,
+          100
+        ],
+        "descriptor": [
+          0,
+          35,
+          90,
+          97,
+          100,
+          100,
+          99,
+          100
+        ],
+        "graph": [
+          0,
+          35,
+          90,
+          97,
+          100,
+          100,
+          99,
+          100
+        ]
+      },
+      "field_source_counts": {
+        "family": {
+          "family_hash": 621
+        },
+        "descriptor": {
+          "descriptor_key": 621
+        },
+        "graph": {
+          "graph_hash": 621
+        }
+      }
+    }
+  ]
+}

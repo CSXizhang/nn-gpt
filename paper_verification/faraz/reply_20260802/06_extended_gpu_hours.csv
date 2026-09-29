@@ -1,0 +1,14 @@
+scope,condition_or_subscope,jobs_or_segments,gpu_hours,overlap_note
+six_seed_cifar10_rl,one_pattern,6,374.03,
+six_seed_cifar10_rl,four_pattern,6,533.64,
+six_seed_cifar10_rl,total_unique,12,907.67,
+reward_ablation,full_reward,3,440.81,already included in six_seed_cifar10_rl four_pattern
+reward_ablation,no_diversity_bonus,3,216.90,
+reward_ablation,no_repeat_penalty,3,276.78,
+reward_ablation,all_nine_condition_runs,9,934.49,includes 440.81 already counted in six_seed_cifar10_rl
+reward_ablation,incremental_unique_beyond_six_seed,6,493.68,
+qwen_cifar10,three_seeds_including_seed777_resume,4,234.96,
+cifar100_one_pattern,three_seeds,3,210.70,
+proxy_retraining,top20_unfrozen20_successful_final_array,20,19.63,earlier manuscript proxy analysis
+proxy_retraining,wide38_unfrozen20_successful_final_array,38,19.28,20260727 package
+all_scopes,unique_total_including_both_proxy_analyses,84,1885.91,full_reward ablation overlap counted once

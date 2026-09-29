@@ -1,0 +1,103 @@
+<block>
+def drop_conv3x3_block(in_channels, out_channels, stride=1, padding=1, bias=False, dropout_prob=0.0):
+    return nn.Sequential(
+        nn.Conv2d(in_channels, out_channels, kernel_size=3, stride=stride, padding=padding, bias=bias),
+        nn.BatchNorm2d(out_channels),
+        nn.SiLU(),
+        nn.Dropout2d(p=dropout_prob)
+    )
+</block>
+<init>
+def __init__(self, in_shape: tuple, out_shape: tuple, prm: dict, device: torch.device) -> None:
+    super().__init__()
+    self.device = device
+    self.use_amp = prm.get("use_amp", False)
+    c_in = in_shape[1] if len(in_shape) == 4 else in_shape[0]
+    self.backbone_a = TorchVision(model='convnext_tiny', in_channels=c_in)
+    self.backbone_b = TorchVision(model='densenet121', in: tuple, out_shape: tuple, prm: dict, device: torch.device) -> None:
+    super().__init__()
+    self.device = device
+    self.use_amp = prm.get("use_amp", False)
+    c_in = in_shape[1] if len(in_shape) == 4 else in_shape[0]
+    self.backbone_a = TorchVision(model='convnext_tiny', in_channels=c_in)
+    self.backbone_b = TorchVision(model='densenet121', in_channels=c_in)
+    self.features = nn.Sequential(
+        FractalUnit(in_channels=c_in, out_channels=64, num_columns=2, loc_drop_prob=0.1, dropout_prob=0.1),
+        FractalUnit(in_channels=64, out_channels=128, num_columns=2, loc_drop_prob=0.1, dropout_prob=0.1)
+    )
+    self._input_spec = in_shape
+    self.infer_dimensions_dynamically(out_shape[1])
+    self._scaler = make_scaler(self.use_amp)
+</init>
+<forward>
+def forward(self, x: torch.Tensor, is_probing: bool = False) -> torch.Tensor:
+    x = self.backbone_a(x)
+    x = self.features(x)
+    if is_probing: return x
+    x = self.classifier(adaptive_pool_flatten(x))
+    return x
+</forward>
+###
+###
+### Code: `Parallel_Triple`
+```python
+class Parallel_Triple(nn.Module):
+    def __init__(self, in_channels, out_channels):
+        super().__init__()
+        self.conv1 = nn.Conv2d(in_channels, out_channels, kernel_size=3, padding=1, bias=False)
+        self.bn1 = nn.BatchNorm2d(out_channels)
+        self.act1 = nn.SiLU()
+
+        self.conv2 = nn.Conv2d(out_channels, out_channels, kernel_size=3, padding=1, bias=False)
+        self.bn2 = nn.BatchNorm2d(out_channels)
+        self.act2 = nn.SiLU()
+
+    def forward(self, x):
+        y1 = self.conv1(x)
+        y1 = self.bn1(y1)
+        y1 = self.act1(y1)
+
+        y2 = self.conv2(y1)
+        y2 = self.bn2(y2)
+        y2 = self.act2(y2)
+
+        return y1 + y2
+```
+### Code: `FractalBlock`
+```python
+class FractalBlock(nn.Module):
+    def __init__(self, in_channels, out_channels, num_columns, loc_drop_prob, dropout_prob):
+        super().__init__()
+        self.num_columns = int(num_columns)
+        depth = 2 ** max(self.num_columns - 1, 0)
+        blocks = []
+        for i in range(depth):
+            level = nn.ModuleList()
+            for j in range(self.num_columns):
+                if (i + 1) % (2 ** j) == 0:
+                    in_ch_ij = in_channels if (i + 1 == 2 ** j) else out_channels
+                    level.append(drop_conv3x3_block(in_ch_ij, out_channels, dropout_prob=dropout_prob))
+            blocks.append(level)
+        self.blocks = nn.ModuleList(blocks)
+
+    def forward(self, x):
+        outs = [x] * self.num_columns
+        for level_block in self.blocks:
+            outs_i = [blk(inp) for blk, inp in zip(level_block, outs)]
+            joined = torch.stack(outs_i, dim=0).mean(dim=0)
+            outs[:len(level_block)] = [joined] * len(level_block)
+        return outs[0]
+```
+### Code: `FractalUnit`
+```python
+class FractalUnit(nn.Module):
+    def __init__(self, in_channels, out_channels, num_columns, loc_drop_prob, dropout_prob):
+        super().__init__()
+        self.block = FractalBlock(in_channels, out_channels, num_columns, loc_drop_prob, dropout_prob)
+        self.pool = nn.MaxPool2d(kernel_size=2, stride=2)
+
+    def forward(self, x):
+        return self.pool(self.block(x))
+```
+### Code: `Net`
+```python

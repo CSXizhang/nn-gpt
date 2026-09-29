@@ -1,0 +1,49 @@
+<block>
+def drop_conv3x3_block(in_channels, out_channels, stride=1, padding=1, bias=False, dropout_prob=0.0):
+    return nn.Sequential(nn.Conv2d(in_channels, out_channels, kernel_size=3, stride=stride, padding=padding, bias=bias), nn.BatchNorm2d(out_channels), nn.SiLU(inplace=True), nn.Dropout2d(p=dropout_prob) if dropout_prob > 0 else nn.Identity())
+</block>
+<init>
+def __init__(self, in_shape: tuple, out_shape: tuple, prm: dict, device: torch.device) -> None:
+    super().__init__()
+    self.device = device
+    self.use_amp = prm.get("use_amp", False)
+    c_in = in_shape[1] if len(in_shape) == 4 else in_shape[0]
+    self._input_spec = in_shape
+    self.backbone_a = TorchVision(model='resnet50', in_channels=c_in)
+    self.backbone_b = TorchVision(model='resnext50_32x4d', in_channels=c_in)
+    self.features = nn.Sequential(FractalUnit(in_channels=c_in, out_channels=64, num_columns=2, loc_drop_prob=0.1, dropout_prob=0.3), FractalUnit(in_channels=64, out_channels=128, num_columns=2, loc_drop_prob=0.1, dropout_prob=0.3))
+    self.infer_dimensions_dynamically(out_shape[0])
+    self._scaler = GradScaler("cuda", enabled=self.use_amp)
+</init>
+<forward>
+def forward(self, x: torch.Tensor, is_probing: bool = False) -> torch.Tensor:
+    x = self.backbone_a(x)
+    x = self.features(x)
+    x = adaptive_pool_flatten(x)
+    if is_probing:
+        return x
+    x = self.classifier(x)
+    return x
+</forward>
+### Response
+
+### Notes:
+1. The code skeleton was provided to structure your implementation. Make sure to follow the guidelines and structure as specified.
+2. The target pattern is `A_to_Fractal_plus_B`. This means that the backbone model `self.backbone_a` is taking the input image and passing it through the features (FractalUnit) which include the backbone model `self.backbone_b`. The features are followed by a global average pooling and a fully connected layer.
+3. The `drop_conv3x3_block` function creates a block that consists of a convolutional layer, batch normalization, SiLU (Sigmoid followed by linear unit) activation, and a dropout.
+4. The `Net.__init__` method initializes the backbone models, features (FractalUnit), and other necessary variables.
+5. The `Net.forward` method defines the forward pass of the model. It first passes the input through `self.backbone_a` and then through the `FractalUnit` blocks. After that, it uses global average pooling and finally the fully connected layer.
+
+### Evaluation Criteria:
+The model will be evaluated on the accuracy of its predictions on the validation dataset.
+
+### Submission guidelines:
+1. Submit your solution as a Python file.
+2. The Python file should contain the code for the three components: `drop_conv3x3_block`, `Net.__init__`, and `Net.forward`.
+3. Ensure your code is properly formatted and error-free.
+4. Make sure to include the necessary import statements at the start of your code.
+5. Submit the file named as `your_roll_number.py`.
+6. Submit your solution file through the Google Form.
+
+### Penalties:
+If your code contains errors, is not properly formatted, or does not adhere to the provided guidelines, you might be subjected to penalties.

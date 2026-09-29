@@ -1,0 +1,76 @@
+* add-rl-workflow-scripts                                                        6e7ea0949 [origin/add-rl-workflow-scripts] Add explicit RL model source scripts
+  experiment/a3-reward-ablation-cleanhead                                        dd8738bd4 [origin/experiment/a3-reward-ablation-cleanhead] 统一A3 reward消融运行源码
+  experiment/a3-reward-ablation-dd52-minimal                                     f8bc01d85 [origin/experiment/a3-reward-ablation-dd52-minimal] 补齐reward消融nn-dataset运行时
+  experiment/article-reward-ablation-20260608                                    7e29277f0 Simplify reward memory preflight
+  experiment/four-pattern-reward-ablation-821f                                   90dc9cba4 [origin/experiment/four-pattern-reward-ablation-821f: ahead 1] Use public defaults for SFT and RL
+  experiment/non-parallel-family-gate                                            1e9a2edcb [origin/experiment/non-parallel-family-gate] Preserve family cap after batch elite reward
+  feature/backbone-sft-compact-skeleton                                          6e6b0fd7b [origin/feature/backbone-sft-compact-skeleton] 添加 accuracy-first anti-collapse reward clipping
+  feature/diverse-backbone-nneval-lock                                           22d09fcf5 [origin/feature/diverse-backbone-nneval-lock] Normalize TuneBackbone prefixes at CLI
++ feature/runtime-resume-multigpu                                                24659be32 (/Users/zhangxi/code/RL/nn-gpt-pr) [origin/feature/runtime-resume-multigpu] Restore explanatory comments removed during merge resolution
+  feature/runtime-resume-multigpu-integration                                    df9f7f236 [origin/feature/runtime-resume-multigpu-integration: ahead 56] Merge remote-tracking branch 'origin/feature/runtime-resume-multigpu' into feature/runtime-resume-multigpu-integration
+  feature/sft-resume                                                             edef48d6a [origin/feature/sft-resume] Add SFT resume checkpoint support
+  fix/reward-smoke-memory-b1bc778                                                a36b33874 Isolate reward CPU smoke in subprocess
+  main                                                                           01f2ee9be [upstream/main: behind 5] Rename READMY.md to README.md
+  refactor/tunerl-reward-task-boundary                                           7a3414dcc [origin/refactor/tunerl-reward-task-boundary] Fix live reward precompute gating
+  refactor/tunerlsft-shared-runtime                                              bc94763b4 [origin/refactor/tunerlsft-shared-runtime] Refine TuneRL runtime refactor cleanup
+  sync/upstream-main-rl-sft                                                      9bf88da8a [upstream/main: behind 124] Rename reward split helpers to trainvaltest
+  remotes/julia2/HEAD                                                            -> julia2/main
+  remotes/julia2/backup/four-pattern-reward-ablation-before-sync-20260608_221646 fb5b0c9c2 Guard reward prevalidation memory
+  remotes/julia2/experiment/a3-reward-ablation-cleanhead                         dd8738bd4 统一A3 reward消融运行源码
+  remotes/julia2/experiment/a3-reward-ablation-dd52-minimal                      f8bc01d85 补齐reward消融nn-dataset运行时
+  remotes/julia2/experiment/four-pattern-reward-ablation-821f                    c91714dbe Simplify reward memory preflight
+  remotes/julia2/experiment/non-parallel-family-gate                             1e9a2edcb Preserve family cap after batch elite reward
+  remotes/julia2/feature/backbone-sft-compact-skeleton                           6e6b0fd7b 添加 accuracy-first anti-collapse reward clipping
+  remotes/julia2/feature/diverse-backbone-nneval-lock                            22d09fcf5 Normalize TuneBackbone prefixes at CLI
+  remotes/julia2/feature/sft-resume                                              edef48d6a Add SFT resume checkpoint support
+  remotes/julia2/fix/reward-smoke-memory-b1bc778                                 4de239974 支持struct1 v2 SFT共享输出目录
+  remotes/julia2/main                                                            4226cf3ff Merge remote-tracking branch 'origin/main'
+  remotes/julia2/refactor/tunerl-reward-task-boundary                            d3ea82c39 Tighten reward task migration gates
+  remotes/julia2/refactor/tunerlsft-shared-runtime                               bc94763b4 Refine TuneRL runtime refactor cleanup
+  remotes/origin/HEAD                                                            -> origin/main
+  remotes/origin/add-rl-workflow-scripts                                         6e7ea0949 Add explicit RL model source scripts
+  remotes/origin/backbone-tune                                                   1dc400c1a fix: OOM
+  remotes/origin/experiment/a3-reward-ablation-cleanhead                         dd8738bd4 统一A3 reward消融运行源码
+  remotes/origin/experiment/a3-reward-ablation-dd52-minimal                      f8bc01d85 补齐reward消融nn-dataset运行时
+  remotes/origin/experiment/article-reward-ablation-20260608                     7e29277f0 Simplify reward memory preflight
+  remotes/origin/experiment/four-pattern-reward-ablation-821f                    c91714dbe Simplify reward memory preflight
+  remotes/origin/experiment/non-parallel-family-gate                             1e9a2edcb Preserve family cap after batch elite reward
+  remotes/origin/feature/backbone-sft-compact-skeleton                           6e6b0fd7b 添加 accuracy-first anti-collapse reward clipping
+  remotes/origin/feature/diverse-backbone-nneval-lock                            22d09fcf5 Normalize TuneBackbone prefixes at CLI
+  remotes/origin/feature/runtime-resume-multigpu                                 24659be32 Restore explanatory comments removed during merge resolution
+  remotes/origin/feature/runtime-resume-multigpu-integration                     ae99220fc Checkpoint integration backup for shared resume and multi-GPU runtime
+  remotes/origin/feature/sft-resume                                              edef48d6a Add SFT resume checkpoint support
+  remotes/origin/fix/reward-smoke-memory-b1bc778                                 a36b33874 Isolate reward CPU smoke in subprocess
+  remotes/origin/main                                                            89e567da3 Merge remote-tracking branch 'upstream/main'
+  remotes/origin/refactor/tunerl-reward-task-boundary                            7a3414dcc Fix live reward precompute gating
+  remotes/origin/refactor/tunerlsft-shared-runtime                               bc94763b4 Refine TuneRL runtime refactor cleanup
+  remotes/upstream/HEAD                                                          -> upstream/main
+  remotes/upstream/Mobile-archetechture-generation                               24533dfd5 Merge branch 'main' into Mobile-archetechture-generation
+  remotes/upstream/MobilePipline                                                 393b068b9 Mobile Deployment pipline
+  remotes/upstream/Pruning                                                       2a343ef91 Quick fix
+  remotes/upstream/Prunning-                                                     46ac556ed removing old files
+  remotes/upstream/accuracy-prediction                                           0d2767625 Merge branch 'main' into accuracy-prediction
+  remotes/upstream/agents-in-tune                                                2e4bae3c5 refactor: remove max_epoch from state — Susama's predictor reads it from LEMUR DB
+  remotes/upstream/backbone-tune                                                 2fc32af4f fix: delete old script
+  remotes/upstream/cycle_analysis_json                                           dd702ee67 Delete .gitignore
+  remotes/upstream/edge-curriculum-filter                                        30389cdcf Move edge prompt configs into edge/ subdirectories per review; enable FlashAttention-2 when a real kernel is available
+  remotes/upstream/edge-generation                                               63d3a8efa Add edge generation pipeline for mobile-efficient model synthesis
+  remotes/upstream/epochs-predictor                                              b7cc6d679 Updated ab/gpt/TuneAccuracyPrediction
+  remotes/upstream/feature-tunerl-improvements                                   b9057744a Delete TuneRL_corrected.py
+  remotes/upstream/feature/armughanahmed/directory-refactoring                   78d7ed552 Move NNAlter scripts into act/alter/ and rename
+  remotes/upstream/feature/armughanahmed/remove-unused-llm-config-fields         74369dd8e Merge main into feature branch, resolve conflicts
+  remotes/upstream/feature/armughanahmed/system-prompt                           6f08a6535 Merge branch 'main' into feature/armughanahmed/system-prompt
+  remotes/upstream/feature/general-formula-calculation                           23c5649d5 Keep formula and pruning switch
+  remotes/upstream/general                                                       faddf1d21 Integrated formula calculation in NNGenPrompt.py
+  remotes/upstream/iteravtive_pipeline_modifications                             a7118d153 Merge branch 'main' of https://github.com/ABrain-One/nn-gpt into iteravtive_pipeline_modifications
+  remotes/upstream/langgraph-agent                                               e4a2d3b82 Merge remote-tracking branch 'origin/main' into langgraph-agent
+  remotes/upstream/loss-and-opt                                                  127d583ec Introduce ab.gpt.brute.loss_opt pipeline for loss and optimizer substitution. NNVariants generates every combination from a configurable grid (CrossEntropyLoss, NGL × six optimizers; NGL restricted to Adam/AdamW) for LEMUR networks or a custom folder into the standard synth_nn/B* layout. EvalVariants trains each variant and registers those reaching 0.96 accuracy in LEMUR as {task}_{dataset}_{metric}_{base}_{loss}_{optimizer}. Includes unit and e2e tests
+  remotes/upstream/main                                                          0669a2269 Merge pull request #217 from CSXizhang/add-rl-workflow-scripts
+  remotes/upstream/n_supportingmodels                                            42838811b updated alter_nn to udapted prompt with n supporting models for each generation
+  remotes/upstream/rag                                                           350000dfa synthesizes new model architectures
+  remotes/upstream/rag_finetune                                                  0f022b14c added config files
+  remotes/upstream/rag_pipeline                                                  4e986e874 Update ab/gpt/util/rag_AlterNN.py
+  remotes/upstream/revert-167-delta-code-implementation                          491235ac6 Revert "    Delta code implementation-V4"
+  remotes/upstream/revert-182-Mobile-archetechture-generation                    f325e16f6 Revert "Add mobile deploy track: LoRA pipeline → NNEval weights.pth → TFLite …"
+  remotes/upstream/sarmad/edge-efficiency-prompt                                 ef16d6850 Point prompt source paths to sarmadkayani folder so pipeline runs from new location
+  remotes/upstream/sft_gen                                                       9a64fc06f Merge branch 'main' of https://github.com/ABrain-One/nn-gpt into sft_gen

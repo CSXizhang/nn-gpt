@@ -1,0 +1,104 @@
+LEMUR root /home/s471802/nn-gpt
+Evaluating /home/s471802/nn-gpt/out/nn/tmp/37ef700fe244c4edc49a7b0a7299ee07.py...
+epoch 1
+  Train Loss: 1.7105, Test Loss: 1.6637
+  Train Acc: 0.7544, Test Acc: 0.8002
+  LR: 0.010000, Grad Norm: 3.0000, Throughput: 470.4 samples/s
+accuracy_to_time_metric 0.7319858423445667
+epoch 2
+  Train Loss: 1.5947, Test Loss: 1.5703
+  Train Acc: 0.8676, Test Acc: 0.8934
+  LR: 0.010000, Grad Norm: 0.1813, Throughput: 475.1 samples/s
+accuracy_to_time_metric 0.416535695704167
+epoch 3
+  Train Loss: 1.5676, Test Loss: 1.5584
+  Train Acc: 0.8938, Test Acc: 0.9036
+  LR: 0.010000, Grad Norm: 3.0000, Throughput: 377.8 samples/s
+accuracy_to_time_metric 0.25948756281463603
+epoch 4
+  Train Loss: 1.5510, Test Loss: 1.5657
+  Train Acc: 0.9109, Test Acc: 0.8950
+  LR: 0.010000, Grad Norm: 3.0000, Throughput: 484.1 samples/s
+accuracy_to_time_metric 0.19739905761131368
+epoch 5
+  Train Loss: 1.5438, Test Loss: 1.5500
+  Train Acc: 0.9181, Test Acc: 0.9092
+  LR: 0.010000, Grad Norm: 0.0240, Throughput: 355.3 samples/s
+accuracy_to_time_metric 0.1528218395217957
+epoch 6
+  Train Loss: 1.5397, Test Loss: 1.5422
+  Train Acc: 0.9218, Test Acc: 0.9154
+  LR: 0.010000, Grad Norm: 0.0634, Throughput: 491.9 samples/s
+accuracy_to_time_metric 0.13128575767020317
+epoch 7
+  Train Loss: 1.5332, Test Loss: 1.5417
+  Train Acc: 0.9283, Test Acc: 0.9204
+  LR: 0.010000, Grad Norm: 0.1942, Throughput: 492.5 samples/s
+accuracy_to_time_metric 0.11513476293682409
+epoch 8
+  Train Loss: 1.5284, Test Loss: 1.5428
+  Train Acc: 0.9331, Test Acc: 0.9206
+  LR: 0.010000, Grad Norm: 0.5092, Throughput: 493.2 samples/s
+accuracy_to_time_metric 0.10207686325494664
+epoch 9
+  Train Loss: 1.5214, Test Loss: 1.5352
+  Train Acc: 0.9400, Test Acc: 0.9210
+  LR: 0.010000, Grad Norm: 3.0000, Throughput: 494.4 samples/s
+accuracy_to_time_metric 0.0917293087365156
+epoch 10
+  Train Loss: 1.5177, Test Loss: 1.5383
+  Train Acc: 0.9438, Test Acc: 0.9196
+  LR: 0.010000, Grad Norm: 0.1503, Throughput: 491.7 samples/s
+accuracy_to_time_metric 0.08306860981569177
+epoch 11
+  Train Loss: 1.5162, Test Loss: 1.5348
+  Train Acc: 0.9449, Test Acc: 0.9300
+  LR: 0.010000, Grad Norm: 2.5790, Throughput: 490.2 samples/s
+accuracy_to_time_metric 0.07695452696989058
+epoch 12
+  Train Loss: 1.5129, Test Loss: 1.5362
+  Train Acc: 0.9485, Test Acc: 0.9218
+  LR: 0.010000, Grad Norm: 0.0707, Throughput: 494.3 samples/s
+accuracy_to_time_metric 0.0702570928632141
+epoch 13
+  Train Loss: 1.5108, Test Loss: 1.5329
+  Train Acc: 0.9506, Test Acc: 0.9250
+  LR: 0.010000, Grad Norm: 0.0000, Throughput: 495.0 samples/s
+accuracy_to_time_metric 0.06543866290524712
+epoch 14
+  Train Loss: 1.5093, Test Loss: 1.5406
+  Train Acc: 0.9522, Test Acc: 0.9244
+  LR: 0.010000, Grad Norm: 0.1219, Throughput: 496.0 samples/s
+accuracy_to_time_metric 0.06099701641627789
+epoch 15
+  Train Loss: 1.5043, Test Loss: 1.5307
+  Train Acc: 0.9572, Test Acc: 0.9288
+  LR: 0.010000, Grad Norm: 0.2020, Throughput: 493.1 samples/s
+accuracy_to_time_metric 0.057439882344692404
+epoch 16
+  Train Loss: 1.5018, Test Loss: 1.5378
+  Train Acc: 0.9591, Test Acc: 0.9232
+  LR: 0.010000, Grad Norm: 1.0986, Throughput: 494.9 samples/s
+accuracy_to_time_metric 0.05366588220116144
+epoch 17
+  Train Loss: 1.5004, Test Loss: 1.5383
+  Train Acc: 0.9611, Test Acc: 0.9250
+  LR: 0.010000, Grad Norm: 0.0117, Throughput: 493.4 samples/s
+accuracy_to_time_metric 0.050761480747194
+epoch 18
+  Train Loss: 1.4986, Test Loss: 1.5399
+  Train Acc: 0.9625, Test Acc: 0.9224
+  LR: 0.010000, Grad Norm: 0.0539, Throughput: 494.4 samples/s
+accuracy_to_time_metric 0.047914960727387094
+epoch 19
+  Train Loss: 1.4951, Test Loss: 1.5275
+  Train Acc: 0.9664, Test Acc: 0.9338
+  LR: 0.010000, Grad Norm: 0.0192, Throughput: 494.5 samples/s
+accuracy_to_time_metric 0.046130814574710625
+epoch 20
+  Train Loss: 1.4939, Test Loss: 1.5272
+  Train Acc: 0.9674, Test Acc: 0.9308
+  LR: 0.010000, Grad Norm: 0.2163, Throughput: 491.4 samples/s
+accuracy_to_time_metric 0.04374609817829381
+Training summary saved to /home/s471802/nn-gpt/out/training_summary.json
+wrote /data/42-julia-hpc-ai-cv-students/s471802/nn-gpt-runs/parallel_runs/20260727_proxy_wide38_unfrozen20_standard/results/00_4pattern_seed42_743.json

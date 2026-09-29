@@ -1,0 +1,1 @@
+find /data/42-julia-hpc-ai-cv-students/s471802 /home/s471802 -type f \( -name "*.zip" -o -name "*.tar.gz" -o -name "*.tgz" \) -printf "%p\n"

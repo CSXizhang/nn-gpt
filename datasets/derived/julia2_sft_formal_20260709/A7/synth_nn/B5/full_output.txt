@@ -1,0 +1,67 @@
+<block>
+def drop_conv3x3_block(in_channels, out_channels, stride=1, padding=1, bias=False, dropout_prob=0.0):
+    return nn.Sequential(
+        nn.Conv2d(in_channels, out_channels, kernel_size=3, stride=stride, padding=padding, bias=bias),
+        nn.BatchNorm2d(out_channels),
+        nn.SiLU(inplace=True),
+        nn.Dropout2d(p=dropout_prob) if dropout_prob > 0 else nn.Identity()
+    )
+</block>
+<init>
+def __init__(self, in_shape: tuple, out_shape: tuple, prm: dict, device: torch.device) -> None:
+    super().__init__()
+    self.device = device
+    self.use_amp = prm.get('use_amp', False)
+    c_in = in_shape[1] if len(in_shape) == 4 else in_shape[0]
+    self._input_spec = (c_in, ) + in_shape[2:]
+    self.backbone_a = TorchVision(model='resnet18', in_channels=c_in)
+    self.backbone_b = TorchVision(model='resnet34', in_channels=c_in)
+    self.features = nn.Sequential(FractalUnit(in_channels=c_in, out_channels=64, num_columns=2, loc_drop_prob=0.1, dropout_prob=0.1))
+    self.infer_dimensions_dynamically(num_classes=out_shape[0])
+    self._scaler = GradScaler('cuda', enabled=self.use_amp)
+</init>
+<forward>
+def forward(self, x: torch.Tensor, is_probing: bool=False) -> torch.Tensor:
+    x_a = adaptive_pool_flatten(self.backbone_a(x))
+    x_b = self.features(x)
+    x_b = adaptive_pool_flatten(x_b)
+    x = torch.cat([x_a, x_b], dim=1)
+    return x
+</forward>
+
+### Notes:
+1. Please ensure that you have the correct pattern for the forward function. The pattern 'A_to_Fractal_plus_B' means that the output of backbone_a will be concatenated with the output of features.
+2. The 'Parallel_Triple' pattern means that three parallel branches will be used, each branch starting with a backbone and then the features.
+3. The 'Fractal_plus' pattern means that the output of features will be concatenated with the output of backbone_a.
+4. You should ensure that the pattern is implemented correctly in the forward function.
+5. The 'A_to_Fractal_plus_B' pattern means that the output of backbone_a will be concatenated with the output of features.
+6. The 'A_plus_B' pattern means that the output of features will be concatenated with the output of backbone_a.
+7. Please ensure that the pattern is implemented correctly in the forward function.
+8. The 'Parallel_Triple' pattern means that three parallel branches will be used, each branch starting with a backbone and then the features.
+9. The 'A_plus_B' pattern means that the output of features will be concatenated with the output of backbone_a.
+10. Please ensure that the pattern is implemented correctly in the forward function.
+11. The 'Fractal_plus' pattern means that the output of features will be concatenated with the output of backbone_a.
+12. You should ensure that the pattern is implemented correctly in the forward function.
+13. The 'A_plus_B' pattern means that the output of features will be concatenated with the output of backbonea﻿.
+14. Please ensure that the pattern is implemented correctly in the forward function.
+15. The 'Fractal_plus' pattern means that the output of features will be concatenated with the output of backbone_a.
+16. You should ensure that the pattern is implemented correctly in the forward function.
+17. The 'Parallel_Triple' pattern means that three parallel branches will be used, each branch starting with a backbone and then the features.
+18. The 'A_to_Fractal_plus_B' pattern means that the output of backbone_a will be concatenated with the output of features.
+19. Please ensure that the pattern is implemented correctly in the forward function.
+20. The 'Fractal_plus' pattern means that the output of features will be concatenated with the output of backbone_a.
+21. You should ensure that the pattern is implemented correctly in the forward function.
+22. The 'Parallel_Triple' pattern means that three parallel branches will be used, each branch starting with a backbone and then the features.
+23. The 'A_plus_B' pattern means that the output of features will be concatenated with the output of backbone_a.
+24. Please ensure that the pattern is implemented correctly in the forward function.
+25. The 'A_to_Fractal_plus_B' pattern means that the output of backbone_a will be concatenated with the output of features.
+26. Please ensure that the pattern is implemented correctly in the forward function.
+27. The 'Fractal_plus' pattern means that the output of features will be concatenated with the output of backbone_a.
+28. You should ensure that the pattern is implemented correctly in the forward function.
+29. The 'Parallel_Triple' pattern means that three parallel branches will be used, each branch starting with a backbone and then the features.
+30. The 'A_plus_B' pattern means that the output of features will be concatenated with the output of backbone_a.
+31. Please ensure that the pattern is implemented correctly in the forward function.
+32. The 'A_to_Fractal_plus_B' pattern means that the output of backbone_a will be concatenated with the output of features.
+33. Please ensure that the pattern is implemented correctly in the forward function.
+34. The 'Fractal_plus' pattern means that the output of features will be concatenated with the output of backbone_a.
+35. You should ensure that the

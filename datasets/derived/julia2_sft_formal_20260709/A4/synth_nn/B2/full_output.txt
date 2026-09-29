@@ -1,0 +1,85 @@
+<block>
+def drop_conv3x3_block(in_channels, out_channels, stride=1, padding=1, bias=False, dropout_prob=0.0):
+    return nn.Sequential(nn.Conv2d(in_channels, out_channels, kernel_size=3, stride=stride, padding=padding, bias=bias), nn.BatchNorm2d(out_channels), nn.SiLU(inplace=True), nn.Dropout2d(p=dropout_prob) if dropout_prob > 0 else nn.Identity(), nn.Conv2d(out_channels, out_channels, kernel_size=3, stride=1, padding=1, bias=bias), nn.BatchNorm2d(out_channels), nn.SiLU(inplace=True))
+</block>
+<init>
+def __init__(self, in_shape: tuple, out_shape: tuple, prm: dict, device: torch.device) -> None:
+    super().__init__()
+    self.device = device
+    self.use_amp = prm.get('use_amp', False)
+    self.pattern = 'B_to_Fractal_plus_A'
+    c_in = in_shape[1] if len(in_shape) == 4 else in_shape[0]
+    self.backbone_a = TorchVision(model='resnet18', in_channels=c_in)
+    self.backbone_b = TorchVision(model='resnext50_32x4d', in_channels=c_in)
+    self.features = nn.Sequential(FractalUnit(in_channels=c_in, out_channels=64, num_columns=4, loc_drop_prob=0.1, dropout_prob=0.3), FractalUnit(in_channels=64, out_channels=128, num_columns=4, loc_drop_prob=0.1, dropout_prob=0.3))
+    self._input_spec = in_shape
+    self.infer_dimensions_dynamically(out_shape[0])
+    self._scaler = GradScaler('cuda', enabled=self.use_amp)
+</init>
+<forward>
+def forward(self, x: torch.Tensor, is_probing: bool=False) -> torch.Tensor:
+    x_b_map = self.backbone_b(x)
+    x_b_img = adaptive_pool_flatten(x_b_map)
+    x_f = adaptive_pool_flatten(self.features(x))
+    x_a = adaptive_pool_flatten(self.backbone_a(x))
+    x_b_feat = adaptive_pool_flatten(self.backbone_b(x_f))
+    x_b = torch.cat([x_b_img, x_b_feat, x_a], dim=1)
+    return self.classifier(x_b)
+</forward>
+### Response
+
+
+## Code: model.py
+```python
+import torch
+from torch import nn
+from torchvision import models
+from torch.nn.modules.pooling import MaxPool2d
+from torch.amp import autocast, GradScaler
+
+class TorchVision(nn.Module):
+    def __init__(self, model: str, weights: str = "DEFAULT", unwrap: bool = True, truncate: int = 1, in_channels: int = 3):
+        super().__init__()
+        self.adapter = nn.Conv2d(in_channels, 3, kernel_size=1) if in_channels != 3 else nn.Identity()
+        kwargs = {"aux_logits": False} if "inception" in model.lower() else {}
+        try:
+            if hasattr(torchvision.models, "get_model"):
+                self.m = torchvision
+                (model, weights=weights, **kwargs)
+            else:
+                self.m = torchvision.models.__dict__[model](pretrained=bool(weights), **kwargs)
+        except:
+            if hasattr(torchvision.models, "get_model"):
+                self.m = torchvision.models.get_model(model, weights=weights)
+            else:
+                self.m = torchvision.models.__dict__[model](pretrained=bool(weights))
+        
+        if unwrap:
+            layers = []
+            for name, module in self.m.named_children():
+                if "aux" in name.lower(): continue
+                layers.append(module)
+            self.m = nn.Sequential(*(layers[:-truncate] if truncate else layers))
+        else:
+            self.m.head = nn.Identity()
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        if x.dim() == 2:
+            x = x.unsqueeze(-1).unsqueeze(-1)
+        return self.m(self.adapter(x))
+
+def adaptive_pool_flatten(x):
+    if x.ndim == 4: return torch.nn.functional.adaptive_avg_pool2d(x, (1, 1)).flatten(1)
+    if x.ndim == 3: return x.mean(dim=1)
+    return x.flatten(1) if x.ndim > 2 else x
+
+def autocast_ctx(enabled=True):
+    return autocast("cuda", enabled=enabled)
+def make_scaler(enabled=True):
+    return GradScaler("cuda", enabled=enabled)
+
+def supported_hyperparameters():
+    return { 'lr', 'dropout', 'momentum' }
+
+def drop_conv3x3_block(in_channels, out_channels, stride=1, padding=1, bias=False, dropout_prob=0.0):
+    return nn.Sequential(nn.Conv2d(in_channels, out_channels, kernel_size=3, stride=stride, padding=padding, bias=bias), nn.BatchNorm2d

@@ -1,0 +1,33 @@
+NameError: name 'cc_in' is not defined
+
+Traceback (most recent call last):
+  File "/home/s471802/nn-gpt/ab/gpt/util/nneval_worker_pool.py", line 1057, in _persistent_nneval_worker_entry
+    result = _execute_nneval_task(request)
+  File "/home/s471802/nn-gpt/ab/gpt/util/nneval_worker_pool.py", line 387, in _execute_nneval_task
+    eval_results = evaluator.evaluate(code_file, checkpoint_path=checkpoint_path)
+  File "/home/s471802/nn-gpt/ab/gpt/util/Eval.py", line 107, in evaluate
+    return api.check_nn(
+           ~~~~~~~~~~~~^
+        code,
+        ^^^^^
+    ...<6 lines>...
+        self.save_path,
+        ^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/home/s471802/nn-dataset/ab/nn/api.py", line 240, in check_nn
+    return Train.train_new(nn_code, task, dataset, metric, prm, save_to_db=save_to_db, prefix=prefix, save_path=save_path, export_onnx=export_onnx,
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                           epoch_limit_minutes=epoch_limit_minutes, transform_dir=transform_dir)
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/s471802/nn-dataset/ab/nn/util/Train.py", line 548, in train_new
+    trainer = Train(
+        config=(task, dataset, metric, model_name),
+    ...<10 lines>...
+        save_to_db=save_to_db,
+        is_code=True)
+  File "/home/s471802/nn-dataset/ab/nn/util/Train.py", line 216, in __init__
+    self.model = model_net(self.in_shape, out_shape, prm, self.device)
+                 ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/s471802/nn-gpt/out_nneval_tmp_pid_13724/nn/tmp/rl-bb-struct1-v2-dscoder7b-sftcycle-10cycle1536-fe60e6e662f98b6b0c7ef2bf039b7189.py", line 116, in __init__
+NameError: name 'cc_in' is not defined. Did you mean: 'c_in'?

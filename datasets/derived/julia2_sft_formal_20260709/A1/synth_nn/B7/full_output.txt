@@ -1,0 +1,81 @@
+<block>
+def drop_conv3x3_block(in_channels, out_channels, stride=1, padding=1, bias=False, dropout_prob=0.0):
+    return nn.Sequential(
+        nn.Conv2d(in_channels, out_channels, kernel_size=3, stride=stride, padding=padding, bias=bias),
+        nn.BatchNorm2d(out_channels),
+        nn.SiLU(),
+        nn.Dropout2d(p=dropout_prob),
+        nn.Conv2d(out_channels, out_channels, kernel_size=3, stride=1, padding=1, bias=bias),
+        nn.BatchNorm2d(out_channels),
+        nn.SiLU(),
+        nn.Dropout2d(p=dropout_prob)
+    )
+</block>
+<init>
+def __init__(self, in_shape: tuple, out_shape: tuple, prm: dict, device: torch.device) -> None:
+    super().__init__()
+    self.device = device
+    self.use_amp = prm.get("use_amp", False)
+    c_in = in_shape[1] if len(in_shape) == 4 else in_shape[0]
+    self._input_spec = in_shape
+    self.backbone_a = TorchVision(model='densenet121', in_channels=c_in)
+    self.backbone_b = TorchVision(model='efficientnet_b0', in_channels=c_in)
+    self.features = nn.Sequential(
+        FractalUnit(in_channels=c_in, out_channels=64, num_columns=2, loc_drop_prob=0.0, dropout_prob=0.1),
+        FractalUnit(in_channels=64, out_channels=128, num_columns=2, loc_drop_prob=0.0, dropout_prob=0.1)
+    )
+    self.infer_dimensions_dynamically(out_shape[0])
+    self._scaler = GradScaler("cuda", enabled=self.use_amp)
+</init>
+<forward>
+def forward(self, x: torch.Tensor, is_probing: bool = False) -> torch.Tensor:
+    x = self.backbone_a(x)
+    x = self.features(x)
+    if is_probing:
+        return x
+    x = self.backbone_b(x)
+    return self.classifier(x.flatten(1))
+</forward>
+### Response
+```python
+<block>
+def drop_conv3x3_block(in_channels, out_channels, stride=1, padding=1, bias=False, dropout_prob=0.0):
+    return nn.Sequential(
+        nn.Conv2d(in_channels, out_channels, kernel_size=3, stride=stride, padding=padding, bias=bias),
+        nn.BatchNorm2d(out_channels),
+        nn.SiLU(),
+        nn.Dropout2d(p=dropout_prob),
+        nn.Conv2d(out_channels, out: out_channels, kernel_size=3, stride=1, padding=1, bias=bias),
+        nn.BatchNorm2d(out_channels),
+        nn.SiLU(),
+        nn.Dropout2d(p=dropout_prob)
+    )
+</block>
+<init>
+def __init__(self, in_shape: tuple, out_shape: tuple, prm: dict, device: torch.device) -> None:
+    super().__init__()
+    self.device = device
+    self.use_amp = prm.get("use_amp", False)
+    c_in = in_shape[1] if len(in_shape) == 4 else in_shape[0]
+    self._input_spec = in_shape
+    self.backbone_a = TorchVision(model='densenet121', in_channels=c_in)
+    self.backbone_b = TorchVision(model='efficientnet_b0', in_channels=c_in)
+    self.features = nn.Sequential(
+        FractalUnit(in_channels=c_in, out_channels=64, num_columns=2, loc_drop_prob=0.0, dropout_prob=0.1),
+        FractalUnit(in_channels=64, out_channels=128, num_columns=2, loc_drop_prob=0.0, dropout_prob=0.1)
+    )
+    self.infer_dimensions_dynamically(out_shape[0])
+    self._scaler = GradScaler("cuda", enabled=self.use_amp)
+</init>
+<forward>
+def forward(self, x: torch.Tensor, is_probing: bool = False) -> torch.Tensor:
+    x = self.backbone_a(x)
+    x = self.features(x)
+    if is_probing:
+        return x
+    x = self.backbone_b(x)
+    return self.classifier(x.flatten(1))
+</forward>
+```
+
+The above code represents a PyTorch model with two backbone networks ('densenet121' and 'efficientnet_b0') and two FractalUnit layers. The FractalUnit layers are configured with dropout probabilities, which control the amount of dropout in the convolutional layers. The forward method of the model follows the pattern 'A_to_Fractal_to_B', with 'A' referring to the backbone network 'backbone_a' and 'B' referring to 'backbone_b'. The model also uses automatic mixed precision (AMP) for training if the 'use_amp' parameter is set to True.

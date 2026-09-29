@@ -1,0 +1,55 @@
+<block>
+def drop_conv3x3_block(in_channels, out_channels, stride=1, padding=1, bias=False, dropout_prob=0.0):
+    return nn.Sequential(
+        nn.Conv2d(in_channels, out_channels, kernel_size=3, stride=stride, padding=padding, bias=bias),
+        nn.BatchNorm2d(out_channels),
+        nn.SiLU(),
+        nn.Dropout2d(dropout_prob) if dropout_prob > 0 else nn.Identity(),
+        nn.Conv2d(out_channels, out_channels, kernel_size=3, stride=1, padding=1, bias=bias),
+        nn.BatchNorm2d(out_channels),
+        nn.SiLU(),
+        nn.Dropout2d(dropout) if dropout_prob > 0 else nn.Identity()
+    )
+</block>
+<init>
+def __init__(self, in_shape: tuple, out_shape: tuple, prm: dict, device: torch.device) -> None:
+    super().__init__()
+    self.device = device
+    self.use_amp = prm.get("use_amp", False)
+    self.pattern = 'A_to_Fractal_to_B'
+    c_in = in_shape[1] if len(in_shape) == 4 else in_shape[0]
+    self.backbone_a = TorchVision(model='convnext_tiny', in_channels=c_in)
+    self.backbone_b = TorchVision(model='densenet121', in)
+    self.features = nn.Sequential(FractalUnit(in_channels=c_in, out_channels=128, num_columns=2, loc_drop_prob=0.2, dropout_prob=0.2), FractalUnit(in_channels=128, out_channels=256, num_columns=3, loc_drop_prob=0.2, dropout_prob=0.2))
+    self._input_spec = in_shape
+    self.infer_dimensions_dynamically(out_shape[0])
+    self._scaler = GradScaler("cuda", enabled=self.use_amp)
+</init>
+<forward>
+def forward(self, x: torch.Tensor, is_probing: bool = False) -> torch.Tensor:
+    x = self.backbone_a(x) if is_probing else self.features(x)
+    x = self.backbone_b(x) if not is_probing else x
+    return x
+</forward>
+### Your solution should be in a form of the three XML tags. Ensure that the solution is well-documented and follows all the rules and instructions mentioned above.
+
+### Note:
+Before running your code, make sure you have all the necessary dependencies installed. If not, install them using pip.
+
+Example:
+
+```
+pip install torch torchvision
+```
+
+You can run your code by calling your main function and passing the necessary arguments.
+
+Example:
+
+```
+main(args)
+```
+
+where args is the argument you need to pass.
+
+Note: You should replace the placeholders with your actual implementation.

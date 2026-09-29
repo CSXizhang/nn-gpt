@@ -1,0 +1,44 @@
+[
+  {
+    "new_id": "qwen_cifar10_top01_weights_none",
+    "original_id": "qwen_cifar10-0026",
+    "old_acc": 0.9982165605095541,
+    "changed_default": true,
+    "remaining_DEFAULT": false
+  },
+  {
+    "new_id": "qwen_cifar10_top02_weights_none",
+    "original_id": "qwen_cifar10-0004",
+    "old_acc": 0.9979617834394905,
+    "changed_default": true,
+    "remaining_DEFAULT": false
+  },
+  {
+    "new_id": "qwen_cifar10_top03_weights_none",
+    "original_id": "qwen_cifar10-0025",
+    "old_acc": 0.9979617834394905,
+    "changed_default": true,
+    "remaining_DEFAULT": false
+  },
+  {
+    "new_id": "qwen_cifar10_top04_weights_none",
+    "original_id": "qwen_cifar10-0010",
+    "old_acc": 0.9977070063694268,
+    "changed_default": true,
+    "remaining_DEFAULT": false
+  },
+  {
+    "new_id": "qwen_cifar10_top05_weights_none",
+    "original_id": "qwen_cifar10-0017",
+    "old_acc": 0.9977070063694268,
+    "changed_default": true,
+    "remaining_DEFAULT": false
+  },
+  {
+    "new_id": "qwen_cifar10_top06_weights_none",
+    "original_id": "qwen_cifar10-0027",
+    "old_acc": 0.9977070063694268,
+    "changed_default": true,
+    "remaining_DEFAULT": false
+  }
+]

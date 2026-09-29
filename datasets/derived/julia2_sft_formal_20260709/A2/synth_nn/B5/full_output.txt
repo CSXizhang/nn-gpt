@@ -1,0 +1,61 @@
+<block>
+def drop_conv3x3_block(in_channels, out_channels, stride=1, padding=1, bias=False, dropout_prob=0.0):
+    return nn.Sequential(nn.Conv2d(in_channels, out_channels, kernel_size=3, stride=stride, padding=padding, bias=bias), nn.BatchNorm2d(out_channels), nn.SiLU(inplace=True), nn.Dropout2d(p=dropout_prob))
+</block>
+<init>
+def __init__(self, in_shape: tuple, out_shape: tuple, prm: dict, device: torch.device) -> None:
+    super().__init__()
+    self.device = device
+    self.use_amp = prm.get("use_amp", False)
+    c_in = in_shape[1] if len(in_shape) == 4 else in_shape[0]
+    self.backbone_a = TorchVision(model='mobilenet_v2', in_channels=c_in)
+    self.backbone_b = TorchVision(model='resnet50', in_channels=c_in)
+    self.features = nn.Sequential(FractalUnit(in_channels=c_in, out_channels=16, num_columns=3, loc_drop_prob=0.1, dropout_prob=0.1), FractalUnit(in_channels=16, out_channels=32, num_columns=3, loc_drop_prob=0.1, dropout_prob=0.1))
+    self._input_spec = in_shape
+    self.infer_dimensions_dynamically(num_classes=out_shape[0])
+    self._scaler = GradScaler("cuda", enabled=self.use_amp)
+</init>
+<forward>
+def forward(self, x: torch.Tensor, is_probing: bool = False) -> torch.Tensor:
+    x = self.backbone_a(x)
+    x = adaptive_pool_flatten(x)
+    x = self.features(x)
+    x = adaptive_pool_flatten(x)
+    x = self.backbone_b(x)
+    x = adaptivefrom torchvision.models import EfficientNet_B4
+import torch.nn as nn
+
+class Net(nn.Module):
+    def __init__(self, in_shape, out_shape, prm, device):
+        super().__init__()
+        self.device = device
+        self.in_channels = in_shape[0] if len(in_shape) == 3 else in_shape[1]
+        self.backbone = EfficientNet_B4(num_classes=out_shape[0]).to(device)
+        self.classifier = nn.Linear(1792, out_shape[0]).to(device)
+        self.loss_fn = nn.CrossEntropyLoss()
+
+    def forward(self, x):
+        x = self.backbone(x.to(self.device))
+        return self.classifier(x)
+
+model = Net((3, 224, 224), (10,), {}, 'cuda')
+print(model)
+# Output: Net(
+#   (backbone): EfficientNet_B4(
+#     (_conv_stem): Conv2d(3, 40, kernel_size=(3, 3), stride=(2, 2), padding=(1, 1), bias=False)
+#     (_bn0): BatchNorm2d(40, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+#     (_act0): SiLU()
+#     ....
+#     (_fc): Linear(in_features=1792, out_features=10, bias=True)
+#   )
+#   (classifier): Linear(in_features=1792, out_features=10, bias=True)
+# )
+```
+
+This code creates a PyTorch model using the EfficientNet_B4 backbone and a linear classifier. The model takes an input of shape (3, 224, 224) and outputs an array of size 10. The model is initialized on the 'cuda' device.
+
+The model is then printed to the console, showing the structure of the model.
+
+The forward function of the model takes an input tensor 'x', passes it through the backbone, and then passes the output through the classifier. The output is the predicted class probabilities.
+
+The model uses cross entropy loss for training.

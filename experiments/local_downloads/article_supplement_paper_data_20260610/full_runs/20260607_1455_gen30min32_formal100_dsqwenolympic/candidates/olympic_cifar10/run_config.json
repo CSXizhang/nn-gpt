@@ -1,0 +1,49 @@
+{
+  "phase": "gen_only",
+  "setting": "olympic_cifar10",
+  "source_run": "20260607_0214_formal100_olympic_a7_cifar10_kl0005_nothink_l40s",
+  "seed": 42,
+  "budget": 30,
+  "source_format": "xml_completion",
+  "prompt_config": {
+    "nn_prefixes": "rl-bb-test1",
+    "prompt_mode": "sft_aligned",
+    "feedback_char_budget": 0,
+    "temperature": 0.8,
+    "top_p": 0.95,
+    "top_k": 50,
+    "max_new_tokens": 1536,
+    "do_sample": true,
+    "eos_token_id": 151645,
+    "pad_token_id": 151645,
+    "use_cache": true,
+    "stop_strings": [
+      "</forward>"
+    ],
+    "min_new_tokens": 32
+  },
+  "adapter_config": {
+    "adapter_path": "/data/42-julia-hpc-ai-cv-students/s471802/nn-gpt-runs/parallel_runs/20260607_0214_formal100_olympic_a7_cifar10_kl0005_nothink_l40s/grpo_backbone_outputs/checkpoints/stage2_formal_explore/adapter",
+    "adapter_mode": "trainable"
+  },
+  "model_config": {
+    "model_source": "/home/s471802/nn-gpt/out/llm/open-r1/OlympicCoder-7B",
+    "tokenizer_source": "/data/42-julia-hpc-ai-cv-students/s471802/nn-gpt-runs/tokenizers/OlympicCoder-7B-no-think-qwen2",
+    "source_mode": "explicit-path+explicit-tokenizer-path",
+    "precision": {
+      "bf16": false,
+      "fp16": true,
+      "torch_dtype": "torch.float16",
+      "label": "fp16"
+    },
+    "adapter_path": "/data/42-julia-hpc-ai-cv-students/s471802/nn-gpt-runs/parallel_runs/20260607_0214_formal100_olympic_a7_cifar10_kl0005_nothink_l40s/grpo_backbone_outputs/checkpoints/stage2_formal_explore/adapter",
+    "adapter_mode": "trainable"
+  },
+  "git": {
+    "commit": "c9276599c8dd1df4def862b21dd3a766638bccd5",
+    "commit_short": "c9276599",
+    "commit_subject": "Scale non-trainable warmup penalty by 0.2x to prevent Mistral collapse",
+    "branch": "experiment/four-pattern-reward-ablation-821f"
+  },
+  "created_at": "2026-06-07T13:52:38+0200"
+}

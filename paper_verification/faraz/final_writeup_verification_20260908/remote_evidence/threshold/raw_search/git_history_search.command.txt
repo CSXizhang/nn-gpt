@@ -1,0 +1,1 @@
+cd /home/s471802/nn-gpt && git log --all --oneline --pickaxe-all -S "threshold_sensitivity_70_80_90" -- . ":(exclude)*.jsonl"

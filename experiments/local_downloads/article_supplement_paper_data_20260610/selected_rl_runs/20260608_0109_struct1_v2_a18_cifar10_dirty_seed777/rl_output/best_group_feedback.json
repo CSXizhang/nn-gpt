@@ -1,0 +1,52 @@
+{
+  "group_id": 5,
+  "best_closed_group_mean_reward_target_acc": 0.17966708860759492,
+  "best_closed_group_mean_train_acc": 0.8801170182841073,
+  "best_closed_group_mean_test_acc": 0.898735443037974,
+  "feedback": [
+    {
+      "goal_key": "Fractal_to_DualBackbone",
+      "pattern_name": "DualBackbone_Fractal_Fuse_Wide_8759b6",
+      "graph_expr_short": "classifier(Cat(PoolFlat(Fractal[FractalUnit](Input)), PoolFlat(Backbone[regnet_y_3_2gf](Input)), PoolFlat(Backbone[resnet50](Input))))",
+      "reward_target_value": 0.18652000000000002,
+      "frozen_train_acc": 0.9154,
+      "frozen_test_acc": 0.9326,
+      "unfrozen_train_acc": null,
+      "unfrozen_test_acc": null,
+      "backbone_model_names": [
+        "regnet_y_3_2gf",
+        "resnet50"
+      ],
+      "stats_short": "depth:4 merges:1 stem:0 project:0 fuse:1 struct:0.09",
+      "summary": "pattern=DualBackbone_Fractal_Fuse_Wide_8759b6; target=0.1865; frozen_train=0.9154; frozen_test=0.9326; backbones=[regnet_y_3_2gf, resnet50]; backbone_bucket=regnet_y_3_2gf + resnet50; cnn=Cat(Backbone(Input), Backbone(Input), Fractal(Inp...",
+      "family_hash": "27413ccaf5b33052843a15c4a8706f691c3a77ae",
+      "signature": "DualBackbone_Fractal_Fuse_Wide_8759b6_8759b6",
+      "reward_group_id": 5,
+      "backbone_signature": "regnet_y_3_2gf + resnet50",
+      "cnn_signature": "86ab858e3845e7128fa6117d06a68dc414a53cbd",
+      "cnn_expr_short": "Cat(Backbone(Input), Backbone(Input), Fractal(Input))"
+    },
+    {
+      "goal_key": "Fractal_to_DualBackbone",
+      "pattern_name": "DualBackbone_Fractal_Fuse_Wide_ade8d7",
+      "graph_expr_short": "classifier(Cat(PoolFlat(Fractal[FractalUnit](Input)), PoolFlat(Backbone[mobilenet_v3_large](Input)), PoolFlat(Backbone[resnet50](Input))))",
+      "reward_target_value": 0.18644000000000002,
+      "frozen_train_acc": 0.9061555555555556,
+      "frozen_test_acc": 0.9322,
+      "unfrozen_train_acc": null,
+      "unfrozen_test_acc": null,
+      "backbone_model_names": [
+        "mobilenet_v3_large",
+        "resnet50"
+      ],
+      "stats_short": "depth:4 merges:1 stem:0 project:0 fuse:1 struct:0.09",
+      "summary": "pattern=DualBackbone_Fractal_Fuse_Wide_ade8d7; target=0.1864; frozen_train=0.9062; frozen_test=0.9322; backbones=[mobilenet_v3_large, resnet50]; backbone_bucket=mobilenet_v3_large + resnet50; cnn=Cat(Backbone(Input), Backbone(Input), Fra...",
+      "family_hash": "27413ccaf5b33052843a15c4a8706f691c3a77ae",
+      "signature": "DualBackbone_Fractal_Fuse_Wide_ade8d7_ade8d7",
+      "reward_group_id": 5,
+      "backbone_signature": "mobilenet_v3_large + resnet50",
+      "cnn_signature": "86ab858e3845e7128fa6117d06a68dc414a53cbd",
+      "cnn_expr_short": "Cat(Backbone(Input), Backbone(Input), Fractal(Input))"
+    }
+  ]
+}

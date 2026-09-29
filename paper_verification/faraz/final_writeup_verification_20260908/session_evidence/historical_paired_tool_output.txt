@@ -1,0 +1,67 @@
+Chunk ID: c028d9
+Wall time: 1.4455 seconds
+Process exited with code 0
+Original token count: 1215
+Output:
+wrote /Users/zhangxi/Desktop/SFT_RL/paper_used_data_check_20260704/01_processed_results/article_diagnostics_20260627/threshold_sensitivity_70_80_90.csv
+wrote /Users/zhangxi/Desktop/SFT_RL/paper_used_data_check_20260704/01_processed_results/article_diagnostics_20260627/threshold_sensitivity_70_80_90.md
+runs 12
+condition,seed,role,run_id,rows,family_top1_ge_70_onset,family_top1_ge_80_onset,family_top1_ge_90_onset,descriptor_top1_ge_70_onset,descriptor_top1_ge_80_onset,descriptor_top1_ge_90_onset,graph_top1_ge_70_onset,graph_top1_ge_80_onset,graph_top1_ge_90_onset
+1-pattern,42,original,20260618_1pattern_a9_cifar10_e5_p3500_c1200_s100_h100x4_shared_full_full_reward_seed42,800,100,100,100,100,100,100,never,never,never
+1-pattern,123,original,20260618_1pattern_a9_cifar10_e5_p3500_c1200_s100_h100x4_shared_full_full_reward_seed123,800,100,100,100,100,100,100,never,never,never
+1-pattern,777,original,20260618_1pattern_a9_cifar10_e5_p3500_c1200_s100_h100x4_shared_full_full_reward_seed777,800,100,100,100,100,100,100,never,never,never
+1-pattern,114,added,20260627_1pattern_a9_cifar10_e5_p3500_c1200_s100_h100x4_shared_full_full_reward_seed114,800,200,200,200,200,200,200,500,never,never
+1-pattern,514,added,20260627_1pattern_a9_cifar10_e5_p3500_c1200_s100_h100x4_shared_full_full_reward_seed514,800,100,100,100,100,100,100,100,100,100
+1-pattern,919,added,20260627_1pattern_a9_cifar10_e5_p3500_c1200_s100_h100x4_shared_full_full_reward_seed919,800,100,100,100,100,100,100,300,300,500
+4-pattern,42,original,20260612_4pattern_a18_cifar10_e5_p3500_c1200_s100_l40s_excl_full_full_reward_seed42,800,300,400,500,400,400,500,never,never,never
+4-pattern,123,original,20260612_4pattern_a18_cifar10_e5_p3500_c1200_s100_h100x4_shared_full_full_reward_seed123,800,never,never,never,never,never,never,never,never,never
+4-pattern,777,original,20260612_4pattern_a18_cifar10_e5_p3500_c1200_s100_l40s_excl_full_full_reward_seed777,800,never,never,never,300,never,never,never,never,never
+4-pattern,114,added,20260627_4pattern_a18_cifar10_e5_p3500_c1200_s100_h100x4_shared_full_full_reward_seed114,800,never,never,never,never,never,never,never,never,never
+4-pattern,514,added,20260627_4pattern_a18_cifar10_e5_p3500_c1200_s100_h100x4_shared_full_full_reward_seed514,800,300,300,300,300,300,300,700,700,never
+4-pattern,919,added,20260627_4pattern_a18_cifar10_e5_p3500_c1200_s100_h100x4_shared_full_full_reward_seed919,800,200,200,200,200,200,200,never,never,never
+
+---
+# Threshold sensitivity 70/80/90
+
+Input: `six_seed_robustness_current.csv` and each listed raw `generation_samples.jsonl`. Onset is earliest 100-sample `window_end` where top-1 share among formal-success samples reaches the threshold. Windows with fewer than 20 formal-success samples are ignored for onset.
+
+## family_top1
+
+| threshold | reached / runs | onset values |
+|---:|---:|---|
+| 70% | 9/12 | 100:5, 200:2, 300:2, never:3 |
+| 80% | 9/12 | 100:5, 200:2, 300:1, 400:1, never:3 |
+| 90% | 9/12 | 100:5, 200:2, 300:1, 500:1, never:3 |
+
+## descriptor_top1
+
+| threshold | reached / runs | onset values |
+|---:|---:|---|
+| 70% | 10/12 | 100:5, 200:2, 300:2, 400:1, never:2 |
+| 80% | 9/12 | 100:5, 200:2, 300:1, 400:1, never:3 |
+| 90% | 9/12 | 100:5, 200:2, 300:1, 500:1, never:3 |
+
+## graph_top1
+
+| threshold | reached / runs | onset values |
+|---:|---:|---|
+| 70% | 4/12 | 100:1, 300:1, 500:1, 700:1, never:8 |
+| 80% | 3/12 | 100:1, 300:1, 700:1, never:9 |
+| 90% | 2/12 | 100:1, 500:1, never:10 |
+
+## Per-run table
+
+| condition | seed | role | rows | family 70 | family 80 | family 90 | descriptor 70 | descriptor 80 | descriptor 90 | graph 70 | graph 80 | graph 90 |
+|---|---:|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 1-pattern | 42 | original | 800 | 100 | 100 | 100 | 100 | 100 | 100 | never | never | never |
+| 1-pattern | 123 | original | 800 | 100 | 100 | 100 | 100 | 100 | 100 | never | never | never |
+| 1-pattern | 777 | original | 800 | 100 | 100 | 100 | 100 | 100 | 100 | never | never | never |
+| 1-pattern | 114 | added | 800 | 200 | 200 | 200 | 200 | 200 | 200 | 500 | never | never |
+| 1-pattern | 514 | added | 800 | 100 | 100 | 100 | 100 | 100 | 100 | 100 | 100 | 100 |
+| 1-pattern | 919 | added | 800 | 100 | 100 | 100 | 100 | 100 | 100 | 300 | 300 | 500 |
+| 4-pattern | 42 | original | 800 | 300 | 400 | 500 | 400 | 400 | 500 | never | never | never |
+| 4-pattern | 123 | original | 800 | never | never | never | never | never | never | never | never | never |
+| 4-pattern | 777 | original | 800 | never | never | never | 300 | never | never | never | never | never |
+| 4-pattern | 114 | added | 800 | never | never | never | never | never | never | never | never | never |
+| 4-pattern | 514 | added | 800 | 300 | 300 | 300 | 300 | 300 | 300 | 700 | 700 | never |
+| 4-pattern | 919 | added | 800 | 200 | 200 | 200 | 200 | 200 | 200 | never | never | never |

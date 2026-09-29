@@ -1,0 +1,17 @@
+\begin{tabular}{lllrrrrrl}
+\toprule
+Condition & Seed & Role & Samples & Formal & Mean Acc. & Mean Reward & Pos. Reward & Dominant outcome \\
+\midrule
+1-pattern & 42 & original & 800 & 91/100 & 0.913 & 0.405 & 91/100 & formal_success \\
+1-pattern & 123 & original & 800 & 100/100 & 0.911 & 0.438 & 100/100 & formal_success \\
+1-pattern & 777 & original & 800 & 99/100 & 0.907 & 0.409 & 97/100 & formal_success \\
+1-pattern & 114 & added & 800 & 99/100 & 0.868 & -0.800 & 0/100 & target_structure_dead_block \\
+1-pattern & 514 & added & 800 & 100/100 & 0.892 & 0.568 & 100/100 & formal_success \\
+4-pattern & 42 & original & 800 & 100/100 & 0.918 & 0.780 & 100/100 & formal_success \\
+4-pattern & 123 & original & 800 & 96/100 & 0.908 & 0.898 & 94/100 & formal_success \\
+4-pattern & 777 & original & 800 & 98/100 & 0.905 & 0.924 & 98/100 & formal_success \\
+4-pattern & 114 & added & 800 & 0/100 & NA & -0.870 & 0/100 & syntax_template_or_format_failure \\
+4-pattern & 514 & added & 800 & 100/100 & 0.909 & 0.389 & 100/100 & formal_success \\
+4-pattern & 919 & reserve_running & 72 & 0/72 & NA & -4.117 & 0/72 & cpu_prevalidate_RuntimeError \\
+\bottomrule
+\end{tabular}

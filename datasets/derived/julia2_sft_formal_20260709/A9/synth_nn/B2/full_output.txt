@@ -1,0 +1,34 @@
+<block>
+def drop_conv3x3_block(in_channels, out_channels, stride=1, padding=1, bias=False, dropout_prob=0.0):
+    return nn.Sequential(nn.Conv2d(in_channels, out_channels, kernel_size=3, stride=stride, padding=padding, bias=bias), nn.BatchNorm2d(out_channels), nn.SiLU(inplace=True), nn.Dropout2d(p=dropout_prob) if dropout_prob > 0 else nn.Identity())
+</block>
+<init>
+def __init__(self, in_shape: tuple, out_shape: tuple, prm: dict, device: torch.device) -> None:
+    super().__init__()
+    self.device = device
+    self.use_amp = prm.get("use_amp", False)
+    c_in = in_shape[1] if len(in_shape) == 4 else in_shape[0]
+    self._input_spec = (c_in, ) + in_shape[2:]
+    self.backbone_a = TorchVision(model='mobilenet_v2', in_channels=c_in)
+    self.backbone_b = TorchVision(model='shufflenet_v2_x1_5', in_channels=c(c_in)<_in)
+    self.features = nn.Sequential(FractalUnit(in_channels=c_in, out_channels=32, num_columns=2, loc_drop_prob=0.1, dropout_prob=0.1), FractalUnit(in_channels=32, out_channels=64, num_columns=2, loc_drop_prob=0.1, dropout_prob=0.1))
+    self._scaler = GradScaler("cuda", enabled=self.use_amp)
+    self.infer_dimensions_dynamically(out_shape[0])
+</init>
+<forward>
+def forward(self, x: torch.Tensor, is_probing: bool=False) -> torch.Tensor:
+    x_a = adaptive_pool_flatten(self.backbone_a(x))
+    x_b = adaptive_pool_flatten(self.backbone_b(x))
+    x_f = adaptive_pool_flatten(self.features(x))
+    x_out = torch.cat([x_a, x_f, x_b], dim=1)
+    if is_probing:
+        return x_out
+    return self.classifier(x_out)
+</forward>
+
+### Notes:
+Implement the FULL function starting with `def drop_conv3x3_block(in_channels, out_channels, stride=1, padding=1, bias=False, dropout_prob=0.0):`. Return an `nn.Sequential` block containing a valid chain of Conv2d, BatchNorm, Activations (e.g., ReLU/SiLU), and Dropout.
+
+Implement the FULL method starting with `def __init__(self, in_shape: tuple, out_shape: tuple, prm: dict, device: torch.device) -> None:`. First, extract the number of input channels from `in_shape`: `c_in = in_shape[1] if len(in_shape) == 4 else in_shape[0]`. In all subsequent component initializations, `c_in` must be used directly. Do not perform any `if-else` checks on the value of `c_in`. Choose TWO specific model names from [convnext_tiny, densenet121, densenet161, densenet169, densenet201, efficientnet_b0, efficientnet_b1, efficientnet_b2, efficientnet_b3, efficientnet_b4, efficientnet_v2_s, googlenet, inception_v3, mnasnet0_5, mnasnet0_75, mnasnet1_0, mnasnet1_3, mobilenet_v2, mobilenet_v3_large, mobilenet_v3_small, resnet18, resnet34, resnet50, resnext50_32x4d, shufflenet_v2_x0_5, shufflenet_v2_x1_0, shufflenet_v2_x1_5, shufflenet_v2_x2_0, squeezenet1_0, squeezenet1_1, swin_t, swin_v2_t]. And Initialize `self.backbone_a` and `self.backbone_b` using `TorchVision(model='...', in_channels=c_in)`. Initialize `self.features`(1-2 FractalUnit layers) using `FractalUnit(in_channels=c_in, ...)`. Store the input image spec on `self._input_spec` so the provided dynamic sizing helper can probe the classifier dimension. Finish `__init__` by using the existing `infer_dimensions_dynamically` helper once with the class count from `out_shape`, then initialize `self._scaler`.
+
+Implement the FULL method starting with `def forward(self, x: torch.Tensor, is_probing: bool = False) -> torch.Tensor:`. Implement the target pattern `B_to_Fractal_plus_A` with a direct computation graph. Output Instructions: You must output ONLY the implementation of the three components wrapped in XML tags. Each tag MUST contain the complete function/method definition (signature and body). No markdown, no conversation.

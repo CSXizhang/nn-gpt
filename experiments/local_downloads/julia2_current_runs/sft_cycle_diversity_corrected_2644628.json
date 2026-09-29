@@ -1,0 +1,1042 @@
+[
+  {
+    "cycle": 0,
+    "total": 30,
+    "gen_ok": 28,
+    "tag_ok": 28,
+    "ast_ok": 24,
+    "unique_forward": 23,
+    "top_forward_count": 4,
+    "unique_backbone_pair": 5,
+    "top_backbone_pair": "()",
+    "top_backbone_pair_count": 16,
+    "unique_pattern": 4,
+    "top_pattern": "",
+    "top_pattern_count": 14,
+    "unique_drop_block": 6,
+    "top_drop_block_count": 11,
+    "top_drop_block": "",
+    "top_pairs": [
+      [
+        "()",
+        16
+      ],
+      [
+        "('densenet121', 'densenet121')",
+        5
+      ],
+      [
+        "('densenet121', 'densenet161')",
+        3
+      ],
+      [
+        "('backbones[0]', 'backbones[1]')",
+        2
+      ],
+      [
+        "('densenet121',)",
+        1
+      ],
+      [
+        "('device', 'device')",
+        1
+      ]
+    ],
+    "top_patterns": [
+      [
+        "",
+        14
+      ],
+      [
+        "A_to_Fractal_to_B",
+        5
+      ],
+      [
+        "B_to_Fractal_plus_A",
+        4
+      ],
+      [
+        "Fractal_to_DualBackbone",
+        3
+      ],
+      [
+        "A_to_Fractal_plus_B",
+        2
+      ]
+    ],
+    "top_drop_blocks": [
+      [
+        "",
+        11
+      ],
+      [
+        "Conv2d -> BatchNorm2d -> ReLU -> Dropout2d",
+        7
+      ],
+      [
+        "Conv2d -> BatchNorm2d -> ReLU -> Dropout",
+        4
+      ],
+      [
+        "Conv2d -> ReLU -> Dropout2d",
+        3
+      ],
+      [
+        "Conv2d -> BatchNorm2d -> ReLU -> Dropout2d -> Conv2d -> BatchNorm2d -> ReLU",
+        1
+      ],
+      [
+        "Conv2d -> ReLU -> Dropout2d -> Conv2d -> ReLU -> Dropout2d",
+        1
+      ],
+      [
+        "Conv2d -> BatchNorm2d -> ReLU -> Dropout2d -> Conv2d -> BatchNorm2d -> ReLU -> Dropout2d",
+        1
+      ]
+    ]
+  },
+  {
+    "cycle": 1,
+    "total": 30,
+    "gen_ok": 28,
+    "tag_ok": 28,
+    "ast_ok": 27,
+    "unique_forward": 27,
+    "top_forward_count": 1,
+    "unique_backbone_pair": 10,
+    "top_backbone_pair": "('densenet121', 'densenet121')",
+    "top_backbone_pair_count": 10,
+    "unique_pattern": 4,
+    "top_pattern": "A_to_Fractal_plus_B",
+    "top_pattern_count": 9,
+    "unique_drop_block": 9,
+    "top_drop_block_count": 13,
+    "top_drop_block": "Conv2d -> BatchNorm2d -> ReLU -> Dropout2d",
+    "top_pairs": [
+      [
+        "('densenet121', 'densenet121')",
+        10
+      ],
+      [
+        "()",
+        5
+      ],
+      [
+        "('backbones[0]', 'backbones[1]')",
+        3
+      ],
+      [
+        "('densenet121', 'densenet161')",
+        3
+      ],
+      [
+        "('resnet50', 'resnet50')",
+        1
+      ],
+      [
+        "(\"prm.get('backbone_a', 'densenet121')\", \"prm.get('backbone_b', 'convnext_tiny')\")",
+        1
+      ],
+      [
+        "(\"self.prm.get('backbone_a', 'densenet121')\", \"self.prm.get('backbone_b', 'convnext_tiny')\")",
+        1
+      ],
+      [
+        "('backbones[np.random.randint(len(backbones))]', 'backbones[np.random.randint(len(backbones))]')",
+        1
+      ]
+    ],
+    "top_patterns": [
+      [
+        "A_to_Fractal_plus_B",
+        9
+      ],
+      [
+        "A_to_Fractal_to_B",
+        8
+      ],
+      [
+        "Fractal_to_DualBackbone",
+        5
+      ],
+      [
+        "B_to_Fractal_plus_A",
+        5
+      ],
+      [
+        "",
+        1
+      ]
+    ],
+    "top_drop_blocks": [
+      [
+        "Conv2d -> BatchNorm2d -> ReLU -> Dropout2d",
+        13
+      ],
+      [
+        "",
+        4
+      ],
+      [
+        "Conv2d -> BatchNorm2d -> ReLU -> Dropout2d -> Conv2d -> BatchNorm2d -> ReLU",
+        3
+      ],
+      [
+        "Conv2d -> ReLU -> Dropout -> Conv2d -> ReLU -> Dropout",
+        2
+      ],
+      [
+        "Conv2d -> BatchNorm2d -> ReLU -> Dropout2d -> Identity",
+        1
+      ],
+      [
+        "Conv2d -> ReLU -> Dropout2d",
+        1
+      ],
+      [
+        "Conv2d -> ReLU -> Dropout2d -> Conv2d -> ReLU -> Dropout2d",
+        1
+      ],
+      [
+        "Conv2d -> BatchNorm2d -> ReLU -> Dropout2d -> Identity",
+        1
+      ]
+    ]
+  },
+  {
+    "cycle": 2,
+    "total": 30,
+    "gen_ok": 29,
+    "tag_ok": 29,
+    "ast_ok": 28,
+    "unique_forward": 28,
+    "top_forward_count": 1,
+    "unique_backbone_pair": 21,
+    "top_backbone_pair": "()",
+    "top_backbone_pair_count": 4,
+    "unique_pattern": 4,
+    "top_pattern": "A_to_Fractal_to_B",
+    "top_pattern_count": 9,
+    "unique_drop_block": 15,
+    "top_drop_block_count": 7,
+    "top_drop_block": "Conv2d -> BatchNorm2d -> ReLU -> Conv2d -> BatchNorm2d -> ReLU -> Dropout2d -> Identity",
+    "top_pairs": [
+      [
+        "()",
+        4
+      ],
+      [
+        "('convnext_tiny', 'densenet121')",
+        2
+      ],
+      [
+        "('resnet18', 'resnet18')",
+        2
+      ],
+      [
+        "('regnet_x_400mf', 'regnet_x_400mf')",
+        2
+      ],
+      [
+        "(\"prm.get('backbone_a', 'densenet121')\", \"prm.get('backbone_b', 'convnext_tiny')\")",
+        2
+      ],
+      [
+        "('densenet121', 'densenet161')",
+        1
+      ],
+      [
+        "('regnet_y_800mf', 'regnet_y_800mf')",
+        1
+      ],
+      [
+        "('resnet18', 'resnet50')",
+        1
+      ]
+    ],
+    "top_patterns": [
+      [
+        "A_to_Fractal_to_B",
+        9
+      ],
+      [
+        "A_to_Fractal_plus_B",
+        9
+      ],
+      [
+        "Fractal_to_DualBackbone",
+        5
+      ],
+      [
+        "B_to_Fractal_plus_A",
+        5
+      ],
+      [
+        "",
+        1
+      ]
+    ],
+    "top_drop_blocks": [
+      [
+        "Conv2d -> BatchNorm2d -> ReLU -> Conv2d -> BatchNorm2d -> ReLU -> Dropout2d -> Identity",
+        7
+      ],
+      [
+        "Conv2d -> BatchNorm2d -> ReLU -> Conv2d -> BatchNorm2d -> ReLU -> Dropout2d -> Identity",
+        6
+      ],
+      [
+        "Conv2d -> BatchNorm2d -> ReLU -> Dropout2d -> Identity",
+        2
+      ],
+      [
+        "Conv2d -> ReLU -> Dropout2d",
+        2
+      ],
+      [
+        "Conv2d -> ReLU -> Conv2d -> ReLU -> Dropout2d",
+        1
+      ],
+      [
+        "Conv2d -> BatchNorm2d -> ReLU -> Conv2d -> BatchNorm2d -> ReLU -> Dropout2d -> Identity -> Dropout2d -> Identity",
+        1
+      ],
+      [
+        "Conv2d -> BatchNorm2d -> ReLU -> Dropout2d -> Identity",
+        1
+      ],
+      [
+        "Conv2d -> GELU -> Conv2d -> GELU -> Dropout2d",
+        1
+      ]
+    ]
+  },
+  {
+    "cycle": 3,
+    "total": 30,
+    "gen_ok": 30,
+    "tag_ok": 30,
+    "ast_ok": 30,
+    "unique_forward": 24,
+    "top_forward_count": 7,
+    "unique_backbone_pair": 25,
+    "top_backbone_pair": "('mobilenet_v2', 'efficientnet_b0')",
+    "top_backbone_pair_count": 3,
+    "unique_pattern": 4,
+    "top_pattern": "A_to_Fractal_plus_B",
+    "top_pattern_count": 10,
+    "unique_drop_block": 24,
+    "top_drop_block_count": 3,
+    "top_drop_block": "Conv2d -> Conv2d -> Conv2d",
+    "top_pairs": [
+      [
+        "('mobilenet_v2', 'efficientnet_b0')",
+        3
+      ],
+      [
+        "('regnet_x_400mf', 'regnet_x_400mf')",
+        2
+      ],
+      [
+        "('resnet18', 'densenet121')",
+        2
+      ],
+      [
+        "('regnet_x_400mf', 'regnet_y_1_6gf')",
+        2
+      ],
+      [
+        "('regnet_x_400mf', 'shufflenet_v2_x2_0')",
+        1
+      ],
+      [
+        "('regnet_x_800mf', 'resnet50')",
+        1
+      ],
+      [
+        "('resnet50', 'densenet121')",
+        1
+      ],
+      [
+        "('mobilenet_v2', 'regnet_x_400mf')",
+        1
+      ]
+    ],
+    "top_patterns": [
+      [
+        "A_to_Fractal_plus_B",
+        10
+      ],
+      [
+        "A_to_Fractal_to_B",
+        9
+      ],
+      [
+        "Fractal_to_DualBackbone",
+        6
+      ],
+      [
+        "B_to_Fractal_plus_A",
+        5
+      ]
+    ],
+    "top_drop_blocks": [
+      [
+        "Conv2d -> Conv2d -> Conv2d",
+        3
+      ],
+      [
+        "Conv2d -> Dropout2d -> Identity",
+        2
+      ],
+      [
+        "Conv2d -> BatchNorm2d -> Conv2d -> BatchNorm2d -> Dropout2d -> Identity",
+        2
+      ],
+      [
+        "Conv2d -> Conv2d -> Conv2d -> Dropout2d",
+        2
+      ],
+      [
+        "Conv2d -> Conv2d -> Dropout2d",
+        2
+      ],
+      [
+        "Conv2d -> BatchNorm2d -> Conv2d -> BatchNorm2d -> Dropout2d -> Identity",
+        1
+      ],
+      [
+        "Conv2d -> GELU -> BatchNorm2d -> Dropout2d -> Identity",
+        1
+      ],
+      [
+        "Conv2d -> Conv2d -> Conv2d -> Conv2d -> BatchNorm2d -> ReLU -> Dropout2d -> Identity",
+        1
+      ]
+    ]
+  },
+  {
+    "cycle": 4,
+    "total": 30,
+    "gen_ok": 30,
+    "tag_ok": 30,
+    "ast_ok": 30,
+    "unique_forward": 4,
+    "top_forward_count": 10,
+    "unique_backbone_pair": 27,
+    "top_backbone_pair": "('regnet_x_400mf', 'shufflenet_v2_x2_0')",
+    "top_backbone_pair_count": 2,
+    "unique_pattern": 4,
+    "top_pattern": "A_to_Fractal_plus_B",
+    "top_pattern_count": 10,
+    "unique_drop_block": 22,
+    "top_drop_block_count": 4,
+    "top_drop_block": "Conv2d -> Conv2d -> Conv2d",
+    "top_pairs": [
+      [
+        "('regnet_x_400mf', 'shufflenet_v2_x2_0')",
+        2
+      ],
+      [
+        "('shufflenet_v2_x0_5', 'mnasnet1_0')",
+        2
+      ],
+      [
+        "('resnet18', 'shufflenet_v2_x1_5')",
+        2
+      ],
+      [
+        "('shufflenet_v2_x0_5', 'regnet_x_400mf')",
+        1
+      ],
+      [
+        "('regnet_x_1_6gf', 'resnet50')",
+        1
+      ],
+      [
+        "('resnet50', 'shufflenet_v2_x1_5')",
+        1
+      ],
+      [
+        "('resnet50', 'efficientnet_b4')",
+        1
+      ],
+      [
+        "('regnet_y_3_2gf', 'regnet_y_800mf')",
+        1
+      ]
+    ],
+    "top_patterns": [
+      [
+        "A_to_Fractal_plus_B",
+        10
+      ],
+      [
+        "A_to_Fractal_to_B",
+        9
+      ],
+      [
+        "Fractal_to_DualBackbone",
+        6
+      ],
+      [
+        "B_to_Fractal_plus_A",
+        5
+      ]
+    ],
+    "top_drop_blocks": [
+      [
+        "Conv2d -> Conv2d -> Conv2d",
+        4
+      ],
+      [
+        "Conv2d -> BatchNorm2d -> Conv2d -> BatchNorm2d",
+        2
+      ],
+      [
+        "Conv2d -> BatchNorm2d -> ReLU -> Conv2d -> BatchNorm2d -> ReLU -> Dropout2d -> Identity",
+        2
+      ],
+      [
+        "Conv2d -> BatchNorm2d",
+        2
+      ],
+      [
+        "Conv2d -> Dropout2d -> Identity",
+        2
+      ],
+      [
+        "Conv2d -> ReLU -> Dropout2d -> Identity",
+        2
+      ],
+      [
+        "Conv2d -> BatchNorm2d -> Conv2d -> Dropout2d -> Identity",
+        1
+      ],
+      [
+        "Conv2d -> Conv2d -> Dropout2d -> Identity",
+        1
+      ]
+    ]
+  },
+  {
+    "cycle": 5,
+    "total": 30,
+    "gen_ok": 30,
+    "tag_ok": 30,
+    "ast_ok": 30,
+    "unique_forward": 4,
+    "top_forward_count": 10,
+    "unique_backbone_pair": 30,
+    "top_backbone_pair": "('regnet_x_400mf', 'shufflenet_v2_x2_0')",
+    "top_backbone_pair_count": 1,
+    "unique_pattern": 4,
+    "top_pattern": "A_to_Fractal_plus_B",
+    "top_pattern_count": 10,
+    "unique_drop_block": 26,
+    "top_drop_block_count": 2,
+    "top_drop_block": "Conv2d -> BatchNorm2d -> Dropout2d -> Identity",
+    "top_pairs": [
+      [
+        "('regnet_x_400mf', 'shufflenet_v2_x2_0')",
+        1
+      ],
+      [
+        "('regnet_x_400mf', 'regnet_y_1_6gf')",
+        1
+      ],
+      [
+        "('resnext50_32x4d', 'squeezenet1_1')",
+        1
+      ],
+      [
+        "('mobilenet_v3_large', 'mnasnet1_0')",
+        1
+      ],
+      [
+        "('regnet_x_3_2gf', 'shufflenet_v2_x2_0')",
+        1
+      ],
+      [
+        "('resnext50_32x4d', 'shufflenet_v2_x2_0')",
+        1
+      ],
+      [
+        "('regnet_x_3_2gf', 'mnasnet1_3')",
+        1
+      ],
+      [
+        "('regnet_x_1_6gf', 'regnet_x_3_2gf')",
+        1
+      ]
+    ],
+    "top_patterns": [
+      [
+        "A_to_Fractal_plus_B",
+        10
+      ],
+      [
+        "A_to_Fractal_to_B",
+        9
+      ],
+      [
+        "Fractal_to_DualBackbone",
+        6
+      ],
+      [
+        "B_to_Fractal_plus_A",
+        5
+      ]
+    ],
+    "top_drop_blocks": [
+      [
+        "Conv2d -> BatchNorm2d -> Dropout2d -> Identity",
+        2
+      ],
+      [
+        "Conv2d -> Conv2d -> Dropout2d -> Identity",
+        2
+      ],
+      [
+        "Conv2d -> Dropout2d -> Identity",
+        2
+      ],
+      [
+        "Conv2d -> Conv2d -> ReLU -> Conv2d",
+        2
+      ],
+      [
+        "Conv2d -> BatchNorm2d -> Conv2d -> Dropout2d -> Identity",
+        1
+      ],
+      [
+        "Conv2d -> Conv2d -> ReLU -> Dropout2d -> Identity -> Dropout2d -> Identity",
+        1
+      ],
+      [
+        "Conv2d -> BatchNorm2d -> Conv2d -> ReLU -> Dropout2d -> Identity",
+        1
+      ],
+      [
+        "Conv2d -> Conv2d -> Dropout2d -> Identity",
+        1
+      ]
+    ]
+  },
+  {
+    "cycle": 6,
+    "total": 30,
+    "gen_ok": 30,
+    "tag_ok": 30,
+    "ast_ok": 30,
+    "unique_forward": 4,
+    "top_forward_count": 10,
+    "unique_backbone_pair": 27,
+    "top_backbone_pair": "('regnet_x_800mf', 'mnasnet1_0')",
+    "top_backbone_pair_count": 2,
+    "unique_pattern": 4,
+    "top_pattern": "A_to_Fractal_plus_B",
+    "top_pattern_count": 10,
+    "unique_drop_block": 28,
+    "top_drop_block_count": 2,
+    "top_drop_block": "Conv2d -> Conv2d -> ReLU",
+    "top_pairs": [
+      [
+        "('regnet_x_800mf', 'mnasnet1_0')",
+        2
+      ],
+      [
+        "('resnet18', 'resnet34')",
+        2
+      ],
+      [
+        "('regnet_x_3_2gf', 'mnasnet0_75')",
+        2
+      ],
+      [
+        "('regnet_x_400mf', 'shufflenet_v2_x2_0')",
+        1
+      ],
+      [
+        "('resnet34', 'mobilenet_v2')",
+        1
+      ],
+      [
+        "('mnasnet1_0', 'shufflenet_v2_x1_5')",
+        1
+      ],
+      [
+        "('regnet_x_400mf', 'shufflenet_v2_x0_5')",
+        1
+      ],
+      [
+        "('mobilenet_v3_small', 'regnet_x_800mf')",
+        1
+      ]
+    ],
+    "top_patterns": [
+      [
+        "A_to_Fractal_plus_B",
+        10
+      ],
+      [
+        "A_to_Fractal_to_B",
+        9
+      ],
+      [
+        "Fractal_to_DualBackbone",
+        6
+      ],
+      [
+        "B_to_Fractal_plus_A",
+        5
+      ]
+    ],
+    "top_drop_blocks": [
+      [
+        "Conv2d -> Conv2d -> ReLU",
+        2
+      ],
+      [
+        "Conv2d -> Dropout2d -> Identity -> Dropout2d -> Identity",
+        2
+      ],
+      [
+        "Conv2d -> BatchNorm2d -> Conv2d -> Dropout2d -> Identity",
+        1
+      ],
+      [
+        "Conv2d -> ReLU -> Conv2d -> Dropout2d -> Identity",
+        1
+      ],
+      [
+        "Conv2d -> BatchNorm2d -> Dropout2d -> Identity",
+        1
+      ],
+      [
+        "Conv2d -> ReLU -> Dropout2d -> Identity -> Dropout2d -> Identity -> Dropout2d -> Identity",
+        1
+      ],
+      [
+        "Conv2d -> Conv2d -> BatchNorm2d -> Dropout2d -> Identity",
+        1
+      ],
+      [
+        "Conv2d -> Conv2d",
+        1
+      ]
+    ]
+  },
+  {
+    "cycle": 7,
+    "total": 30,
+    "gen_ok": 30,
+    "tag_ok": 30,
+    "ast_ok": 30,
+    "unique_forward": 4,
+    "top_forward_count": 10,
+    "unique_backbone_pair": 28,
+    "top_backbone_pair": "('regnet_y_800mf', 'resnext50_32x4d')",
+    "top_backbone_pair_count": 2,
+    "unique_pattern": 4,
+    "top_pattern": "A_to_Fractal_plus_B",
+    "top_pattern_count": 10,
+    "unique_drop_block": 24,
+    "top_drop_block_count": 4,
+    "top_drop_block": "Conv2d -> Conv2d -> ReLU",
+    "top_pairs": [
+      [
+        "('regnet_y_800mf', 'resnext50_32x4d')",
+        2
+      ],
+      [
+        "('resnet18', 'mnasnet0_5')",
+        2
+      ],
+      [
+        "('regnet_x_400mf', 'mnasnet0_5')",
+        1
+      ],
+      [
+        "('regnet_x_3_2gf', 'shufflenet_v2_x2_0')",
+        1
+      ],
+      [
+        "('mobilenet_v2', 'resnet34')",
+        1
+      ],
+      [
+        "('resnet50', 'efficientnet_b1')",
+        1
+      ],
+      [
+        "('shufflenet_v2_x1_5', 'squeezenet1_1')",
+        1
+      ],
+      [
+        "('resnet18', 'shufflenet_v2_x1_5')",
+        1
+      ]
+    ],
+    "top_patterns": [
+      [
+        "A_to_Fractal_plus_B",
+        10
+      ],
+      [
+        "A_to_Fractal_to_B",
+        9
+      ],
+      [
+        "Fractal_to_DualBackbone",
+        6
+      ],
+      [
+        "B_to_Fractal_plus_A",
+        5
+      ]
+    ],
+    "top_drop_blocks": [
+      [
+        "Conv2d -> Conv2d -> ReLU",
+        4
+      ],
+      [
+        "Conv2d -> Conv2d -> Dropout2d -> Identity",
+        2
+      ],
+      [
+        "Conv2d -> GELU -> GELU -> Dropout2d -> Identity",
+        2
+      ],
+      [
+        "Conv2d -> BatchNorm2d -> Conv2d -> ReLU",
+        2
+      ],
+      [
+        "Conv2d -> BatchNorm2d -> GELU -> GELU -> Dropout2d -> Identity",
+        1
+      ],
+      [
+        "Conv2d -> ReLU -> Conv2d -> Dropout2d -> Identity -> Dropout2d -> Identity",
+        1
+      ],
+      [
+        "Conv2d -> BatchNorm2d -> ReLU -> Conv2d -> Dropout2d -> Identity",
+        1
+      ],
+      [
+        "Conv2d -> Conv2d -> BatchNorm2d",
+        1
+      ]
+    ]
+  },
+  {
+    "cycle": 8,
+    "total": 30,
+    "gen_ok": 30,
+    "tag_ok": 30,
+    "ast_ok": 30,
+    "unique_forward": 4,
+    "top_forward_count": 10,
+    "unique_backbone_pair": 29,
+    "top_backbone_pair": "('resnet18', 'shufflenet_v2_x1_0')",
+    "top_backbone_pair_count": 2,
+    "unique_pattern": 4,
+    "top_pattern": "A_to_Fractal_plus_B",
+    "top_pattern_count": 10,
+    "unique_drop_block": 24,
+    "top_drop_block_count": 3,
+    "top_drop_block": "Conv2d -> BatchNorm2d -> ReLU -> Conv2d -> Dropout2d -> Identity",
+    "top_pairs": [
+      [
+        "('resnet18', 'shufflenet_v2_x1_0')",
+        2
+      ],
+      [
+        "('regnet_x_400mf', 'mnasnet0_5')",
+        1
+      ],
+      [
+        "('regnet_x_3_2gf', 'resnet18')",
+        1
+      ],
+      [
+        "('shufflenet_v2_x1_0', 'regnet_x_400mf')",
+        1
+      ],
+      [
+        "('regnet_x_800mf', 'shufflenet_v2_x1_0')",
+        1
+      ],
+      [
+        "('resnet18', 'mnasnet0_5')",
+        1
+      ],
+      [
+        "('mobilenet_v3_large', 'mnasnet0_75')",
+        1
+      ],
+      [
+        "('regnet_x_3_2gf', 'resnext50_32x4d')",
+        1
+      ]
+    ],
+    "top_patterns": [
+      [
+        "A_to_Fractal_plus_B",
+        10
+      ],
+      [
+        "A_to_Fractal_to_B",
+        9
+      ],
+      [
+        "Fractal_to_DualBackbone",
+        6
+      ],
+      [
+        "B_to_Fractal_plus_A",
+        5
+      ]
+    ],
+    "top_drop_blocks": [
+      [
+        "Conv2d -> BatchNorm2d -> ReLU -> Conv2d -> Dropout2d -> Identity",
+        3
+      ],
+      [
+        "Conv2d -> Conv2d -> ReLU",
+        2
+      ],
+      [
+        "Conv2d -> GELU -> Conv2d -> BatchNorm2d",
+        2
+      ],
+      [
+        "Conv2d -> BatchNorm2d -> ReLU -> Conv2d",
+        2
+      ],
+      [
+        "Conv2d -> ReLU -> Conv2d -> Dropout2d -> Identity",
+        2
+      ],
+      [
+        "Conv2d -> BatchNorm2d -> GELU -> GELU -> Dropout2d -> Identity",
+        1
+      ],
+      [
+        "Conv2d -> Conv2d -> Dropout2d -> Identity",
+        1
+      ],
+      [
+        "Conv2d -> Conv2d -> Dropout2d -> Identity",
+        1
+      ]
+    ]
+  },
+  {
+    "cycle": 9,
+    "total": 30,
+    "gen_ok": 30,
+    "tag_ok": 30,
+    "ast_ok": 30,
+    "unique_forward": 4,
+    "top_forward_count": 10,
+    "unique_backbone_pair": 30,
+    "top_backbone_pair": "('regnet_x_400mf', 'mnasnet0_5')",
+    "top_backbone_pair_count": 1,
+    "unique_pattern": 4,
+    "top_pattern": "A_to_Fractal_plus_B",
+    "top_pattern_count": 10,
+    "unique_drop_block": 23,
+    "top_drop_block_count": 3,
+    "top_drop_block": "Conv2d -> Conv2d",
+    "top_pairs": [
+      [
+        "('regnet_x_400mf', 'mnasnet0_5')",
+        1
+      ],
+      [
+        "('regnet_y_800mf', 'resnet50')",
+        1
+      ],
+      [
+        "('mobilenet_v3_large', 'shufflenet_v2_x1_5')",
+        1
+      ],
+      [
+        "('shufflenet_v2_x1_0', 'mnasnet1_0')",
+        1
+      ],
+      [
+        "('regnet_y_800mf', 'mnasnet0_5')",
+        1
+      ],
+      [
+        "('shufflenet_v2_x0_5', 'resnet34')",
+        1
+      ],
+      [
+        "('mobilenet_v2', 'mnasnet0_5')",
+        1
+      ],
+      [
+        "('resnet18', 'mnasnet0_5')",
+        1
+      ]
+    ],
+    "top_patterns": [
+      [
+        "A_to_Fractal_plus_B",
+        10
+      ],
+      [
+        "A_to_Fractal_to_B",
+        9
+      ],
+      [
+        "Fractal_to_DualBackbone",
+        6
+      ],
+      [
+        "B_to_Fractal_plus_A",
+        5
+      ]
+    ],
+    "top_drop_blocks": [
+      [
+        "Conv2d -> Conv2d",
+        3
+      ],
+      [
+        "Conv2d -> Conv2d -> Conv2d",
+        3
+      ],
+      [
+        "Conv2d -> Conv2d -> BatchNorm2d -> Conv2d",
+        2
+      ],
+      [
+        "Conv2d -> BatchNorm2d -> Conv2d -> ReLU",
+        2
+      ],
+      [
+        "Conv2d -> Conv2d -> Dropout2d -> Identity -> Dropout2d -> Identity",
+        2
+      ],
+      [
+        "Conv2d -> BatchNorm2d -> GELU -> GELU -> Dropout2d -> Identity",
+        1
+      ],
+      [
+        "Conv2d -> Conv2d -> Dropout2d -> Identity",
+        1
+      ],
+      [
+        "Conv2d -> Dropout2d -> Identity -> Dropout2d -> Identity",
+        1
+      ]
+    ]
+  }
+]

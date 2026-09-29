@@ -1,0 +1,25 @@
+{
+  "source": "analysis/plot_g10b_current/a3_full_g10b/generation_samples.jsonl",
+  "line": 2224,
+  "selection": "best test_acc among formal/executable samples in final 100 of 4-pattern RL trajectory",
+  "test_acc": 0.9298,
+  "train_acc": 0.96082,
+  "reward": 0.31773636521638204,
+  "pattern_name": "DualBackbone_Fuse_Deep_110557",
+  "suggested_pattern_name": "DualBackbone_Fuse_Deep_110557",
+  "backbone_model_names": [
+    "resnet50",
+    "efficientnet_b1"
+  ],
+  "formal_success_candidate": true,
+  "formal_horizon_test_acc": {
+    "1": 0.9175,
+    "5": 0.927,
+    "10": 0.9298
+  },
+  "reward_target_value": 0.9274432499999999,
+  "completion_token_count": 588,
+  "block_signature": "c4ca4e07883e35168b68c1e748af63745062e469",
+  "cnn_signature": "0df6828cd4b1b641fdeb54d42b9e05658d2fbe7c",
+  "backbone_signature": "efficientnet_b1 + resnet50"
+}

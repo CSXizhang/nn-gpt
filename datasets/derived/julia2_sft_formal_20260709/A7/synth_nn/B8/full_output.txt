@@ -1,0 +1,27 @@
+<block>
+def drop_conv3x3_block(in_channels, out_channels, stride=1, padding=1, bias=False, dropout_prob=0.0):
+    return nn.Sequential(nn.Conv2d(in_channels, out_channels, kernel_size=3, stride=stride, padding=padding, bias=bias), nn.BatchNorm2d(out_channels), nn.GELU(), nn.Dropout2d(p=dropout_prob) if dropout_prob > 0 else nn.Identity(), nn.Conv2d(out_channels, out_channels, kernel_size=3, stride=1, padding=1, bias=bias), nn.BatchNorm2d(out_channels), nn.GELU())
+</block>
+<init>
+def __init__(self, in_shape: tuple, out_shape: tuple, prm: dict, device: torch.device) -> None:
+    super().__init__()
+    self.device = device
+    self.use_amp = prm.get('use_amp', False)
+    c_in = in_shape[1] if len(in_shape) == 4 else in_shape[0]
+    self._input_spec = (c_in, ) + in_shape[2:]
+    self.backbone_a = TorchVision(model='resnet18', in_channels=c_in)
+    self.backbone_b = TorchVision(model='resnext50_32x4d', in_channels=c_in)
+    self.features = nn.Sequential(FractalUnit(in_channels=c_in, out_channels=64, num_columns=2, loc_drop_prob=0.1, dropout_prob=0.1))
+    self.infer_dimensions_dynamically(out_shape[0])
+    self._scaler = GradScaler('cuda', enabled=self.use_amp)
+</init>
+<forward>
+def forward(self, x: torch.Tensor, is_probing: bool=False) -> torch.Tensor:
+    x_a = adaptive_pool_flatten(self.backbone_a(x))
+    x_b = self.features(x)
+    x_b = adaptive_pool_flatten(x_b)
+    x = adaptive_pool_flatten(self.backbone_b(x))
+    return self.classifier(torch.cat([x_a, x_b, x], dim=1))
+</forward>
+
+This solution is for a specific target pattern A_to_Fractal_plus_B, uses drop_conv3x3_block for drop_conv3x3_block, and uses ResNet18, ResNext50_32x4d as backbones. It also uses FractalUnit for features and GELU as the activation function.

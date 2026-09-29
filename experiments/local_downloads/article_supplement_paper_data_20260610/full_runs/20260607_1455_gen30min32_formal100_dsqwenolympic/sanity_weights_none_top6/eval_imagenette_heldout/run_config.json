@@ -1,0 +1,34 @@
+{
+  "phase": "eval_only",
+  "candidate_files": [
+    "/data/42-julia-hpc-ai-cv-students/s471802/nn-gpt-runs/parallel_runs/20260607_1455_gen30min32_formal100_dsqwenolympic/sanity_weights_none_top6/candidates.jsonl"
+  ],
+  "seed": 42,
+  "candidate_count": 6,
+  "source_formats": {
+    "full_code": 6
+  },
+  "gpu_count": 4,
+  "eval_config": {
+    "dataset": "imagenette",
+    "transform": "norm_128_flip",
+    "resize": 128,
+    "batch": 64,
+    "formal_reward_epochs": "1",
+    "split_protocol": "trainvaltest",
+    "split_seed": 42,
+    "eval_split_role": "heldout_test",
+    "train_set": "imagenette-train[7500]",
+    "reward_eval_set": "imagenette-train[1969]",
+    "heldout_test_set": "imagenette-test[3925]",
+    "workers_per_gpu": "1",
+    "eval_concurrency": 0
+  },
+  "git": {
+    "commit": "c9276599c8dd1df4def862b21dd3a766638bccd5",
+    "commit_short": "c9276599",
+    "commit_subject": "Scale non-trainable warmup penalty by 0.2x to prevent Mistral collapse",
+    "branch": "experiment/four-pattern-reward-ablation-821f"
+  },
+  "created_at": "2026-06-07T23:04:16+0200"
+}

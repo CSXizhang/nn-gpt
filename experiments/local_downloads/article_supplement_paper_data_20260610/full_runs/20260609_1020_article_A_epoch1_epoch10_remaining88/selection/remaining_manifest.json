@@ -1,0 +1,8 @@
+{
+  "source_run_root": "/data/42-julia-hpc-ai-cv-students/s471802/nn-gpt-runs/parallel_runs/20260608_1345_article_A_epoch1_epoch10",
+  "source_candidates": "/data/42-julia-hpc-ai-cv-students/s471802/nn-gpt-runs/parallel_runs/20260608_1345_article_A_epoch1_epoch10/selection/backbone_epoch1_epoch10_candidates_full_code.jsonl",
+  "source_completed": "/data/42-julia-hpc-ai-cv-students/s471802/nn-gpt-runs/parallel_runs/20260608_1345_article_A_epoch1_epoch10/eval_cifar10_epoch10/generation_samples.jsonl",
+  "completed_count": 212,
+  "remaining_count": 88,
+  "created_at": "2026-06-09T10:18:00+0200"
+}

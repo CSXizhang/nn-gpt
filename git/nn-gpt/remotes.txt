@@ -1,0 +1,6 @@
+julia2	ssh://s471802@julia2.hpc.uni-wuerzburg.de/home/s471802/nn-gpt (fetch)
+julia2	ssh://s471802@julia2.hpc.uni-wuerzburg.de/home/s471802/nn-gpt (push)
+origin	https://github.com/CSXizhang/nn-gpt.git (fetch) [blob:none]
+origin	https://github.com/CSXizhang/nn-gpt.git (push)
+upstream	https://github.com/ABrain-One/nn-gpt.git (fetch) [blob:none]
+upstream	https://github.com/ABrain-One/nn-gpt.git (push)

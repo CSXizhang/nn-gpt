@@ -1,0 +1,3524 @@
+{
+  "archived_summary_consistency_checks": [
+    {
+      "archived_metric": "backbone",
+      "condition": "1pattern",
+      "effective_abs_difference": 0.0,
+      "recomputed_field": "backbone_signature",
+      "seed": 42,
+      "top1_count_match": true,
+      "unique_match": true
+    },
+    {
+      "archived_metric": "cnn",
+      "condition": "1pattern",
+      "effective_abs_difference": 0.0,
+      "recomputed_field": "cnn_signature",
+      "seed": 42,
+      "top1_count_match": true,
+      "unique_match": true
+    },
+    {
+      "archived_metric": "backbone_cnn",
+      "condition": "1pattern",
+      "effective_abs_difference": 0.0,
+      "recomputed_field": "backbone_cnn_signature",
+      "seed": 42,
+      "top1_count_match": true,
+      "unique_match": true
+    },
+    {
+      "archived_metric": "forward_graph",
+      "condition": "1pattern",
+      "effective_abs_difference": 0.0,
+      "recomputed_field": "graph_hash",
+      "seed": 42,
+      "top1_count_match": true,
+      "unique_match": true
+    },
+    {
+      "archived_metric": "backbone",
+      "condition": "1pattern",
+      "effective_abs_difference": 0.0,
+      "recomputed_field": "backbone_signature",
+      "seed": 123,
+      "top1_count_match": true,
+      "unique_match": true
+    },
+    {
+      "archived_metric": "cnn",
+      "condition": "1pattern",
+      "effective_abs_difference": 0.0,
+      "recomputed_field": "cnn_signature",
+      "seed": 123,
+      "top1_count_match": true,
+      "unique_match": true
+    },
+    {
+      "archived_metric": "backbone_cnn",
+      "condition": "1pattern",
+      "effective_abs_difference": 0.0,
+      "recomputed_field": "backbone_cnn_signature",
+      "seed": 123,
+      "top1_count_match": true,
+      "unique_match": true
+    },
+    {
+      "archived_metric": "forward_graph",
+      "condition": "1pattern",
+      "effective_abs_difference": 0.0,
+      "recomputed_field": "graph_hash",
+      "seed": 123,
+      "top1_count_match": true,
+      "unique_match": true
+    },
+    {
+      "archived_metric": "backbone",
+      "condition": "1pattern",
+      "effective_abs_difference": 0.0,
+      "recomputed_field": "backbone_signature",
+      "seed": 777,
+      "top1_count_match": true,
+      "unique_match": true
+    },
+    {
+      "archived_metric": "cnn",
+      "condition": "1pattern",
+      "effective_abs_difference": 0.0,
+      "recomputed_field": "cnn_signature",
+      "seed": 777,
+      "top1_count_match": true,
+      "unique_match": true
+    },
+    {
+      "archived_metric": "backbone_cnn",
+      "condition": "1pattern",
+      "effective_abs_difference": 0.0,
+      "recomputed_field": "backbone_cnn_signature",
+      "seed": 777,
+      "top1_count_match": true,
+      "unique_match": true
+    },
+    {
+      "archived_metric": "forward_graph",
+      "condition": "1pattern",
+      "effective_abs_difference": 0.0,
+      "recomputed_field": "graph_hash",
+      "seed": 777,
+      "top1_count_match": true,
+      "unique_match": true
+    },
+    {
+      "archived_metric": "backbone",
+      "condition": "4pattern",
+      "effective_abs_difference": 0.0,
+      "recomputed_field": "backbone_signature",
+      "seed": 42,
+      "top1_count_match": true,
+      "unique_match": true
+    },
+    {
+      "archived_metric": "cnn",
+      "condition": "4pattern",
+      "effective_abs_difference": 0.0,
+      "recomputed_field": "cnn_signature",
+      "seed": 42,
+      "top1_count_match": true,
+      "unique_match": true
+    },
+    {
+      "archived_metric": "backbone_cnn",
+      "condition": "4pattern",
+      "effective_abs_difference": 0.0,
+      "recomputed_field": "backbone_cnn_signature",
+      "seed": 42,
+      "top1_count_match": true,
+      "unique_match": true
+    },
+    {
+      "archived_metric": "forward_graph",
+      "condition": "4pattern",
+      "effective_abs_difference": 0.0,
+      "recomputed_field": "graph_hash",
+      "seed": 42,
+      "top1_count_match": true,
+      "unique_match": true
+    },
+    {
+      "archived_metric": "backbone",
+      "condition": "4pattern",
+      "effective_abs_difference": 0.0,
+      "recomputed_field": "backbone_signature",
+      "seed": 123,
+      "top1_count_match": true,
+      "unique_match": true
+    },
+    {
+      "archived_metric": "cnn",
+      "condition": "4pattern",
+      "effective_abs_difference": 0.0,
+      "recomputed_field": "cnn_signature",
+      "seed": 123,
+      "top1_count_match": true,
+      "unique_match": true
+    },
+    {
+      "archived_metric": "backbone_cnn",
+      "condition": "4pattern",
+      "effective_abs_difference": 0.0,
+      "recomputed_field": "backbone_cnn_signature",
+      "seed": 123,
+      "top1_count_match": true,
+      "unique_match": true
+    },
+    {
+      "archived_metric": "forward_graph",
+      "condition": "4pattern",
+      "effective_abs_difference": 0.0,
+      "recomputed_field": "graph_hash",
+      "seed": 123,
+      "top1_count_match": true,
+      "unique_match": true
+    },
+    {
+      "archived_metric": "backbone",
+      "condition": "4pattern",
+      "effective_abs_difference": 0.0,
+      "recomputed_field": "backbone_signature",
+      "seed": 777,
+      "top1_count_match": true,
+      "unique_match": true
+    },
+    {
+      "archived_metric": "cnn",
+      "condition": "4pattern",
+      "effective_abs_difference": 0.0,
+      "recomputed_field": "cnn_signature",
+      "seed": 777,
+      "top1_count_match": true,
+      "unique_match": true
+    },
+    {
+      "archived_metric": "backbone_cnn",
+      "condition": "4pattern",
+      "effective_abs_difference": 0.0,
+      "recomputed_field": "backbone_cnn_signature",
+      "seed": 777,
+      "top1_count_match": true,
+      "unique_match": true
+    },
+    {
+      "archived_metric": "forward_graph",
+      "condition": "4pattern",
+      "effective_abs_difference": 0.0,
+      "recomputed_field": "graph_hash",
+      "seed": 777,
+      "top1_count_match": true,
+      "unique_match": true
+    }
+  ],
+  "method": {
+    "effective_number": "exp(H)",
+    "entropy": "H = -sum_i p_i ln(p_i), natural logarithm",
+    "formal_success": "api_result.formal_success_candidate is True",
+    "post_rl_window": "last 100 file-order rows (positions 701..800); archived RL rows have no candidate_id, so row fingerprints rather than candidate IDs were checked for duplicates"
+  },
+  "runs": [
+    {
+      "attempted_window": "all 400 rows in file",
+      "candidate_ids_present": 400,
+      "candidate_ids_unique": 400,
+      "candidate_index_max": 399,
+      "candidate_index_min": 0,
+      "candidate_indices_monotonic": true,
+      "condition": "1pattern",
+      "config": {
+        "evaluation": {
+          "candidate_count": 50,
+          "candidate_files": [
+            "/data/42-julia-hpc-ai-cv-students/s471802/nn-gpt-runs/parallel_runs/20260728_sftonly_cifar10_e5_1pattern_seed42/eval_1gpu_shards/shard_00/candidates.jsonl"
+          ],
+          "created_at": "2026-08-07T11:51:49+0200",
+          "eval_config": {
+            "batch": 64,
+            "dataset": "cifar-10",
+            "eval_concurrency": 1,
+            "eval_split_role": "heldout_test",
+            "formal_reward_epochs": "5",
+            "heldout_test_set": "cifar10-test[10k]",
+            "resize": 128,
+            "reward_eval_set": "cifar10-train[5k]",
+            "split_protocol": "trainvaltest",
+            "split_seed": 42,
+            "train_set": "cifar10-train[45k]",
+            "transform": "norm_128_flip",
+            "workers_per_gpu": "1"
+          },
+          "git": {
+            "branch": "",
+            "commit": "64c54fb1f41d7ca253d319df62658c951ed112a7",
+            "commit_short": "64c54fb1",
+            "commit_subject": "Update README.md"
+          },
+          "gpu_count": 1,
+          "phase": "eval_only",
+          "seed": 42,
+          "source_formats": {
+            "xml_completion": 50
+          }
+        },
+        "generation": {
+          "adapter_config": {
+            "adapter_mode": "trainable",
+            "adapter_path": "/home/s471802/nn-gpt/out/nngpt/llm/20260601_1pattern_three_model_sft_v3_cifar10_dscoder7b/epoch_sft/A9/deepseek-ai/deepseek-coder-6.7b-instruct"
+          },
+          "budget": 800,
+          "count": 100,
+          "created_at": "2026-08-07T09:35:24+0200",
+          "git": {
+            "branch": "",
+            "commit": "64c54fb1f41d7ca253d319df62658c951ed112a7",
+            "commit_short": "64c54fb1",
+            "commit_subject": "Update README.md"
+          },
+          "independent_candidate_seeds": true,
+          "model_config": {
+            "adapter_mode": "trainable",
+            "adapter_path": "/home/s471802/nn-gpt/out/nngpt/llm/20260601_1pattern_three_model_sft_v3_cifar10_dscoder7b/epoch_sft/A9/deepseek-ai/deepseek-coder-6.7b-instruct",
+            "model_source": "/home/s471802/nn-gpt/out/llm/deepseek-ai/deepseek-coder-6.7b-instruct",
+            "precision": {
+              "bf16": false,
+              "fp16": true,
+              "label": "fp16",
+              "torch_dtype": "torch.float16"
+            },
+            "source_mode": "explicit-path+explicit-tokenizer-id",
+            "tokenizer_source": "deepseek-ai/deepseek-coder-6.7b-instruct"
+          },
+          "phase": "gen_only",
+          "prompt_config": {
+            "do_sample": true,
+            "eos_token_id": 32021,
+            "feedback_char_budget": 0,
+            "max_new_tokens": 1200,
+            "nn_prefixes": "rl-bb-test1",
+            "pad_token_id": 32021,
+            "prompt_mode": "sft_aligned",
+            "stop_strings": [
+              "</forward>"
+            ],
+            "temperature": 0.8,
+            "top_k": 50,
+            "top_p": 0.95,
+            "use_cache": true
+          },
+          "seed": 42,
+          "setting": "sft_only_1pattern_seed42",
+          "source_format": "xml_completion",
+          "source_run": "onepattern_A9",
+          "start_index": 0
+        }
+      },
+      "formal_rule": "api_result.formal_success_candidate is exactly true",
+      "formal_success_n": 367,
+      "formal_success_rate": 0.9175,
+      "metric_notes": {
+        "backbone_cnn_signature": "derived as backbone_signature::cnn_signature when no stored combined field exists"
+      },
+      "metrics": {
+        "actual_structure_signature": {
+          "covered_n": 367,
+          "effective_number": 15.397438709758429,
+          "shannon_entropy": 2.7342011780391324,
+          "top1_count": 98,
+          "top1_share": 0.2670299727520436,
+          "top1_value": "ParallelTriple_Shallow|d4|m1|bb2|fr1|st0|pr0|fu1|fan3|bb2|block_live|27413ccaf5b3|86ab858e3845|5f4d62f266fa",
+          "unique_count": 38
+        },
+        "backbone_cnn_signature": {
+          "covered_n": 367,
+          "effective_number": 10.547495916158514,
+          "shannon_entropy": 2.3558884778305518,
+          "top1_count": 140,
+          "top1_share": 0.3814713896457766,
+          "top1_value": "regnet_x_3_2gf + squeezenet1_0::86ab858e3845e7128fa6117d06a68dc414a53cbd",
+          "unique_count": 44
+        },
+        "backbone_signature": {
+          "covered_n": 367,
+          "effective_number": 9.372528584489976,
+          "shannon_entropy": 2.23778291944883,
+          "top1_count": 147,
+          "top1_share": 0.40054495912806537,
+          "top1_value": "regnet_x_3_2gf + squeezenet1_0",
+          "unique_count": 40
+        },
+        "block_signature": {
+          "covered_n": 367,
+          "effective_number": 15.397438709758429,
+          "shannon_entropy": 2.7342011780391324,
+          "top1_count": 98,
+          "top1_share": 0.2670299727520436,
+          "top1_value": "5f4d62f266fa8e45ae387fe6fb65a4483ab7402c",
+          "unique_count": 38
+        },
+        "cnn_signature": {
+          "covered_n": 367,
+          "effective_number": 1.1548812863780262,
+          "shannon_entropy": 0.14399755633460132,
+          "top1_count": 355,
+          "top1_share": 0.9673024523160763,
+          "top1_value": "86ab858e3845e7128fa6117d06a68dc414a53cbd",
+          "unique_count": 2
+        },
+        "family_hash": {
+          "covered_n": 367,
+          "effective_number": 1.1548812863780262,
+          "shannon_entropy": 0.14399755633460132,
+          "top1_count": 355,
+          "top1_share": 0.9673024523160763,
+          "top1_value": "27413ccaf5b33052843a15c4a8706f691c3a77ae",
+          "unique_count": 2
+        },
+        "graph_hash": {
+          "covered_n": 367,
+          "effective_number": 21.40924092062136,
+          "shannon_entropy": 3.0638226475415578,
+          "top1_count": 88,
+          "top1_share": 0.23978201634877383,
+          "top1_value": "0a616de5b0cd7c16e5e3ab53296f3c0b669836e4",
+          "unique_count": 71
+        }
+      },
+      "metrics_population": "formal-success rows within attempted window",
+      "raw_rows": 400,
+      "row_fingerprints_unique": 400,
+      "seed": 42,
+      "source": "/Users/zhangxi/code/RL/faraz_followup_delivery_20260808/sft_only/raw/1pattern_seed42/generation_samples.jsonl",
+      "source_sha256": "0899ee3c736dc74059d7ee504e4b832d2cb82b7eba4efc8b353ef8926c5140e6",
+      "stage": "SFT-only",
+      "window_index_max": 399,
+      "window_index_min": 0,
+      "window_n": 400
+    },
+    {
+      "attempted_window": "all 400 rows in file",
+      "candidate_ids_present": 400,
+      "candidate_ids_unique": 400,
+      "candidate_index_max": 399,
+      "candidate_index_min": 0,
+      "candidate_indices_monotonic": true,
+      "condition": "1pattern",
+      "config": {
+        "evaluation": {
+          "candidate_count": 50,
+          "candidate_files": [
+            "/data/42-julia-hpc-ai-cv-students/s471802/nn-gpt-runs/parallel_runs/20260728_sftonly_cifar10_e5_1pattern_seed123/eval_1gpu_shards/shard_00/candidates.jsonl"
+          ],
+          "created_at": "2026-07-31T06:24:29+0200",
+          "eval_config": {
+            "batch": 64,
+            "dataset": "cifar-10",
+            "eval_concurrency": 1,
+            "eval_split_role": "heldout_test",
+            "formal_reward_epochs": "5",
+            "heldout_test_set": "cifar10-test[10k]",
+            "resize": 128,
+            "reward_eval_set": "cifar10-train[5k]",
+            "split_protocol": "trainvaltest",
+            "split_seed": 42,
+            "train_set": "cifar10-train[45k]",
+            "transform": "norm_128_flip",
+            "workers_per_gpu": "1"
+          },
+          "git": {
+            "branch": "",
+            "commit": "64c54fb1f41d7ca253d319df62658c951ed112a7",
+            "commit_short": "64c54fb1",
+            "commit_subject": "Update README.md"
+          },
+          "gpu_count": 1,
+          "phase": "eval_only",
+          "seed": 123,
+          "source_formats": {
+            "xml_completion": 50
+          }
+        },
+        "generation": {
+          "adapter_config": {
+            "adapter_mode": "trainable",
+            "adapter_path": "/home/s471802/nn-gpt/out/nngpt/llm/20260601_1pattern_three_model_sft_v3_cifar10_dscoder7b/epoch_sft/A9/deepseek-ai/deepseek-coder-6.7b-instruct"
+          },
+          "budget": 800,
+          "created_at": "2026-07-30T20:19:17+0200",
+          "git": {
+            "branch": "",
+            "commit": "64c54fb1f41d7ca253d319df62658c951ed112a7",
+            "commit_short": "64c54fb1",
+            "commit_subject": "Update README.md"
+          },
+          "model_config": {
+            "adapter_mode": "trainable",
+            "adapter_path": "/home/s471802/nn-gpt/out/nngpt/llm/20260601_1pattern_three_model_sft_v3_cifar10_dscoder7b/epoch_sft/A9/deepseek-ai/deepseek-coder-6.7b-instruct",
+            "model_source": "/home/s471802/nn-gpt/out/llm/deepseek-ai/deepseek-coder-6.7b-instruct",
+            "precision": {
+              "bf16": false,
+              "fp16": true,
+              "label": "fp16",
+              "torch_dtype": "torch.float16"
+            },
+            "source_mode": "explicit-path+explicit-tokenizer-id",
+            "tokenizer_source": "deepseek-ai/deepseek-coder-6.7b-instruct"
+          },
+          "phase": "gen_only",
+          "prompt_config": {
+            "do_sample": true,
+            "eos_token_id": 32021,
+            "feedback_char_budget": 0,
+            "max_new_tokens": 1200,
+            "nn_prefixes": "rl-bb-test1",
+            "pad_token_id": 32021,
+            "prompt_mode": "sft_aligned",
+            "stop_strings": [
+              "</forward>"
+            ],
+            "temperature": 0.8,
+            "top_k": 50,
+            "top_p": 0.95,
+            "use_cache": true
+          },
+          "seed": 123,
+          "setting": "sft_only_1pattern_seed123",
+          "source_format": "xml_completion",
+          "source_run": "onepattern_A9"
+        }
+      },
+      "formal_rule": "api_result.formal_success_candidate is exactly true",
+      "formal_success_n": 367,
+      "formal_success_rate": 0.9175,
+      "metric_notes": {
+        "backbone_cnn_signature": "derived as backbone_signature::cnn_signature when no stored combined field exists"
+      },
+      "metrics": {
+        "actual_structure_signature": {
+          "covered_n": 367,
+          "effective_number": 13.744157363252462,
+          "shannon_entropy": 2.62061381477272,
+          "top1_count": 104,
+          "top1_share": 0.28337874659400547,
+          "top1_value": "ParallelTriple_Shallow|d4|m1|bb2|fr1|st0|pr0|fu1|fan3|bb2|block_live|27413ccaf5b3|86ab858e3845|5f4d62f266fa",
+          "unique_count": 37
+        },
+        "backbone_cnn_signature": {
+          "covered_n": 367,
+          "effective_number": 9.573756915851277,
+          "shannon_entropy": 2.259025700617828,
+          "top1_count": 147,
+          "top1_share": 0.40054495912806537,
+          "top1_value": "regnet_x_3_2gf + squeezenet1_0::86ab858e3845e7128fa6117d06a68dc414a53cbd",
+          "unique_count": 45
+        },
+        "backbone_signature": {
+          "covered_n": 367,
+          "effective_number": 8.747536083616616,
+          "shannon_entropy": 2.1687720702716744,
+          "top1_count": 149,
+          "top1_share": 0.40599455040871935,
+          "top1_value": "regnet_x_3_2gf + squeezenet1_0",
+          "unique_count": 38
+        },
+        "block_signature": {
+          "covered_n": 367,
+          "effective_number": 13.492098250862366,
+          "shannon_entropy": 2.602104199329898,
+          "top1_count": 104,
+          "top1_share": 0.28337874659400547,
+          "top1_value": "5f4d62f266fa8e45ae387fe6fb65a4483ab7402c",
+          "unique_count": 35
+        },
+        "cnn_signature": {
+          "covered_n": 367,
+          "effective_number": 1.1657636776638265,
+          "shannon_entropy": 0.15337638956804528,
+          "top1_count": 355,
+          "top1_share": 0.9673024523160763,
+          "top1_value": "86ab858e3845e7128fa6117d06a68dc414a53cbd",
+          "unique_count": 3
+        },
+        "family_hash": {
+          "covered_n": 367,
+          "effective_number": 1.187793833210298,
+          "shannon_entropy": 0.17209766481168676,
+          "top1_count": 354,
+          "top1_share": 0.9645776566757494,
+          "top1_value": "27413ccaf5b33052843a15c4a8706f691c3a77ae",
+          "unique_count": 4
+        },
+        "graph_hash": {
+          "covered_n": 367,
+          "effective_number": 19.76688749820615,
+          "shannon_entropy": 2.9840081891891588,
+          "top1_count": 94,
+          "top1_share": 0.2561307901907357,
+          "top1_value": "0a616de5b0cd7c16e5e3ab53296f3c0b669836e4",
+          "unique_count": 69
+        }
+      },
+      "metrics_population": "formal-success rows within attempted window",
+      "raw_rows": 400,
+      "row_fingerprints_unique": 400,
+      "seed": 123,
+      "source": "/Users/zhangxi/code/RL/faraz_followup_delivery_20260808/sft_only/raw/1pattern_seed123/generation_samples.jsonl",
+      "source_sha256": "5dca97b4f8945f28a250afcc209081aaeeb1d24fcd51b28899a183dbf6c229c0",
+      "stage": "SFT-only",
+      "window_index_max": 399,
+      "window_index_min": 0,
+      "window_n": 400
+    },
+    {
+      "attempted_window": "all 400 rows in file",
+      "candidate_ids_present": 400,
+      "candidate_ids_unique": 400,
+      "candidate_index_max": 399,
+      "candidate_index_min": 0,
+      "candidate_indices_monotonic": true,
+      "condition": "1pattern",
+      "config": {
+        "evaluation": {
+          "candidate_count": 50,
+          "candidate_files": [
+            "/data/42-julia-hpc-ai-cv-students/s471802/nn-gpt-runs/parallel_runs/20260728_sftonly_cifar10_e5_1pattern_seed777/eval_1gpu_shards/shard_00/candidates.jsonl"
+          ],
+          "created_at": "2026-08-07T20:26:02+0200",
+          "eval_config": {
+            "batch": 64,
+            "dataset": "cifar-10",
+            "eval_concurrency": 1,
+            "eval_split_role": "heldout_test",
+            "formal_reward_epochs": "5",
+            "heldout_test_set": "cifar10-test[10k]",
+            "resize": 128,
+            "reward_eval_set": "cifar10-train[5k]",
+            "split_protocol": "trainvaltest",
+            "split_seed": 42,
+            "train_set": "cifar10-train[45k]",
+            "transform": "norm_128_flip",
+            "workers_per_gpu": "1"
+          },
+          "git": {
+            "branch": "",
+            "commit": "64c54fb1f41d7ca253d319df62658c951ed112a7",
+            "commit_short": "64c54fb1",
+            "commit_subject": "Update README.md"
+          },
+          "gpu_count": 1,
+          "phase": "eval_only",
+          "seed": 777,
+          "source_formats": {
+            "xml_completion": 50
+          }
+        },
+        "generation": {
+          "adapter_config": {
+            "adapter_mode": "trainable",
+            "adapter_path": "/home/s471802/nn-gpt/out/nngpt/llm/20260601_1pattern_three_model_sft_v3_cifar10_dscoder7b/epoch_sft/A9/deepseek-ai/deepseek-coder-6.7b-instruct"
+          },
+          "budget": 800,
+          "count": 100,
+          "created_at": "2026-08-07T09:39:32+0200",
+          "git": {
+            "branch": "",
+            "commit": "64c54fb1f41d7ca253d319df62658c951ed112a7",
+            "commit_short": "64c54fb1",
+            "commit_subject": "Update README.md"
+          },
+          "independent_candidate_seeds": true,
+          "model_config": {
+            "adapter_mode": "trainable",
+            "adapter_path": "/home/s471802/nn-gpt/out/nngpt/llm/20260601_1pattern_three_model_sft_v3_cifar10_dscoder7b/epoch_sft/A9/deepseek-ai/deepseek-coder-6.7b-instruct",
+            "model_source": "/home/s471802/nn-gpt/out/llm/deepseek-ai/deepseek-coder-6.7b-instruct",
+            "precision": {
+              "bf16": false,
+              "fp16": true,
+              "label": "fp16",
+              "torch_dtype": "torch.float16"
+            },
+            "source_mode": "explicit-path+explicit-tokenizer-id",
+            "tokenizer_source": "deepseek-ai/deepseek-coder-6.7b-instruct"
+          },
+          "phase": "gen_only",
+          "prompt_config": {
+            "do_sample": true,
+            "eos_token_id": 32021,
+            "feedback_char_budget": 0,
+            "max_new_tokens": 1200,
+            "nn_prefixes": "rl-bb-test1",
+            "pad_token_id": 32021,
+            "prompt_mode": "sft_aligned",
+            "stop_strings": [
+              "</forward>"
+            ],
+            "temperature": 0.8,
+            "top_k": 50,
+            "top_p": 0.95,
+            "use_cache": true
+          },
+          "seed": 777,
+          "setting": "sft_only_1pattern_seed777",
+          "source_format": "xml_completion",
+          "source_run": "onepattern_A9",
+          "start_index": 0
+        }
+      },
+      "formal_rule": "api_result.formal_success_candidate is exactly true",
+      "formal_success_n": 353,
+      "formal_success_rate": 0.8825,
+      "metric_notes": {
+        "backbone_cnn_signature": "derived as backbone_signature::cnn_signature when no stored combined field exists"
+      },
+      "metrics": {
+        "actual_structure_signature": {
+          "covered_n": 353,
+          "effective_number": 16.75011305494363,
+          "shannon_entropy": 2.8184050077971707,
+          "top1_count": 90,
+          "top1_share": 0.254957507082153,
+          "top1_value": "ParallelTriple_Shallow|d4|m1|bb2|fr1|st0|pr0|fu1|fan3|bb2|block_live|27413ccaf5b3|86ab858e3845|5f4d62f266fa",
+          "unique_count": 45
+        },
+        "backbone_cnn_signature": {
+          "covered_n": 353,
+          "effective_number": 9.209308849814803,
+          "shannon_entropy": 2.2202148040001535,
+          "top1_count": 139,
+          "top1_share": 0.3937677053824363,
+          "top1_value": "regnet_x_3_2gf + squeezenet1_0::86ab858e3845e7128fa6117d06a68dc414a53cbd",
+          "unique_count": 40
+        },
+        "backbone_signature": {
+          "covered_n": 353,
+          "effective_number": 8.148282617276205,
+          "shannon_entropy": 2.0978071832412115,
+          "top1_count": 143,
+          "top1_share": 0.40509915014164305,
+          "top1_value": "regnet_x_3_2gf + squeezenet1_0",
+          "unique_count": 33
+        },
+        "block_signature": {
+          "covered_n": 353,
+          "effective_number": 16.422741735594503,
+          "shannon_entropy": 2.79866706545661,
+          "top1_count": 90,
+          "top1_share": 0.254957507082153,
+          "top1_value": "5f4d62f266fa8e45ae387fe6fb65a4483ab7402c",
+          "unique_count": 43
+        },
+        "cnn_signature": {
+          "covered_n": 353,
+          "effective_number": 1.1941853171747545,
+          "shannon_entropy": 0.17746420994108006,
+          "top1_count": 340,
+          "top1_share": 0.9631728045325779,
+          "top1_value": "86ab858e3845e7128fa6117d06a68dc414a53cbd",
+          "unique_count": 4
+        },
+        "family_hash": {
+          "covered_n": 353,
+          "effective_number": 1.1941853171747545,
+          "shannon_entropy": 0.17746420994108006,
+          "top1_count": 340,
+          "top1_share": 0.9631728045325779,
+          "top1_value": "27413ccaf5b33052843a15c4a8706f691c3a77ae",
+          "unique_count": 4
+        },
+        "graph_hash": {
+          "covered_n": 353,
+          "effective_number": 19.1219780054366,
+          "shannon_entropy": 2.950838354439635,
+          "top1_count": 82,
+          "top1_share": 0.23229461756373937,
+          "top1_value": "0a616de5b0cd7c16e5e3ab53296f3c0b669836e4",
+          "unique_count": 68
+        }
+      },
+      "metrics_population": "formal-success rows within attempted window",
+      "raw_rows": 400,
+      "row_fingerprints_unique": 400,
+      "seed": 777,
+      "source": "/Users/zhangxi/code/RL/faraz_followup_delivery_20260808/sft_only/raw/1pattern_seed777/generation_samples.jsonl",
+      "source_sha256": "885ea0a31e1506e4b3837eac54e2409c516f4d8541c66a88efc3b0fd50ff656a",
+      "stage": "SFT-only",
+      "window_index_max": 399,
+      "window_index_min": 0,
+      "window_n": 400
+    },
+    {
+      "attempted_window": "all 400 rows in file",
+      "candidate_ids_present": 400,
+      "candidate_ids_unique": 400,
+      "candidate_index_max": 399,
+      "candidate_index_min": 0,
+      "candidate_indices_monotonic": true,
+      "condition": "4pattern",
+      "config": {
+        "evaluation": {
+          "candidate_count": 50,
+          "candidate_files": [
+            "/data/42-julia-hpc-ai-cv-students/s471802/nn-gpt-runs/parallel_runs/20260728_sftonly_cifar10_e5_4pattern_seed42/eval_1gpu_shards/shard_00/candidates.jsonl"
+          ],
+          "created_at": "2026-08-07T13:51:35+0200",
+          "eval_config": {
+            "batch": 64,
+            "dataset": "cifar-10",
+            "eval_concurrency": 1,
+            "eval_split_role": "heldout_test",
+            "formal_reward_epochs": "5",
+            "heldout_test_set": "cifar10-test[10k]",
+            "resize": 128,
+            "reward_eval_set": "cifar10-train[5k]",
+            "split_protocol": "trainvaltest",
+            "split_seed": 42,
+            "train_set": "cifar10-train[45k]",
+            "transform": "norm_128_flip",
+            "workers_per_gpu": "1"
+          },
+          "git": {
+            "branch": "",
+            "commit": "64c54fb1f41d7ca253d319df62658c951ed112a7",
+            "commit_short": "64c54fb1",
+            "commit_subject": "Update README.md"
+          },
+          "gpu_count": 1,
+          "phase": "eval_only",
+          "seed": 42,
+          "source_formats": {
+            "xml_completion": 50
+          }
+        },
+        "generation": {
+          "adapter_config": {
+            "adapter_mode": "trainable",
+            "adapter_path": "/home/s471802/nn-gpt/out/nngpt/llm/epoch_sft_20260527_1410_struct1_v2_sftcycle_h100x4_home/A18/deepseek-ai/deepseek-coder-6.7b-instruct"
+          },
+          "budget": 800,
+          "count": 100,
+          "created_at": "2026-08-07T09:48:00+0200",
+          "git": {
+            "branch": "",
+            "commit": "64c54fb1f41d7ca253d319df62658c951ed112a7",
+            "commit_short": "64c54fb1",
+            "commit_subject": "Update README.md"
+          },
+          "independent_candidate_seeds": true,
+          "model_config": {
+            "adapter_mode": "trainable",
+            "adapter_path": "/home/s471802/nn-gpt/out/nngpt/llm/epoch_sft_20260527_1410_struct1_v2_sftcycle_h100x4_home/A18/deepseek-ai/deepseek-coder-6.7b-instruct",
+            "model_source": "/home/s471802/nn-gpt/out/llm/deepseek-ai/deepseek-coder-6.7b-instruct",
+            "precision": {
+              "bf16": false,
+              "fp16": true,
+              "label": "fp16",
+              "torch_dtype": "torch.float16"
+            },
+            "source_mode": "explicit-path+explicit-tokenizer-id",
+            "tokenizer_source": "deepseek-ai/deepseek-coder-6.7b-instruct"
+          },
+          "phase": "gen_only",
+          "prompt_config": {
+            "do_sample": true,
+            "eos_token_id": 32021,
+            "feedback_char_budget": 0,
+            "max_new_tokens": 1200,
+            "nn_prefixes": "rl-bb-struct1",
+            "pad_token_id": 32021,
+            "prompt_mode": "sft_aligned",
+            "stop_strings": [
+              "</forward>"
+            ],
+            "temperature": 0.8,
+            "top_k": 50,
+            "top_p": 0.95,
+            "use_cache": true
+          },
+          "seed": 42,
+          "setting": "sft_only_4pattern_seed42",
+          "source_format": "xml_completion",
+          "source_run": "fourpattern_A18",
+          "start_index": 0
+        }
+      },
+      "formal_rule": "api_result.formal_success_candidate is exactly true",
+      "formal_success_n": 398,
+      "formal_success_rate": 0.995,
+      "metric_notes": {
+        "backbone_cnn_signature": "derived as backbone_signature::cnn_signature when no stored combined field exists"
+      },
+      "metrics": {
+        "actual_structure_signature": {
+          "covered_n": 398,
+          "effective_number": 243.41686990881595,
+          "shannon_entropy": 5.494775487555158,
+          "top1_count": 6,
+          "top1_share": 0.01507537688442211,
+          "top1_value": "Fractal_TriBackbone_Fuse_Wide_Deep|d8|m1|bb4|fr2|st0|pr0|fu1|fan3|bb4|block_live|138645fcd51f|0c4002e4164a|f6c98fa08dd4",
+          "unique_count": 278
+        },
+        "backbone_cnn_signature": {
+          "covered_n": 398,
+          "effective_number": 265.8547380396917,
+          "shannon_entropy": 5.582950062020955,
+          "top1_count": 6,
+          "top1_share": 0.01507537688442211,
+          "top1_value": "resnet18 + resnet34::0210e668fda67d5c69c01a30456e358fb7a9c106",
+          "unique_count": 296
+        },
+        "backbone_signature": {
+          "covered_n": 398,
+          "effective_number": 128.91827691703392,
+          "shannon_entropy": 4.859178691336927,
+          "top1_count": 14,
+          "top1_share": 0.035175879396984924,
+          "top1_value": "resnet18 + resnet34",
+          "unique_count": 162
+        },
+        "block_signature": {
+          "covered_n": 398,
+          "effective_number": 126.50344450618233,
+          "shannon_entropy": 4.840269537094748,
+          "top1_count": 9,
+          "top1_share": 0.022613065326633167,
+          "top1_value": "81102c7c0346d7b60376646206a12922f083d793",
+          "unique_count": 167
+        },
+        "cnn_signature": {
+          "covered_n": 398,
+          "effective_number": 3.939966836842404,
+          "shannon_entropy": 1.3711723062293437,
+          "top1_count": 120,
+          "top1_share": 0.3015075376884422,
+          "top1_value": "0210e668fda67d5c69c01a30456e358fb7a9c106",
+          "unique_count": 4
+        },
+        "family_hash": {
+          "covered_n": 398,
+          "effective_number": 3.939966836842404,
+          "shannon_entropy": 1.3711723062293437,
+          "top1_count": 120,
+          "top1_share": 0.3015075376884422,
+          "top1_value": "9f8b7585e7798a0498472eb0d4816ef2c82669d4",
+          "unique_count": 4
+        },
+        "graph_hash": {
+          "covered_n": 398,
+          "effective_number": 297.47576956412627,
+          "shannon_entropy": 5.695332774825437,
+          "top1_count": 6,
+          "top1_share": 0.01507537688442211,
+          "top1_value": "4dedb02ffe04ce9ef84442de9d2ae1454381a62d",
+          "unique_count": 326
+        }
+      },
+      "metrics_population": "formal-success rows within attempted window",
+      "raw_rows": 400,
+      "row_fingerprints_unique": 400,
+      "seed": 42,
+      "source": "/Users/zhangxi/code/RL/faraz_followup_delivery_20260808/sft_only/raw/4pattern_seed42/generation_samples.jsonl",
+      "source_sha256": "6f8a1c9ce30dd8d3cc75f5f1e03905def516424ab83fb42f174e6396aff35346",
+      "stage": "SFT-only",
+      "window_index_max": 399,
+      "window_index_min": 0,
+      "window_n": 400
+    },
+    {
+      "attempted_window": "all 400 rows in file",
+      "candidate_ids_present": 400,
+      "candidate_ids_unique": 400,
+      "candidate_index_max": 399,
+      "candidate_index_min": 0,
+      "candidate_indices_monotonic": true,
+      "condition": "4pattern",
+      "config": {
+        "evaluation": {
+          "candidate_count": 50,
+          "candidate_files": [
+            "/data/42-julia-hpc-ai-cv-students/s471802/nn-gpt-runs/parallel_runs/20260728_sftonly_cifar10_e5_4pattern_seed123/eval_1gpu_shards/shard_00/candidates.jsonl"
+          ],
+          "created_at": "2026-08-07T09:52:18+0200",
+          "eval_config": {
+            "batch": 64,
+            "dataset": "cifar-10",
+            "eval_concurrency": 1,
+            "eval_split_role": "heldout_test",
+            "formal_reward_epochs": "5",
+            "heldout_test_set": "cifar10-test[10k]",
+            "resize": 128,
+            "reward_eval_set": "cifar10-train[5k]",
+            "split_protocol": "trainvaltest",
+            "split_seed": 42,
+            "train_set": "cifar10-train[45k]",
+            "transform": "norm_128_flip",
+            "workers_per_gpu": "1"
+          },
+          "git": {
+            "branch": "",
+            "commit": "64c54fb1f41d7ca253d319df62658c951ed112a7",
+            "commit_short": "64c54fb1",
+            "commit_subject": "Update README.md"
+          },
+          "gpu_count": 1,
+          "phase": "eval_only",
+          "seed": 123,
+          "source_formats": {
+            "xml_completion": 50
+          }
+        },
+        "generation": {
+          "adapter_config": {
+            "adapter_mode": "trainable",
+            "adapter_path": "/home/s471802/nn-gpt/out/nngpt/llm/epoch_sft_20260527_1410_struct1_v2_sftcycle_h100x4_home/A18/deepseek-ai/deepseek-coder-6.7b-instruct"
+          },
+          "budget": 800,
+          "created_at": "2026-08-01T21:01:21+0200",
+          "git": {
+            "branch": "",
+            "commit": "64c54fb1f41d7ca253d319df62658c951ed112a7",
+            "commit_short": "64c54fb1",
+            "commit_subject": "Update README.md"
+          },
+          "model_config": {
+            "adapter_mode": "trainable",
+            "adapter_path": "/home/s471802/nn-gpt/out/nngpt/llm/epoch_sft_20260527_1410_struct1_v2_sftcycle_h100x4_home/A18/deepseek-ai/deepseek-coder-6.7b-instruct",
+            "model_source": "/home/s471802/nn-gpt/out/llm/deepseek-ai/deepseek-coder-6.7b-instruct",
+            "precision": {
+              "bf16": false,
+              "fp16": true,
+              "label": "fp16",
+              "torch_dtype": "torch.float16"
+            },
+            "source_mode": "explicit-path+explicit-tokenizer-id",
+            "tokenizer_source": "deepseek-ai/deepseek-coder-6.7b-instruct"
+          },
+          "phase": "gen_only",
+          "prompt_config": {
+            "do_sample": true,
+            "eos_token_id": 32021,
+            "feedback_char_budget": 0,
+            "max_new_tokens": 1200,
+            "nn_prefixes": "rl-bb-struct1",
+            "pad_token_id": 32021,
+            "prompt_mode": "sft_aligned",
+            "stop_strings": [
+              "</forward>"
+            ],
+            "temperature": 0.8,
+            "top_k": 50,
+            "top_p": 0.95,
+            "use_cache": true
+          },
+          "seed": 123,
+          "setting": "sft_only_4pattern_seed123",
+          "source_format": "xml_completion",
+          "source_run": "fourpattern_A18"
+        }
+      },
+      "formal_rule": "api_result.formal_success_candidate is exactly true",
+      "formal_success_n": 397,
+      "formal_success_rate": 0.9925,
+      "metric_notes": {
+        "backbone_cnn_signature": "derived as backbone_signature::cnn_signature when no stored combined field exists"
+      },
+      "metrics": {
+        "actual_structure_signature": {
+          "covered_n": 397,
+          "effective_number": 243.71647822509496,
+          "shannon_entropy": 5.496005575190115,
+          "top1_count": 9,
+          "top1_share": 0.022670025188916875,
+          "top1_value": "Fractal_TriBackbone_Fuse_Wide_Deep|d6|m1|bb3|fr1|st0|pr0|fu1|fan3|bb3|block_live|9f8b7585e779|0210e668fda6|07bf7e656342",
+          "unique_count": 284
+        },
+        "backbone_cnn_signature": {
+          "covered_n": 397,
+          "effective_number": 264.7788304890211,
+          "shannon_entropy": 5.578894875583906,
+          "top1_count": 5,
+          "top1_share": 0.012594458438287154,
+          "top1_value": "resnet18 + resnet34::0c4002e4164a571437ead7eb448675b0f7932a66",
+          "unique_count": 294
+        },
+        "backbone_signature": {
+          "covered_n": 397,
+          "effective_number": 138.6171552637986,
+          "shannon_entropy": 4.931715854448348,
+          "top1_count": 12,
+          "top1_share": 0.030226700251889168,
+          "top1_value": "resnet18 + resnet34",
+          "unique_count": 173
+        },
+        "block_signature": {
+          "covered_n": 397,
+          "effective_number": 122.34247162822165,
+          "shannon_entropy": 4.806824256554773,
+          "top1_count": 17,
+          "top1_share": 0.042821158690176324,
+          "top1_value": "07bf7e656342234a6dbfbeed3efdf133ab678dd2",
+          "unique_count": 171
+        },
+        "cnn_signature": {
+          "covered_n": 397,
+          "effective_number": 4.082227400852246,
+          "shannon_entropy": 1.4066427710310718,
+          "top1_count": 122,
+          "top1_share": 0.30730478589420657,
+          "top1_value": "0210e668fda67d5c69c01a30456e358fb7a9c106",
+          "unique_count": 6
+        },
+        "family_hash": {
+          "covered_n": 397,
+          "effective_number": 4.082227400852246,
+          "shannon_entropy": 1.4066427710310718,
+          "top1_count": 122,
+          "top1_share": 0.30730478589420657,
+          "top1_value": "9f8b7585e7798a0498472eb0d4816ef2c82669d4",
+          "unique_count": 6
+        },
+        "graph_hash": {
+          "covered_n": 397,
+          "effective_number": 316.0522952600716,
+          "shannon_entropy": 5.755907691224073,
+          "top1_count": 5,
+          "top1_share": 0.012594458438287154,
+          "top1_value": "cc4bba942f681496418d2e24827d077dc0c4b454",
+          "unique_count": 339
+        }
+      },
+      "metrics_population": "formal-success rows within attempted window",
+      "raw_rows": 400,
+      "row_fingerprints_unique": 400,
+      "seed": 123,
+      "source": "/Users/zhangxi/code/RL/faraz_followup_delivery_20260808/sft_only/raw/4pattern_seed123/generation_samples.jsonl",
+      "source_sha256": "21b2fe89df002e560790da815396de809ab65584c7be1b4afba0356a5fee3326",
+      "stage": "SFT-only",
+      "window_index_max": 399,
+      "window_index_min": 0,
+      "window_n": 400
+    },
+    {
+      "attempted_window": "all 400 rows in file",
+      "candidate_ids_present": 400,
+      "candidate_ids_unique": 400,
+      "candidate_index_max": 399,
+      "candidate_index_min": 0,
+      "candidate_indices_monotonic": true,
+      "condition": "4pattern",
+      "config": {
+        "evaluation": {
+          "candidate_count": 50,
+          "candidate_files": [
+            "/data/42-julia-hpc-ai-cv-students/s471802/nn-gpt-runs/parallel_runs/20260728_sftonly_cifar10_e5_4pattern_seed777/eval_1gpu_shards/shard_00/candidates.jsonl"
+          ],
+          "created_at": "2026-08-01T22:26:00+0200",
+          "eval_config": {
+            "batch": 64,
+            "dataset": "cifar-10",
+            "eval_concurrency": 1,
+            "eval_split_role": "heldout_test",
+            "formal_reward_epochs": "5",
+            "heldout_test_set": "cifar10-test[10k]",
+            "resize": 128,
+            "reward_eval_set": "cifar10-train[5k]",
+            "split_protocol": "trainvaltest",
+            "split_seed": 42,
+            "train_set": "cifar10-train[45k]",
+            "transform": "norm_128_flip",
+            "workers_per_gpu": "1"
+          },
+          "git": {
+            "branch": "",
+            "commit": "64c54fb1f41d7ca253d319df62658c951ed112a7",
+            "commit_short": "64c54fb1",
+            "commit_subject": "Update README.md"
+          },
+          "gpu_count": 1,
+          "phase": "eval_only",
+          "seed": 777,
+          "source_formats": {
+            "xml_completion": 50
+          }
+        },
+        "generation": {
+          "adapter_config": {
+            "adapter_mode": "trainable",
+            "adapter_path": "/home/s471802/nn-gpt/out/nngpt/llm/epoch_sft_20260527_1410_struct1_v2_sftcycle_h100x4_home/A18/deepseek-ai/deepseek-coder-6.7b-instruct"
+          },
+          "budget": 800,
+          "created_at": "2026-08-01T09:29:31+0200",
+          "git": {
+            "branch": "",
+            "commit": "64c54fb1f41d7ca253d319df62658c951ed112a7",
+            "commit_short": "64c54fb1",
+            "commit_subject": "Update README.md"
+          },
+          "model_config": {
+            "adapter_mode": "trainable",
+            "adapter_path": "/home/s471802/nn-gpt/out/nngpt/llm/epoch_sft_20260527_1410_struct1_v2_sftcycle_h100x4_home/A18/deepseek-ai/deepseek-coder-6.7b-instruct",
+            "model_source": "/home/s471802/nn-gpt/out/llm/deepseek-ai/deepseek-coder-6.7b-instruct",
+            "precision": {
+              "bf16": false,
+              "fp16": true,
+              "label": "fp16",
+              "torch_dtype": "torch.float16"
+            },
+            "source_mode": "explicit-path+explicit-tokenizer-id",
+            "tokenizer_source": "deepseek-ai/deepseek-coder-6.7b-instruct"
+          },
+          "phase": "gen_only",
+          "prompt_config": {
+            "do_sample": true,
+            "eos_token_id": 32021,
+            "feedback_char_budget": 0,
+            "max_new_tokens": 1200,
+            "nn_prefixes": "rl-bb-struct1",
+            "pad_token_id": 32021,
+            "prompt_mode": "sft_aligned",
+            "stop_strings": [
+              "</forward>"
+            ],
+            "temperature": 0.8,
+            "top_k": 50,
+            "top_p": 0.95,
+            "use_cache": true
+          },
+          "seed": 777,
+          "setting": "sft_only_4pattern_seed777",
+          "source_format": "xml_completion",
+          "source_run": "fourpattern_A18"
+        }
+      },
+      "formal_rule": "api_result.formal_success_candidate is exactly true",
+      "formal_success_n": 399,
+      "formal_success_rate": 0.9975,
+      "metric_notes": {
+        "backbone_cnn_signature": "derived as backbone_signature::cnn_signature when no stored combined field exists"
+      },
+      "metrics": {
+        "actual_structure_signature": {
+          "covered_n": 399,
+          "effective_number": 242.91370059655745,
+          "shannon_entropy": 5.492706238684891,
+          "top1_count": 5,
+          "top1_share": 0.012531328320802004,
+          "top1_value": "Fractal_TriBackbone_Fuse_Wide_Deep|d8|m1|bb4|fr2|st0|pr0|fu1|fan3|bb4|block_live|138645fcd51f|0c4002e4164a|c2b36c938c50",
+          "unique_count": 277
+        },
+        "backbone_cnn_signature": {
+          "covered_n": 399,
+          "effective_number": 271.85451861273486,
+          "shannon_entropy": 5.605267065166996,
+          "top1_count": 5,
+          "top1_share": 0.012531328320802004,
+          "top1_value": "resnet18 + resnet34::0210e668fda67d5c69c01a30456e358fb7a9c106",
+          "unique_count": 304
+        },
+        "backbone_signature": {
+          "covered_n": 399,
+          "effective_number": 140.7314407238262,
+          "shannon_entropy": 4.94685339845928,
+          "top1_count": 18,
+          "top1_share": 0.045112781954887216,
+          "top1_value": "resnet18 + resnet34",
+          "unique_count": 178
+        },
+        "block_signature": {
+          "covered_n": 399,
+          "effective_number": 123.6544109202024,
+          "shannon_entropy": 4.817490665957152,
+          "top1_count": 15,
+          "top1_share": 0.03759398496240601,
+          "top1_value": "f6c98fa08dd42659249176560e17d471ac820ef4",
+          "unique_count": 163
+        },
+        "cnn_signature": {
+          "covered_n": 399,
+          "effective_number": 4.095900379104709,
+          "shannon_entropy": 1.4099865659337945,
+          "top1_count": 119,
+          "top1_share": 0.2982456140350877,
+          "top1_value": "0210e668fda67d5c69c01a30456e358fb7a9c106",
+          "unique_count": 6
+        },
+        "family_hash": {
+          "covered_n": 399,
+          "effective_number": 4.095900379104709,
+          "shannon_entropy": 1.4099865659337945,
+          "top1_count": 119,
+          "top1_share": 0.2982456140350877,
+          "top1_value": "9f8b7585e7798a0498472eb0d4816ef2c82669d4",
+          "unique_count": 6
+        },
+        "graph_hash": {
+          "covered_n": 399,
+          "effective_number": 305.82271218157643,
+          "shannon_entropy": 5.723005562095962,
+          "top1_count": 5,
+          "top1_share": 0.012531328320802004,
+          "top1_value": "4dedb02ffe04ce9ef84442de9d2ae1454381a62d",
+          "unique_count": 331
+        }
+      },
+      "metrics_population": "formal-success rows within attempted window",
+      "raw_rows": 400,
+      "row_fingerprints_unique": 400,
+      "seed": 777,
+      "source": "/Users/zhangxi/code/RL/faraz_followup_delivery_20260808/sft_only/raw/4pattern_seed777/generation_samples.jsonl",
+      "source_sha256": "bb511a135e340c1b7c2dc1c1c55f5ec35cfc846ea4e74a4e1175567062546aa5",
+      "stage": "SFT-only",
+      "window_index_max": 399,
+      "window_index_min": 0,
+      "window_n": 400
+    },
+    {
+      "attempted_window": "file-order rows 701-800 (last 100 of 800)",
+      "candidate_ids_present": 0,
+      "candidate_ids_unique": 0,
+      "candidate_index_max": null,
+      "candidate_index_min": null,
+      "candidate_indices_monotonic": null,
+      "condition": "1pattern",
+      "config": {
+        "container_zip_sha256": "afd723be7e0e3c47de145c4c2b764786047df05a0003a833a6d24b69939ac74f",
+        "run": {
+          "archive": {
+            "append_logs": false,
+            "env": {
+              "NNGPT_SFT_EPOCH_ROOT": "/data/42-julia-hpc-ai-cv-students/s471802/nn-gpt-runs/parallel_runs/20260618_1pattern_a9_cifar10_e5_p3500_c1200_s100_h100x4_shared_full_full_reward_seed42/out/nngpt/llm/epoch_sft",
+              "NNGPT_SFT_LOG_DIR": "/data/42-julia-hpc-ai-cv-students/s471802/nn-gpt-runs/parallel_runs/20260618_1pattern_a9_cifar10_e5_p3500_c1200_s100_h100x4_shared_full_full_reward_seed42/rl_output",
+              "NNGPT_SFT_MODEL_OUT": "/data/42-julia-hpc-ai-cv-students/s471802/nn-gpt-runs/parallel_runs/20260618_1pattern_a9_cifar10_e5_p3500_c1200_s100_h100x4_shared_full_full_reward_seed42/grpo_backbone_outputs",
+              "NNGPT_SFT_TRAINER_OUT": "/data/42-julia-hpc-ai-cv-students/s471802/nn-gpt-runs/parallel_runs/20260618_1pattern_a9_cifar10_e5_p3500_c1200_s100_h100x4_shared_full_full_reward_seed42/grpo_backbone_outputs_trainer"
+            },
+            "epoch_root": "/data/42-julia-hpc-ai-cv-students/s471802/nn-gpt-runs/parallel_runs/20260618_1pattern_a9_cifar10_e5_p3500_c1200_s100_h100x4_shared_full_full_reward_seed42/out/nngpt/llm/epoch_sft",
+            "fresh": true,
+            "log_dir": "/data/42-julia-hpc-ai-cv-students/s471802/nn-gpt-runs/parallel_runs/20260618_1pattern_a9_cifar10_e5_p3500_c1200_s100_h100x4_shared_full_full_reward_seed42/rl_output",
+            "model_out": "/data/42-julia-hpc-ai-cv-students/s471802/nn-gpt-runs/parallel_runs/20260618_1pattern_a9_cifar10_e5_p3500_c1200_s100_h100x4_shared_full_full_reward_seed42/grpo_backbone_outputs",
+            "trainer_out": "/data/42-julia-hpc-ai-cv-students/s471802/nn-gpt-runs/parallel_runs/20260618_1pattern_a9_cifar10_e5_p3500_c1200_s100_h100x4_shared_full_full_reward_seed42/grpo_backbone_outputs_trainer"
+          },
+          "created_at": "2026-06-18T06:53:50+0200",
+          "evaluator": {
+            "batch": 64,
+            "data_root": "data_v2",
+            "dataset": "cifar-10",
+            "download": true,
+            "eval_split_role": "reward_eval",
+            "formal_epoch_limit_minutes": 30,
+            "formal_epochs": "5",
+            "full_test_acc": true,
+            "heldout_test_set": "cifar10-test[10k]",
+            "n_classes": 10,
+            "out_shape": [
+              10
+            ],
+            "resize": 128,
+            "reward_eval_set": "cifar10-train[5k]",
+            "run_unfrozen": false,
+            "split_protocol": "trainvaltest",
+            "split_seed": 42,
+            "train_epochs": 1,
+            "train_set": "cifar10-train[45k]",
+            "train_subset_size": 0,
+            "transform": "norm_128_flip",
+            "val_subset_size": 0,
+            "worker_eval_limit_seconds": 900
+          },
+          "git": {
+            "branch": "experiment/four-pattern-reward-ablation-821f",
+            "commit": "c91714dbe7dad1d02a9080243945bbf8e8ec9300",
+            "commit_short": "c91714db",
+            "commit_subject": "Simplify reward memory preflight",
+            "dirty": true
+          },
+          "init": {
+            "adapter_env": {
+              "NNGPT_SFT_BASE_MODEL_ID": "/home/s471802/nn-gpt/out/llm/deepseek-ai/deepseek-coder-6.7b-instruct",
+              "NNGPT_SFT_INITIAL_ADAPTER_MODE": "trainable",
+              "NNGPT_SFT_INIT_ADAPTER": "/home/s471802/nn-gpt/out/nngpt/llm/20260601_1pattern_three_model_sft_v3_cifar10_dscoder7b/epoch_sft/A9/deepseek-ai/deepseek-coder-6.7b-instruct",
+              "NNGPT_SFT_LOAD_INITIAL_ADAPTER": "1"
+            },
+            "init_adapter": "/home/s471802/nn-gpt/out/nngpt/llm/20260601_1pattern_three_model_sft_v3_cifar10_dscoder7b/epoch_sft/A9/deepseek-ai/deepseek-coder-6.7b-instruct",
+            "initial_adapter_dtype": "fp32",
+            "initial_adapter_mode": "trainable",
+            "load_initial_adapter": true,
+            "restored_runtime_state_path": null,
+            "resume": {
+              "active": false,
+              "mode": "fresh",
+              "stage_adapter_dir": null,
+              "stage_checkpoint_dir": null,
+              "trainer_checkpoint": null
+            }
+          },
+          "model_source": "/home/s471802/nn-gpt/out/llm/deepseek-ai/deepseek-coder-6.7b-instruct",
+          "phase": "four_pattern_reward_ablation",
+          "prompt": {
+            "feedback_char_budget": 0,
+            "nn_prefixes": [
+              "rl-bb-test1"
+            ],
+            "prompt_mode": "sft_aligned"
+          },
+          "reward": {
+            "env": {
+              "NNGPT_RL_FORMAL_DATASET": "cifar-10",
+              "NNGPT_RL_FORMAL_REWARD_EPOCHS": "5",
+              "NNGPT_RL_RESUME_STAGE": "stage2_formal_explore",
+              "NNGPT_RL_REWARD_VARIANT": "full_reward",
+              "NNGPT_RL_SEED": "42"
+            },
+            "formal_epochs": "5",
+            "variant": "full_reward"
+          },
+          "runtime": {
+            "deepspeed_config_path": null,
+            "distributed": {
+              "distributed": false,
+              "local_rank": 0,
+              "rank": 0,
+              "raw_local_rank": 0,
+              "reward_gpu_indices": [
+                0,
+                1,
+                2,
+                3
+              ],
+              "reward_gpu_tokens": [
+                "0",
+                "1",
+                "2",
+                "3"
+              ],
+              "train_gpu": 0,
+              "train_gpu_token": "0",
+              "visible_gpu_count": 4,
+              "visible_gpu_tokens": [
+                "0",
+                "1",
+                "2",
+                "3"
+              ],
+              "world_size": 1
+            },
+            "gpu_role_plan": {
+              "requested_mode": "auto",
+              "resolved_mode": "split",
+              "reward_exclude_train_gpu": false,
+              "reward_gpu_tokens": [
+                "0",
+                "1",
+                "2",
+                "3"
+              ],
+              "train_gpu_tokens": [
+                "0"
+              ],
+              "visible_gpu_tokens": [
+                "0",
+                "1",
+                "2",
+                "3"
+              ]
+            },
+            "reward_worker_plan": {
+              "deepspeed_enabled": false,
+              "distributed": false,
+              "dynamic_scaling": false,
+              "gpu_memory_snapshots": [
+                {
+                  "allocated_gib": 0.0,
+                  "device_index": 0,
+                  "device_token": "0",
+                  "free_gib": 78.66400146484375,
+                  "is_train_gpu": true,
+                  "reserved_gib": 0.0,
+                  "total_gib": 79.180419921875,
+                  "used_gib": 0.51641845703125
+                },
+                {
+                  "allocated_gib": 0.0,
+                  "device_index": 1,
+                  "device_token": "1",
+                  "free_gib": 78.66400146484375,
+                  "is_train_gpu": false,
+                  "reserved_gib": 0.0,
+                  "total_gib": 79.180419921875,
+                  "used_gib": 0.51641845703125
+                },
+                {
+                  "allocated_gib": 0.0,
+                  "device_index": 2,
+                  "device_token": "2",
+                  "free_gib": 78.66400146484375,
+                  "is_train_gpu": false,
+                  "reserved_gib": 0.0,
+                  "total_gib": 79.180419921875,
+                  "used_gib": 0.51641845703125
+                },
+                {
+                  "allocated_gib": 0.0,
+                  "device_index": 3,
+                  "device_token": "3",
+                  "free_gib": 78.66400146484375,
+                  "is_train_gpu": false,
+                  "reserved_gib": 0.0,
+                  "total_gib": 79.180419921875,
+                  "used_gib": 0.51641845703125
+                }
+              ],
+              "local_rank": 0,
+              "mode": "single_rank_dedicated_fixed_pool",
+              "per_gpu_worker_counts": [
+                1,
+                1,
+                1,
+                1
+              ],
+              "pool_size": 4,
+              "rank": 0,
+              "reason": "fixed_workers_override",
+              "reserved_headroom_gib": null,
+              "reward_gpu_indices": [
+                0,
+                1,
+                2,
+                3
+              ],
+              "reward_gpu_tokens": [
+                "0",
+                "1",
+                "2",
+                "3"
+              ],
+              "shared_train_gpu": true,
+              "train_gpu": 0,
+              "visible_gpu_count": 4,
+              "worker_budget_gib": null,
+              "workers_per_gpu": 1,
+              "world_size": 1
+            },
+            "use_deepspeed": false
+          },
+          "sampling": {
+            "env": {
+              "NNGPT_SFT_GENERATION_BATCH_SIZE": "8",
+              "NNGPT_SFT_MAX_COMPLETION_LENGTH": "1200",
+              "NNGPT_SFT_MAX_PROMPT_LENGTH": "3500",
+              "NNGPT_SFT_MAX_STEPS": "100",
+              "NNGPT_SFT_NUM_GENERATIONS": "8"
+            },
+            "generation_kwargs": {
+              "eos_token_id": 32021,
+              "pad_token_id": 32021,
+              "stop_strings": [
+                "</forward>"
+              ],
+              "use_cache": true
+            },
+            "runtime_settings": {
+              "dataset_limit": 500,
+              "effective_global_num_generations": 8,
+              "effective_train_batch_size": 8,
+              "generation_batch_size": 8,
+              "global_num_generations": 8,
+              "global_num_generations_adapted": 0,
+              "grad_accum": 8,
+              "max_completion_length": 1200,
+              "max_prompt_length": 3500,
+              "max_steps": 100,
+              "requested_global_num_generations": 8,
+              "steps_per_generation": null,
+              "valid_generation_values": [
+                2,
+                4,
+                8
+              ]
+            },
+            "seed": 42,
+            "temperature": 0.8,
+            "top_k": 50,
+            "top_p": 0.95
+          },
+          "source_mode": "explicit-path+out/tokenizer",
+          "tokenizer_source": "out/tokenizer/deepseek-ai/deepseek-coder-6.7b-instruct"
+        }
+      },
+      "formal_rule": "api_result.formal_success_candidate is exactly true",
+      "formal_success_n": 91,
+      "formal_success_rate": 0.91,
+      "metric_notes": {
+        "backbone_cnn_signature": "derived as backbone_signature::cnn_signature when no stored combined field exists"
+      },
+      "metrics": {
+        "actual_structure_signature": {
+          "covered_n": 91,
+          "effective_number": 52.47933267818359,
+          "shannon_entropy": 3.960419428819157,
+          "top1_count": 8,
+          "top1_share": 0.08791208791208792,
+          "top1_value": "ParallelTriple_Shallow|d4|m1|bb2|fr1|st0|pr0|fu1|fan3|bb2|block_live|27413ccaf5b3|86ab858e3845|3befc395da5b",
+          "unique_count": 64
+        },
+        "backbone_cnn_signature": {
+          "covered_n": 91,
+          "effective_number": 32.6177732531204,
+          "shannon_entropy": 3.484857331623109,
+          "top1_count": 11,
+          "top1_share": 0.12087912087912088,
+          "top1_value": "resnet50 + resnext50_32x4d::86ab858e3845e7128fa6117d06a68dc414a53cbd",
+          "unique_count": 47
+        },
+        "backbone_signature": {
+          "covered_n": 91,
+          "effective_number": 32.6177732531204,
+          "shannon_entropy": 3.484857331623109,
+          "top1_count": 11,
+          "top1_share": 0.12087912087912088,
+          "top1_value": "resnet50 + resnext50_32x4d",
+          "unique_count": 47
+        },
+        "block_signature": {
+          "covered_n": 91,
+          "effective_number": 52.47933267818359,
+          "shannon_entropy": 3.960419428819157,
+          "top1_count": 8,
+          "top1_share": 0.08791208791208792,
+          "top1_value": "3befc395da5bf4616212b469906c1eef78703c0c",
+          "unique_count": 64
+        },
+        "cnn_signature": {
+          "covered_n": 91,
+          "effective_number": 1.0,
+          "shannon_entropy": -0.0,
+          "top1_count": 91,
+          "top1_share": 1.0,
+          "top1_value": "86ab858e3845e7128fa6117d06a68dc414a53cbd",
+          "unique_count": 1
+        },
+        "family_hash": {
+          "covered_n": 91,
+          "effective_number": 1.0,
+          "shannon_entropy": -0.0,
+          "top1_count": 91,
+          "top1_share": 1.0,
+          "top1_value": "27413ccaf5b33052843a15c4a8706f691c3a77ae",
+          "unique_count": 1
+        },
+        "graph_hash": {
+          "covered_n": 91,
+          "effective_number": 39.45873473132269,
+          "shannon_entropy": 3.675255435491507,
+          "top1_count": 11,
+          "top1_share": 0.12087912087912088,
+          "top1_value": "0205f5a3b6e459a97dd841e585cd6fda99e2c325",
+          "unique_count": 53
+        }
+      },
+      "metrics_population": "formal-success rows within attempted window",
+      "raw_rows": 800,
+      "row_fingerprints_unique": 800,
+      "seed": 42,
+      "source": "/Users/zhangxi/code/RL/faraz_delivery_20260726/article_raw_data_archive_20260718_resend_20260726.zip!article_raw_data_archive_20260704/01_six_seed_robustness/1pattern_seed42/generation_samples.jsonl",
+      "source_sha256": "ec84dc102bfb937d8305e899464ba99f3062ab530633b20a0949307d487297a2",
+      "stage": "post-RL",
+      "window_index_max": null,
+      "window_index_min": null,
+      "window_n": 100
+    },
+    {
+      "attempted_window": "file-order rows 701-800 (last 100 of 800)",
+      "candidate_ids_present": 0,
+      "candidate_ids_unique": 0,
+      "candidate_index_max": null,
+      "candidate_index_min": null,
+      "candidate_indices_monotonic": null,
+      "condition": "1pattern",
+      "config": {
+        "container_zip_sha256": "afd723be7e0e3c47de145c4c2b764786047df05a0003a833a6d24b69939ac74f",
+        "run": {
+          "archive": {
+            "append_logs": false,
+            "env": {
+              "NNGPT_SFT_EPOCH_ROOT": "/data/42-julia-hpc-ai-cv-students/s471802/nn-gpt-runs/parallel_runs/20260618_1pattern_a9_cifar10_e5_p3500_c1200_s100_h100x4_shared_full_full_reward_seed123/out/nngpt/llm/epoch_sft",
+              "NNGPT_SFT_LOG_DIR": "/data/42-julia-hpc-ai-cv-students/s471802/nn-gpt-runs/parallel_runs/20260618_1pattern_a9_cifar10_e5_p3500_c1200_s100_h100x4_shared_full_full_reward_seed123/rl_output",
+              "NNGPT_SFT_MODEL_OUT": "/data/42-julia-hpc-ai-cv-students/s471802/nn-gpt-runs/parallel_runs/20260618_1pattern_a9_cifar10_e5_p3500_c1200_s100_h100x4_shared_full_full_reward_seed123/grpo_backbone_outputs",
+              "NNGPT_SFT_TRAINER_OUT": "/data/42-julia-hpc-ai-cv-students/s471802/nn-gpt-runs/parallel_runs/20260618_1pattern_a9_cifar10_e5_p3500_c1200_s100_h100x4_shared_full_full_reward_seed123/grpo_backbone_outputs_trainer"
+            },
+            "epoch_root": "/data/42-julia-hpc-ai-cv-students/s471802/nn-gpt-runs/parallel_runs/20260618_1pattern_a9_cifar10_e5_p3500_c1200_s100_h100x4_shared_full_full_reward_seed123/out/nngpt/llm/epoch_sft",
+            "fresh": true,
+            "log_dir": "/data/42-julia-hpc-ai-cv-students/s471802/nn-gpt-runs/parallel_runs/20260618_1pattern_a9_cifar10_e5_p3500_c1200_s100_h100x4_shared_full_full_reward_seed123/rl_output",
+            "model_out": "/data/42-julia-hpc-ai-cv-students/s471802/nn-gpt-runs/parallel_runs/20260618_1pattern_a9_cifar10_e5_p3500_c1200_s100_h100x4_shared_full_full_reward_seed123/grpo_backbone_outputs",
+            "trainer_out": "/data/42-julia-hpc-ai-cv-students/s471802/nn-gpt-runs/parallel_runs/20260618_1pattern_a9_cifar10_e5_p3500_c1200_s100_h100x4_shared_full_full_reward_seed123/grpo_backbone_outputs_trainer"
+          },
+          "created_at": "2026-06-18T06:53:51+0200",
+          "evaluator": {
+            "batch": 64,
+            "data_root": "data_v2",
+            "dataset": "cifar-10",
+            "download": true,
+            "eval_split_role": "reward_eval",
+            "formal_epoch_limit_minutes": 30,
+            "formal_epochs": "5",
+            "full_test_acc": true,
+            "heldout_test_set": "cifar10-test[10k]",
+            "n_classes": 10,
+            "out_shape": [
+              10
+            ],
+            "resize": 128,
+            "reward_eval_set": "cifar10-train[5k]",
+            "run_unfrozen": false,
+            "split_protocol": "trainvaltest",
+            "split_seed": 42,
+            "train_epochs": 1,
+            "train_set": "cifar10-train[45k]",
+            "train_subset_size": 0,
+            "transform": "norm_128_flip",
+            "val_subset_size": 0,
+            "worker_eval_limit_seconds": 900
+          },
+          "git": {
+            "branch": "experiment/four-pattern-reward-ablation-821f",
+            "commit": "c91714dbe7dad1d02a9080243945bbf8e8ec9300",
+            "commit_short": "c91714db",
+            "commit_subject": "Simplify reward memory preflight",
+            "dirty": true
+          },
+          "init": {
+            "adapter_env": {
+              "NNGPT_SFT_BASE_MODEL_ID": "/home/s471802/nn-gpt/out/llm/deepseek-ai/deepseek-coder-6.7b-instruct",
+              "NNGPT_SFT_INITIAL_ADAPTER_MODE": "trainable",
+              "NNGPT_SFT_INIT_ADAPTER": "/home/s471802/nn-gpt/out/nngpt/llm/20260601_1pattern_three_model_sft_v3_cifar10_dscoder7b/epoch_sft/A9/deepseek-ai/deepseek-coder-6.7b-instruct",
+              "NNGPT_SFT_LOAD_INITIAL_ADAPTER": "1"
+            },
+            "init_adapter": "/home/s471802/nn-gpt/out/nngpt/llm/20260601_1pattern_three_model_sft_v3_cifar10_dscoder7b/epoch_sft/A9/deepseek-ai/deepseek-coder-6.7b-instruct",
+            "initial_adapter_dtype": "fp32",
+            "initial_adapter_mode": "trainable",
+            "load_initial_adapter": true,
+            "restored_runtime_state_path": null,
+            "resume": {
+              "active": false,
+              "mode": "fresh",
+              "stage_adapter_dir": null,
+              "stage_checkpoint_dir": null,
+              "trainer_checkpoint": null
+            }
+          },
+          "model_source": "/home/s471802/nn-gpt/out/llm/deepseek-ai/deepseek-coder-6.7b-instruct",
+          "phase": "four_pattern_reward_ablation",
+          "prompt": {
+            "feedback_char_budget": 0,
+            "nn_prefixes": [
+              "rl-bb-test1"
+            ],
+            "prompt_mode": "sft_aligned"
+          },
+          "reward": {
+            "env": {
+              "NNGPT_RL_FORMAL_DATASET": "cifar-10",
+              "NNGPT_RL_FORMAL_REWARD_EPOCHS": "5",
+              "NNGPT_RL_RESUME_STAGE": "stage2_formal_explore",
+              "NNGPT_RL_REWARD_VARIANT": "full_reward",
+              "NNGPT_RL_SEED": "123"
+            },
+            "formal_epochs": "5",
+            "variant": "full_reward"
+          },
+          "runtime": {
+            "deepspeed_config_path": null,
+            "distributed": {
+              "distributed": false,
+              "local_rank": 0,
+              "rank": 0,
+              "raw_local_rank": 0,
+              "reward_gpu_indices": [
+                0,
+                1,
+                2,
+                3
+              ],
+              "reward_gpu_tokens": [
+                "0",
+                "1",
+                "2",
+                "3"
+              ],
+              "train_gpu": 0,
+              "train_gpu_token": "0",
+              "visible_gpu_count": 4,
+              "visible_gpu_tokens": [
+                "0",
+                "1",
+                "2",
+                "3"
+              ],
+              "world_size": 1
+            },
+            "gpu_role_plan": {
+              "requested_mode": "auto",
+              "resolved_mode": "split",
+              "reward_exclude_train_gpu": false,
+              "reward_gpu_tokens": [
+                "0",
+                "1",
+                "2",
+                "3"
+              ],
+              "train_gpu_tokens": [
+                "0"
+              ],
+              "visible_gpu_tokens": [
+                "0",
+                "1",
+                "2",
+                "3"
+              ]
+            },
+            "reward_worker_plan": {
+              "deepspeed_enabled": false,
+              "distributed": false,
+              "dynamic_scaling": false,
+              "gpu_memory_snapshots": [
+                {
+                  "allocated_gib": 0.0,
+                  "device_index": 0,
+                  "device_token": "0",
+                  "free_gib": 78.66400146484375,
+                  "is_train_gpu": true,
+                  "reserved_gib": 0.0,
+                  "total_gib": 79.180419921875,
+                  "used_gib": 0.51641845703125
+                },
+                {
+                  "allocated_gib": 0.0,
+                  "device_index": 1,
+                  "device_token": "1",
+                  "free_gib": 78.66400146484375,
+                  "is_train_gpu": false,
+                  "reserved_gib": 0.0,
+                  "total_gib": 79.180419921875,
+                  "used_gib": 0.51641845703125
+                },
+                {
+                  "allocated_gib": 0.0,
+                  "device_index": 2,
+                  "device_token": "2",
+                  "free_gib": 78.66400146484375,
+                  "is_train_gpu": false,
+                  "reserved_gib": 0.0,
+                  "total_gib": 79.180419921875,
+                  "used_gib": 0.51641845703125
+                },
+                {
+                  "allocated_gib": 0.0,
+                  "device_index": 3,
+                  "device_token": "3",
+                  "free_gib": 78.66400146484375,
+                  "is_train_gpu": false,
+                  "reserved_gib": 0.0,
+                  "total_gib": 79.180419921875,
+                  "used_gib": 0.51641845703125
+                }
+              ],
+              "local_rank": 0,
+              "mode": "single_rank_dedicated_fixed_pool",
+              "per_gpu_worker_counts": [
+                1,
+                1,
+                1,
+                1
+              ],
+              "pool_size": 4,
+              "rank": 0,
+              "reason": "fixed_workers_override",
+              "reserved_headroom_gib": null,
+              "reward_gpu_indices": [
+                0,
+                1,
+                2,
+                3
+              ],
+              "reward_gpu_tokens": [
+                "0",
+                "1",
+                "2",
+                "3"
+              ],
+              "shared_train_gpu": true,
+              "train_gpu": 0,
+              "visible_gpu_count": 4,
+              "worker_budget_gib": null,
+              "workers_per_gpu": 1,
+              "world_size": 1
+            },
+            "use_deepspeed": false
+          },
+          "sampling": {
+            "env": {
+              "NNGPT_SFT_GENERATION_BATCH_SIZE": "8",
+              "NNGPT_SFT_MAX_COMPLETION_LENGTH": "1200",
+              "NNGPT_SFT_MAX_PROMPT_LENGTH": "3500",
+              "NNGPT_SFT_MAX_STEPS": "100",
+              "NNGPT_SFT_NUM_GENERATIONS": "8"
+            },
+            "generation_kwargs": {
+              "eos_token_id": 32021,
+              "pad_token_id": 32021,
+              "stop_strings": [
+                "</forward>"
+              ],
+              "use_cache": true
+            },
+            "runtime_settings": {
+              "dataset_limit": 500,
+              "effective_global_num_generations": 8,
+              "effective_train_batch_size": 8,
+              "generation_batch_size": 8,
+              "global_num_generations": 8,
+              "global_num_generations_adapted": 0,
+              "grad_accum": 8,
+              "max_completion_length": 1200,
+              "max_prompt_length": 3500,
+              "max_steps": 100,
+              "requested_global_num_generations": 8,
+              "steps_per_generation": null,
+              "valid_generation_values": [
+                2,
+                4,
+                8
+              ]
+            },
+            "seed": 123,
+            "temperature": 0.8,
+            "top_k": 50,
+            "top_p": 0.95
+          },
+          "source_mode": "explicit-path+out/tokenizer",
+          "tokenizer_source": "out/tokenizer/deepseek-ai/deepseek-coder-6.7b-instruct"
+        }
+      },
+      "formal_rule": "api_result.formal_success_candidate is exactly true",
+      "formal_success_n": 100,
+      "formal_success_rate": 1.0,
+      "metric_notes": {
+        "backbone_cnn_signature": "derived as backbone_signature::cnn_signature when no stored combined field exists"
+      },
+      "metrics": {
+        "actual_structure_signature": {
+          "covered_n": 100,
+          "effective_number": 4.362209961779034,
+          "shannon_entropy": 1.4729788009124074,
+          "top1_count": 32,
+          "top1_share": 0.32,
+          "top1_value": "ParallelTriple_Shallow|d4|m1|bb2|fr1|st0|pr0|fu1|fan3|bb2|block_live|27413ccaf5b3|86ab858e3845|d047a7fd2111",
+          "unique_count": 5
+        },
+        "backbone_cnn_signature": {
+          "covered_n": 100,
+          "effective_number": 34.51037502546174,
+          "shannon_entropy": 3.5412600042042044,
+          "top1_count": 13,
+          "top1_share": 0.13,
+          "top1_value": "regnet_x_3_2gf + regnet_y_3_2gf::86ab858e3845e7128fa6117d06a68dc414a53cbd",
+          "unique_count": 46
+        },
+        "backbone_signature": {
+          "covered_n": 100,
+          "effective_number": 34.51037502546174,
+          "shannon_entropy": 3.5412600042042044,
+          "top1_count": 13,
+          "top1_share": 0.13,
+          "top1_value": "regnet_x_3_2gf + regnet_y_3_2gf",
+          "unique_count": 46
+        },
+        "block_signature": {
+          "covered_n": 100,
+          "effective_number": 4.362209961779034,
+          "shannon_entropy": 1.4729788009124074,
+          "top1_count": 32,
+          "top1_share": 0.32,
+          "top1_value": "d047a7fd211164070af4fbde04c528ffa4b3af5b",
+          "unique_count": 5
+        },
+        "cnn_signature": {
+          "covered_n": 100,
+          "effective_number": 1.0,
+          "shannon_entropy": -0.0,
+          "top1_count": 100,
+          "top1_share": 1.0,
+          "top1_value": "86ab858e3845e7128fa6117d06a68dc414a53cbd",
+          "unique_count": 1
+        },
+        "family_hash": {
+          "covered_n": 100,
+          "effective_number": 1.0,
+          "shannon_entropy": -0.0,
+          "top1_count": 100,
+          "top1_share": 1.0,
+          "top1_value": "27413ccaf5b33052843a15c4a8706f691c3a77ae",
+          "unique_count": 1
+        },
+        "graph_hash": {
+          "covered_n": 100,
+          "effective_number": 48.84081636951794,
+          "shannon_entropy": 3.888566364285402,
+          "top1_count": 8,
+          "top1_share": 0.08,
+          "top1_value": "21d9def001f33798c8de2470599cbfaad8cf53fc",
+          "unique_count": 59
+        }
+      },
+      "metrics_population": "formal-success rows within attempted window",
+      "raw_rows": 800,
+      "row_fingerprints_unique": 800,
+      "seed": 123,
+      "source": "/Users/zhangxi/code/RL/faraz_delivery_20260726/article_raw_data_archive_20260718_resend_20260726.zip!article_raw_data_archive_20260704/01_six_seed_robustness/1pattern_seed123/generation_samples.jsonl",
+      "source_sha256": "34b6dba969b44fcaa9808814e2c0fb87b18fbabe761984e710f6501c59e1152a",
+      "stage": "post-RL",
+      "window_index_max": null,
+      "window_index_min": null,
+      "window_n": 100
+    },
+    {
+      "attempted_window": "file-order rows 701-800 (last 100 of 800)",
+      "candidate_ids_present": 0,
+      "candidate_ids_unique": 0,
+      "candidate_index_max": null,
+      "candidate_index_min": null,
+      "candidate_indices_monotonic": null,
+      "condition": "1pattern",
+      "config": {
+        "container_zip_sha256": "afd723be7e0e3c47de145c4c2b764786047df05a0003a833a6d24b69939ac74f",
+        "run": {
+          "archive": {
+            "append_logs": false,
+            "env": {
+              "NNGPT_SFT_EPOCH_ROOT": "/data/42-julia-hpc-ai-cv-students/s471802/nn-gpt-runs/parallel_runs/20260618_1pattern_a9_cifar10_e5_p3500_c1200_s100_h100x4_shared_full_full_reward_seed777/out/nngpt/llm/epoch_sft",
+              "NNGPT_SFT_LOG_DIR": "/data/42-julia-hpc-ai-cv-students/s471802/nn-gpt-runs/parallel_runs/20260618_1pattern_a9_cifar10_e5_p3500_c1200_s100_h100x4_shared_full_full_reward_seed777/rl_output",
+              "NNGPT_SFT_MODEL_OUT": "/data/42-julia-hpc-ai-cv-students/s471802/nn-gpt-runs/parallel_runs/20260618_1pattern_a9_cifar10_e5_p3500_c1200_s100_h100x4_shared_full_full_reward_seed777/grpo_backbone_outputs",
+              "NNGPT_SFT_TRAINER_OUT": "/data/42-julia-hpc-ai-cv-students/s471802/nn-gpt-runs/parallel_runs/20260618_1pattern_a9_cifar10_e5_p3500_c1200_s100_h100x4_shared_full_full_reward_seed777/grpo_backbone_outputs_trainer"
+            },
+            "epoch_root": "/data/42-julia-hpc-ai-cv-students/s471802/nn-gpt-runs/parallel_runs/20260618_1pattern_a9_cifar10_e5_p3500_c1200_s100_h100x4_shared_full_full_reward_seed777/out/nngpt/llm/epoch_sft",
+            "fresh": true,
+            "log_dir": "/data/42-julia-hpc-ai-cv-students/s471802/nn-gpt-runs/parallel_runs/20260618_1pattern_a9_cifar10_e5_p3500_c1200_s100_h100x4_shared_full_full_reward_seed777/rl_output",
+            "model_out": "/data/42-julia-hpc-ai-cv-students/s471802/nn-gpt-runs/parallel_runs/20260618_1pattern_a9_cifar10_e5_p3500_c1200_s100_h100x4_shared_full_full_reward_seed777/grpo_backbone_outputs",
+            "trainer_out": "/data/42-julia-hpc-ai-cv-students/s471802/nn-gpt-runs/parallel_runs/20260618_1pattern_a9_cifar10_e5_p3500_c1200_s100_h100x4_shared_full_full_reward_seed777/grpo_backbone_outputs_trainer"
+          },
+          "created_at": "2026-06-18T06:53:51+0200",
+          "evaluator": {
+            "batch": 64,
+            "data_root": "data_v2",
+            "dataset": "cifar-10",
+            "download": true,
+            "eval_split_role": "reward_eval",
+            "formal_epoch_limit_minutes": 30,
+            "formal_epochs": "5",
+            "full_test_acc": true,
+            "heldout_test_set": "cifar10-test[10k]",
+            "n_classes": 10,
+            "out_shape": [
+              10
+            ],
+            "resize": 128,
+            "reward_eval_set": "cifar10-train[5k]",
+            "run_unfrozen": false,
+            "split_protocol": "trainvaltest",
+            "split_seed": 42,
+            "train_epochs": 1,
+            "train_set": "cifar10-train[45k]",
+            "train_subset_size": 0,
+            "transform": "norm_128_flip",
+            "val_subset_size": 0,
+            "worker_eval_limit_seconds": 900
+          },
+          "git": {
+            "branch": "experiment/four-pattern-reward-ablation-821f",
+            "commit": "c91714dbe7dad1d02a9080243945bbf8e8ec9300",
+            "commit_short": "c91714db",
+            "commit_subject": "Simplify reward memory preflight",
+            "dirty": true
+          },
+          "init": {
+            "adapter_env": {
+              "NNGPT_SFT_BASE_MODEL_ID": "/home/s471802/nn-gpt/out/llm/deepseek-ai/deepseek-coder-6.7b-instruct",
+              "NNGPT_SFT_INITIAL_ADAPTER_MODE": "trainable",
+              "NNGPT_SFT_INIT_ADAPTER": "/home/s471802/nn-gpt/out/nngpt/llm/20260601_1pattern_three_model_sft_v3_cifar10_dscoder7b/epoch_sft/A9/deepseek-ai/deepseek-coder-6.7b-instruct",
+              "NNGPT_SFT_LOAD_INITIAL_ADAPTER": "1"
+            },
+            "init_adapter": "/home/s471802/nn-gpt/out/nngpt/llm/20260601_1pattern_three_model_sft_v3_cifar10_dscoder7b/epoch_sft/A9/deepseek-ai/deepseek-coder-6.7b-instruct",
+            "initial_adapter_dtype": "fp32",
+            "initial_adapter_mode": "trainable",
+            "load_initial_adapter": true,
+            "restored_runtime_state_path": null,
+            "resume": {
+              "active": false,
+              "mode": "fresh",
+              "stage_adapter_dir": null,
+              "stage_checkpoint_dir": null,
+              "trainer_checkpoint": null
+            }
+          },
+          "model_source": "/home/s471802/nn-gpt/out/llm/deepseek-ai/deepseek-coder-6.7b-instruct",
+          "phase": "four_pattern_reward_ablation",
+          "prompt": {
+            "feedback_char_budget": 0,
+            "nn_prefixes": [
+              "rl-bb-test1"
+            ],
+            "prompt_mode": "sft_aligned"
+          },
+          "reward": {
+            "env": {
+              "NNGPT_RL_FORMAL_DATASET": "cifar-10",
+              "NNGPT_RL_FORMAL_REWARD_EPOCHS": "5",
+              "NNGPT_RL_RESUME_STAGE": "stage2_formal_explore",
+              "NNGPT_RL_REWARD_VARIANT": "full_reward",
+              "NNGPT_RL_SEED": "777"
+            },
+            "formal_epochs": "5",
+            "variant": "full_reward"
+          },
+          "runtime": {
+            "deepspeed_config_path": null,
+            "distributed": {
+              "distributed": false,
+              "local_rank": 0,
+              "rank": 0,
+              "raw_local_rank": 0,
+              "reward_gpu_indices": [
+                0,
+                1,
+                2,
+                3
+              ],
+              "reward_gpu_tokens": [
+                "0",
+                "1",
+                "2",
+                "3"
+              ],
+              "train_gpu": 0,
+              "train_gpu_token": "0",
+              "visible_gpu_count": 4,
+              "visible_gpu_tokens": [
+                "0",
+                "1",
+                "2",
+                "3"
+              ],
+              "world_size": 1
+            },
+            "gpu_role_plan": {
+              "requested_mode": "auto",
+              "resolved_mode": "split",
+              "reward_exclude_train_gpu": false,
+              "reward_gpu_tokens": [
+                "0",
+                "1",
+                "2",
+                "3"
+              ],
+              "train_gpu_tokens": [
+                "0"
+              ],
+              "visible_gpu_tokens": [
+                "0",
+                "1",
+                "2",
+                "3"
+              ]
+            },
+            "reward_worker_plan": {
+              "deepspeed_enabled": false,
+              "distributed": false,
+              "dynamic_scaling": false,
+              "gpu_memory_snapshots": [
+                {
+                  "allocated_gib": 0.0,
+                  "device_index": 0,
+                  "device_token": "0",
+                  "free_gib": 78.66400146484375,
+                  "is_train_gpu": true,
+                  "reserved_gib": 0.0,
+                  "total_gib": 79.180419921875,
+                  "used_gib": 0.51641845703125
+                },
+                {
+                  "allocated_gib": 0.0,
+                  "device_index": 1,
+                  "device_token": "1",
+                  "free_gib": 78.66400146484375,
+                  "is_train_gpu": false,
+                  "reserved_gib": 0.0,
+                  "total_gib": 79.180419921875,
+                  "used_gib": 0.51641845703125
+                },
+                {
+                  "allocated_gib": 0.0,
+                  "device_index": 2,
+                  "device_token": "2",
+                  "free_gib": 78.66400146484375,
+                  "is_train_gpu": false,
+                  "reserved_gib": 0.0,
+                  "total_gib": 79.180419921875,
+                  "used_gib": 0.51641845703125
+                },
+                {
+                  "allocated_gib": 0.0,
+                  "device_index": 3,
+                  "device_token": "3",
+                  "free_gib": 78.66400146484375,
+                  "is_train_gpu": false,
+                  "reserved_gib": 0.0,
+                  "total_gib": 79.180419921875,
+                  "used_gib": 0.51641845703125
+                }
+              ],
+              "local_rank": 0,
+              "mode": "single_rank_dedicated_fixed_pool",
+              "per_gpu_worker_counts": [
+                1,
+                1,
+                1,
+                1
+              ],
+              "pool_size": 4,
+              "rank": 0,
+              "reason": "fixed_workers_override",
+              "reserved_headroom_gib": null,
+              "reward_gpu_indices": [
+                0,
+                1,
+                2,
+                3
+              ],
+              "reward_gpu_tokens": [
+                "0",
+                "1",
+                "2",
+                "3"
+              ],
+              "shared_train_gpu": true,
+              "train_gpu": 0,
+              "visible_gpu_count": 4,
+              "worker_budget_gib": null,
+              "workers_per_gpu": 1,
+              "world_size": 1
+            },
+            "use_deepspeed": false
+          },
+          "sampling": {
+            "env": {
+              "NNGPT_SFT_GENERATION_BATCH_SIZE": "8",
+              "NNGPT_SFT_MAX_COMPLETION_LENGTH": "1200",
+              "NNGPT_SFT_MAX_PROMPT_LENGTH": "3500",
+              "NNGPT_SFT_MAX_STEPS": "100",
+              "NNGPT_SFT_NUM_GENERATIONS": "8"
+            },
+            "generation_kwargs": {
+              "eos_token_id": 32021,
+              "pad_token_id": 32021,
+              "stop_strings": [
+                "</forward>"
+              ],
+              "use_cache": true
+            },
+            "runtime_settings": {
+              "dataset_limit": 500,
+              "effective_global_num_generations": 8,
+              "effective_train_batch_size": 8,
+              "generation_batch_size": 8,
+              "global_num_generations": 8,
+              "global_num_generations_adapted": 0,
+              "grad_accum": 8,
+              "max_completion_length": 1200,
+              "max_prompt_length": 3500,
+              "max_steps": 100,
+              "requested_global_num_generations": 8,
+              "steps_per_generation": null,
+              "valid_generation_values": [
+                2,
+                4,
+                8
+              ]
+            },
+            "seed": 777,
+            "temperature": 0.8,
+            "top_k": 50,
+            "top_p": 0.95
+          },
+          "source_mode": "explicit-path+out/tokenizer",
+          "tokenizer_source": "out/tokenizer/deepseek-ai/deepseek-coder-6.7b-instruct"
+        }
+      },
+      "formal_rule": "api_result.formal_success_candidate is exactly true",
+      "formal_success_n": 99,
+      "formal_success_rate": 0.99,
+      "metric_notes": {
+        "backbone_cnn_signature": "derived as backbone_signature::cnn_signature when no stored combined field exists"
+      },
+      "metrics": {
+        "actual_structure_signature": {
+          "covered_n": 99,
+          "effective_number": 30.824650727487168,
+          "shannon_entropy": 3.428314718166657,
+          "top1_count": 13,
+          "top1_share": 0.13131313131313133,
+          "top1_value": "ParallelTriple_Shallow|d4|m1|bb2|fr1|st0|pr0|fu1|fan3|bb2|block_live|27413ccaf5b3|86ab858e3845|c20b28996235",
+          "unique_count": 46
+        },
+        "backbone_cnn_signature": {
+          "covered_n": 99,
+          "effective_number": 13.481970837204434,
+          "shannon_entropy": 2.601353299337707,
+          "top1_count": 19,
+          "top1_share": 0.1919191919191919,
+          "top1_value": "resnet34 + resnet50::86ab858e3845e7128fa6117d06a68dc414a53cbd",
+          "unique_count": 25
+        },
+        "backbone_signature": {
+          "covered_n": 99,
+          "effective_number": 12.8278542200981,
+          "shannon_entropy": 2.5516189175706776,
+          "top1_count": 19,
+          "top1_share": 0.1919191919191919,
+          "top1_value": "resnet34 + resnet50",
+          "unique_count": 23
+        },
+        "block_signature": {
+          "covered_n": 99,
+          "effective_number": 19.630759572596386,
+          "shannon_entropy": 2.9770977020174136,
+          "top1_count": 22,
+          "top1_share": 0.2222222222222222,
+          "top1_value": "c20b28996235b7374e348a1038069b67523a5f01",
+          "unique_count": 37
+        },
+        "cnn_signature": {
+          "covered_n": 99,
+          "effective_number": 1.1194385614891968,
+          "shannon_entropy": 0.11282727523733607,
+          "top1_count": 97,
+          "top1_share": 0.9797979797979798,
+          "top1_value": "86ab858e3845e7128fa6117d06a68dc414a53cbd",
+          "unique_count": 3
+        },
+        "family_hash": {
+          "covered_n": 99,
+          "effective_number": 2.188345144133069,
+          "shannon_entropy": 0.783145616238758,
+          "top1_count": 55,
+          "top1_share": 0.5555555555555556,
+          "top1_value": "27413ccaf5b33052843a15c4a8706f691c3a77ae",
+          "unique_count": 4
+        },
+        "graph_hash": {
+          "covered_n": 99,
+          "effective_number": 35.9950189557254,
+          "shannon_entropy": 3.583380566542197,
+          "top1_count": 10,
+          "top1_share": 0.10101010101010101,
+          "top1_value": "7198df5e1482d3d9807f7806a4ebde5073753110",
+          "unique_count": 50
+        }
+      },
+      "metrics_population": "formal-success rows within attempted window",
+      "raw_rows": 800,
+      "row_fingerprints_unique": 800,
+      "seed": 777,
+      "source": "/Users/zhangxi/code/RL/faraz_delivery_20260726/article_raw_data_archive_20260718_resend_20260726.zip!article_raw_data_archive_20260704/01_six_seed_robustness/1pattern_seed777/generation_samples.jsonl",
+      "source_sha256": "fa23b2a5b161e0e385bc651b5edd861cdc39f2f4f343cbe6d732c997ccefcb47",
+      "stage": "post-RL",
+      "window_index_max": null,
+      "window_index_min": null,
+      "window_n": 100
+    },
+    {
+      "attempted_window": "file-order rows 701-800 (last 100 of 800)",
+      "candidate_ids_present": 0,
+      "candidate_ids_unique": 0,
+      "candidate_index_max": null,
+      "candidate_index_min": null,
+      "candidate_indices_monotonic": null,
+      "condition": "4pattern",
+      "config": {
+        "container_zip_sha256": "afd723be7e0e3c47de145c4c2b764786047df05a0003a833a6d24b69939ac74f",
+        "run": {
+          "archive": {
+            "append_logs": false,
+            "env": {
+              "NNGPT_SFT_EPOCH_ROOT": "/data/42-julia-hpc-ai-cv-students/s471802/nn-gpt-runs/parallel_runs/20260612_4pattern_a18_cifar10_e5_p3500_c1200_s100_l40s_excl_full_full_reward_seed42/out/nngpt/llm/epoch_sft",
+              "NNGPT_SFT_LOG_DIR": "/data/42-julia-hpc-ai-cv-students/s471802/nn-gpt-runs/parallel_runs/20260612_4pattern_a18_cifar10_e5_p3500_c1200_s100_l40s_excl_full_full_reward_seed42/rl_output",
+              "NNGPT_SFT_MODEL_OUT": "/data/42-julia-hpc-ai-cv-students/s471802/nn-gpt-runs/parallel_runs/20260612_4pattern_a18_cifar10_e5_p3500_c1200_s100_l40s_excl_full_full_reward_seed42/grpo_backbone_outputs",
+              "NNGPT_SFT_TRAINER_OUT": "/data/42-julia-hpc-ai-cv-students/s471802/nn-gpt-runs/parallel_runs/20260612_4pattern_a18_cifar10_e5_p3500_c1200_s100_l40s_excl_full_full_reward_seed42/grpo_backbone_outputs_trainer"
+            },
+            "epoch_root": "/data/42-julia-hpc-ai-cv-students/s471802/nn-gpt-runs/parallel_runs/20260612_4pattern_a18_cifar10_e5_p3500_c1200_s100_l40s_excl_full_full_reward_seed42/out/nngpt/llm/epoch_sft",
+            "fresh": true,
+            "log_dir": "/data/42-julia-hpc-ai-cv-students/s471802/nn-gpt-runs/parallel_runs/20260612_4pattern_a18_cifar10_e5_p3500_c1200_s100_l40s_excl_full_full_reward_seed42/rl_output",
+            "model_out": "/data/42-julia-hpc-ai-cv-students/s471802/nn-gpt-runs/parallel_runs/20260612_4pattern_a18_cifar10_e5_p3500_c1200_s100_l40s_excl_full_full_reward_seed42/grpo_backbone_outputs",
+            "trainer_out": "/data/42-julia-hpc-ai-cv-students/s471802/nn-gpt-runs/parallel_runs/20260612_4pattern_a18_cifar10_e5_p3500_c1200_s100_l40s_excl_full_full_reward_seed42/grpo_backbone_outputs_trainer"
+          },
+          "created_at": "2026-06-12T13:20:06+0200",
+          "evaluator": {
+            "batch": 64,
+            "data_root": "data_v2",
+            "dataset": "cifar-10",
+            "download": true,
+            "eval_split_role": "reward_eval",
+            "formal_epoch_limit_minutes": 30,
+            "formal_epochs": "5",
+            "full_test_acc": true,
+            "heldout_test_set": "cifar10-test[10k]",
+            "n_classes": 10,
+            "out_shape": [
+              10
+            ],
+            "resize": 128,
+            "reward_eval_set": "cifar10-train[5k]",
+            "run_unfrozen": false,
+            "split_protocol": "trainvaltest",
+            "split_seed": 42,
+            "train_epochs": 1,
+            "train_set": "cifar10-train[45k]",
+            "train_subset_size": 0,
+            "transform": "norm_128_flip",
+            "val_subset_size": 0,
+            "worker_eval_limit_seconds": 900
+          },
+          "git": {
+            "branch": "experiment/four-pattern-reward-ablation-821f",
+            "commit": "c91714dbe7dad1d02a9080243945bbf8e8ec9300",
+            "commit_short": "c91714db",
+            "commit_subject": "Simplify reward memory preflight",
+            "dirty": true
+          },
+          "init": {
+            "adapter_env": {
+              "NNGPT_SFT_BASE_MODEL_ID": "/home/s471802/nn-gpt/out/llm/deepseek-ai/deepseek-coder-6.7b-instruct",
+              "NNGPT_SFT_INITIAL_ADAPTER_MODE": "trainable",
+              "NNGPT_SFT_INIT_ADAPTER": "/home/s471802/nn-gpt/out/nngpt/llm/epoch_sft_20260527_1410_struct1_v2_sftcycle_h100x4_home/A18/deepseek-ai/deepseek-coder-6.7b-instruct",
+              "NNGPT_SFT_LOAD_INITIAL_ADAPTER": "1"
+            },
+            "init_adapter": "/home/s471802/nn-gpt/out/nngpt/llm/epoch_sft_20260527_1410_struct1_v2_sftcycle_h100x4_home/A18/deepseek-ai/deepseek-coder-6.7b-instruct",
+            "initial_adapter_dtype": "fp32",
+            "initial_adapter_mode": "trainable",
+            "load_initial_adapter": true,
+            "restored_runtime_state_path": null,
+            "resume": {
+              "active": false,
+              "mode": "fresh",
+              "stage_adapter_dir": null,
+              "stage_checkpoint_dir": null,
+              "trainer_checkpoint": null
+            }
+          },
+          "model_source": "/home/s471802/nn-gpt/out/llm/deepseek-ai/deepseek-coder-6.7b-instruct",
+          "phase": "four_pattern_reward_ablation",
+          "prompt": {
+            "feedback_char_budget": 0,
+            "nn_prefixes": [
+              "rl-bb-struct1",
+              "rl-bb-struct1-v2"
+            ],
+            "prompt_mode": "sft_aligned"
+          },
+          "reward": {
+            "env": {
+              "NNGPT_RL_FORMAL_DATASET": "cifar-10",
+              "NNGPT_RL_FORMAL_REWARD_EPOCHS": "5",
+              "NNGPT_RL_RESUME_STAGE": "stage2_formal_explore",
+              "NNGPT_RL_REWARD_VARIANT": "full_reward",
+              "NNGPT_RL_SEED": "42"
+            },
+            "formal_epochs": "5",
+            "variant": "full_reward"
+          },
+          "runtime": {
+            "deepspeed_config_path": null,
+            "distributed": {
+              "distributed": false,
+              "local_rank": 0,
+              "rank": 0,
+              "raw_local_rank": 0,
+              "reward_gpu_indices": [
+                1,
+                2,
+                3
+              ],
+              "reward_gpu_tokens": [
+                "1",
+                "2",
+                "3"
+              ],
+              "train_gpu": 0,
+              "train_gpu_token": "0",
+              "visible_gpu_count": 4,
+              "visible_gpu_tokens": [
+                "0",
+                "1",
+                "2",
+                "3"
+              ],
+              "world_size": 1
+            },
+            "gpu_role_plan": {
+              "requested_mode": "auto",
+              "resolved_mode": "split",
+              "reward_exclude_train_gpu": true,
+              "reward_gpu_tokens": [
+                "1",
+                "2",
+                "3"
+              ],
+              "train_gpu_tokens": [
+                "0"
+              ],
+              "visible_gpu_tokens": [
+                "0",
+                "1",
+                "2",
+                "3"
+              ]
+            },
+            "reward_worker_plan": {
+              "deepspeed_enabled": false,
+              "distributed": false,
+              "dynamic_scaling": false,
+              "gpu_memory_snapshots": [
+                {
+                  "allocated_gib": 0.0,
+                  "device_index": 1,
+                  "device_token": "1",
+                  "free_gib": 43.97003173828125,
+                  "is_train_gpu": false,
+                  "reserved_gib": 0.0,
+                  "total_gib": 44.39404296875,
+                  "used_gib": 0.42401123046875
+                },
+                {
+                  "allocated_gib": 0.0,
+                  "device_index": 2,
+                  "device_token": "2",
+                  "free_gib": 43.97003173828125,
+                  "is_train_gpu": false,
+                  "reserved_gib": 0.0,
+                  "total_gib": 44.39404296875,
+                  "used_gib": 0.42401123046875
+                },
+                {
+                  "allocated_gib": 0.0,
+                  "device_index": 3,
+                  "device_token": "3",
+                  "free_gib": 43.97003173828125,
+                  "is_train_gpu": false,
+                  "reserved_gib": 0.0,
+                  "total_gib": 44.39404296875,
+                  "used_gib": 0.42401123046875
+                }
+              ],
+              "local_rank": 0,
+              "mode": "single_rank_dedicated_fixed_pool",
+              "per_gpu_worker_counts": [
+                0,
+                1,
+                1,
+                1
+              ],
+              "pool_size": 3,
+              "rank": 0,
+              "reason": "fixed_workers_override",
+              "reserved_headroom_gib": null,
+              "reward_gpu_indices": [
+                1,
+                2,
+                3
+              ],
+              "reward_gpu_tokens": [
+                "1",
+                "2",
+                "3"
+              ],
+              "shared_train_gpu": false,
+              "train_gpu": 0,
+              "visible_gpu_count": 4,
+              "worker_budget_gib": null,
+              "workers_per_gpu": 1,
+              "world_size": 1
+            },
+            "use_deepspeed": false
+          },
+          "sampling": {
+            "env": {
+              "NNGPT_SFT_GENERATION_BATCH_SIZE": "8",
+              "NNGPT_SFT_MAX_COMPLETION_LENGTH": "1200",
+              "NNGPT_SFT_MAX_PROMPT_LENGTH": "3500",
+              "NNGPT_SFT_MAX_STEPS": "100",
+              "NNGPT_SFT_NUM_GENERATIONS": "8"
+            },
+            "generation_kwargs": {
+              "eos_token_id": 32021,
+              "pad_token_id": 32021,
+              "stop_strings": [
+                "</forward>"
+              ],
+              "use_cache": true
+            },
+            "runtime_settings": {
+              "dataset_limit": 500,
+              "effective_global_num_generations": 8,
+              "effective_train_batch_size": 8,
+              "generation_batch_size": 8,
+              "global_num_generations": 8,
+              "global_num_generations_adapted": 0,
+              "grad_accum": 8,
+              "max_completion_length": 1200,
+              "max_prompt_length": 3500,
+              "max_steps": 100,
+              "requested_global_num_generations": 8,
+              "steps_per_generation": null,
+              "valid_generation_values": [
+                2,
+                4,
+                8
+              ]
+            },
+            "seed": 42,
+            "temperature": 0.8,
+            "top_k": 50,
+            "top_p": 0.95
+          },
+          "source_mode": "explicit-path+out/tokenizer",
+          "tokenizer_source": "out/tokenizer/deepseek-ai/deepseek-coder-6.7b-instruct"
+        }
+      },
+      "formal_rule": "api_result.formal_success_candidate is exactly true",
+      "formal_success_n": 100,
+      "formal_success_rate": 1.0,
+      "metric_notes": {
+        "backbone_cnn_signature": "derived as backbone_signature::cnn_signature when no stored combined field exists"
+      },
+      "metrics": {
+        "actual_structure_signature": {
+          "covered_n": 100,
+          "effective_number": 47.95020870750575,
+          "shannon_entropy": 3.8701631539269767,
+          "top1_count": 6,
+          "top1_share": 0.06,
+          "top1_value": "ParallelTriple_Shallow|d5|m1|bb2|fr1|st0|pr0|fu1|fan3|bb2|block_live|3a105335992a|2d8fee6bcb3f|1e4c5f666630",
+          "unique_count": 56
+        },
+        "backbone_cnn_signature": {
+          "covered_n": 100,
+          "effective_number": 24.14312044033204,
+          "shannon_entropy": 3.183999471620862,
+          "top1_count": 14,
+          "top1_share": 0.14,
+          "top1_value": "densenet121 + resnet50::2d8fee6bcb3fa8fb55f407b4663cfe177a0f054f",
+          "unique_count": 39
+        },
+        "backbone_signature": {
+          "covered_n": 100,
+          "effective_number": 24.14312044033204,
+          "shannon_entropy": 3.183999471620862,
+          "top1_count": 14,
+          "top1_share": 0.14,
+          "top1_value": "densenet121 + resnet50",
+          "unique_count": 39
+        },
+        "block_signature": {
+          "covered_n": 100,
+          "effective_number": 47.95020870750575,
+          "shannon_entropy": 3.8701631539269767,
+          "top1_count": 6,
+          "top1_share": 0.06,
+          "top1_value": "1e4c5f666630c19803ee754444221ef27d294951",
+          "unique_count": 56
+        },
+        "cnn_signature": {
+          "covered_n": 100,
+          "effective_number": 1.0,
+          "shannon_entropy": -0.0,
+          "top1_count": 100,
+          "top1_share": 1.0,
+          "top1_value": "2d8fee6bcb3fa8fb55f407b4663cfe177a0f054f",
+          "unique_count": 1
+        },
+        "family_hash": {
+          "covered_n": 100,
+          "effective_number": 1.0,
+          "shannon_entropy": -0.0,
+          "top1_count": 100,
+          "top1_share": 1.0,
+          "top1_value": "3a105335992a8723a61425270a7947cd2c10681c",
+          "unique_count": 1
+        },
+        "graph_hash": {
+          "covered_n": 100,
+          "effective_number": 40.038195951169065,
+          "shannon_entropy": 3.6898338972673517,
+          "top1_count": 9,
+          "top1_share": 0.09,
+          "top1_value": "207b8c46d12ca164625b260efc993ba9ea783a7a",
+          "unique_count": 54
+        }
+      },
+      "metrics_population": "formal-success rows within attempted window",
+      "raw_rows": 800,
+      "row_fingerprints_unique": 800,
+      "seed": 42,
+      "source": "/Users/zhangxi/code/RL/faraz_delivery_20260726/article_raw_data_archive_20260718_resend_20260726.zip!article_raw_data_archive_20260704/01_six_seed_robustness/4pattern_seed42/generation_samples.jsonl",
+      "source_sha256": "0ab374198da61cd5a02adee7c18530291ba15974928b04d360b5ce607ebcba28",
+      "stage": "post-RL",
+      "window_index_max": null,
+      "window_index_min": null,
+      "window_n": 100
+    },
+    {
+      "attempted_window": "file-order rows 701-800 (last 100 of 800)",
+      "candidate_ids_present": 0,
+      "candidate_ids_unique": 0,
+      "candidate_index_max": null,
+      "candidate_index_min": null,
+      "candidate_indices_monotonic": null,
+      "condition": "4pattern",
+      "config": {
+        "container_zip_sha256": "afd723be7e0e3c47de145c4c2b764786047df05a0003a833a6d24b69939ac74f",
+        "run": {
+          "archive": {
+            "append_logs": false,
+            "env": {
+              "NNGPT_SFT_EPOCH_ROOT": "/data/42-julia-hpc-ai-cv-students/s471802/nn-gpt-runs/parallel_runs/20260612_4pattern_a18_cifar10_e5_p3500_c1200_s100_h100x4_shared_full_full_reward_seed123/out/nngpt/llm/epoch_sft",
+              "NNGPT_SFT_LOG_DIR": "/data/42-julia-hpc-ai-cv-students/s471802/nn-gpt-runs/parallel_runs/20260612_4pattern_a18_cifar10_e5_p3500_c1200_s100_h100x4_shared_full_full_reward_seed123/rl_output",
+              "NNGPT_SFT_MODEL_OUT": "/data/42-julia-hpc-ai-cv-students/s471802/nn-gpt-runs/parallel_runs/20260612_4pattern_a18_cifar10_e5_p3500_c1200_s100_h100x4_shared_full_full_reward_seed123/grpo_backbone_outputs",
+              "NNGPT_SFT_TRAINER_OUT": "/data/42-julia-hpc-ai-cv-students/s471802/nn-gpt-runs/parallel_runs/20260612_4pattern_a18_cifar10_e5_p3500_c1200_s100_h100x4_shared_full_full_reward_seed123/grpo_backbone_outputs_trainer"
+            },
+            "epoch_root": "/data/42-julia-hpc-ai-cv-students/s471802/nn-gpt-runs/parallel_runs/20260612_4pattern_a18_cifar10_e5_p3500_c1200_s100_h100x4_shared_full_full_reward_seed123/out/nngpt/llm/epoch_sft",
+            "fresh": true,
+            "log_dir": "/data/42-julia-hpc-ai-cv-students/s471802/nn-gpt-runs/parallel_runs/20260612_4pattern_a18_cifar10_e5_p3500_c1200_s100_h100x4_shared_full_full_reward_seed123/rl_output",
+            "model_out": "/data/42-julia-hpc-ai-cv-students/s471802/nn-gpt-runs/parallel_runs/20260612_4pattern_a18_cifar10_e5_p3500_c1200_s100_h100x4_shared_full_full_reward_seed123/grpo_backbone_outputs",
+            "trainer_out": "/data/42-julia-hpc-ai-cv-students/s471802/nn-gpt-runs/parallel_runs/20260612_4pattern_a18_cifar10_e5_p3500_c1200_s100_h100x4_shared_full_full_reward_seed123/grpo_backbone_outputs_trainer"
+          },
+          "created_at": "2026-06-12T18:00:47+0200",
+          "evaluator": {
+            "batch": 64,
+            "data_root": "data_v2",
+            "dataset": "cifar-10",
+            "download": true,
+            "eval_split_role": "reward_eval",
+            "formal_epoch_limit_minutes": 30,
+            "formal_epochs": "5",
+            "full_test_acc": true,
+            "heldout_test_set": "cifar10-test[10k]",
+            "n_classes": 10,
+            "out_shape": [
+              10
+            ],
+            "resize": 128,
+            "reward_eval_set": "cifar10-train[5k]",
+            "run_unfrozen": false,
+            "split_protocol": "trainvaltest",
+            "split_seed": 42,
+            "train_epochs": 1,
+            "train_set": "cifar10-train[45k]",
+            "train_subset_size": 0,
+            "transform": "norm_128_flip",
+            "val_subset_size": 0,
+            "worker_eval_limit_seconds": 900
+          },
+          "git": {
+            "branch": "experiment/four-pattern-reward-ablation-821f",
+            "commit": "c91714dbe7dad1d02a9080243945bbf8e8ec9300",
+            "commit_short": "c91714db",
+            "commit_subject": "Simplify reward memory preflight",
+            "dirty": true
+          },
+          "init": {
+            "adapter_env": {
+              "NNGPT_SFT_BASE_MODEL_ID": "/home/s471802/nn-gpt/out/llm/deepseek-ai/deepseek-coder-6.7b-instruct",
+              "NNGPT_SFT_INITIAL_ADAPTER_MODE": "trainable",
+              "NNGPT_SFT_INIT_ADAPTER": "/home/s471802/nn-gpt/out/nngpt/llm/epoch_sft_20260527_1410_struct1_v2_sftcycle_h100x4_home/A18/deepseek-ai/deepseek-coder-6.7b-instruct",
+              "NNGPT_SFT_LOAD_INITIAL_ADAPTER": "1"
+            },
+            "init_adapter": "/home/s471802/nn-gpt/out/nngpt/llm/epoch_sft_20260527_1410_struct1_v2_sftcycle_h100x4_home/A18/deepseek-ai/deepseek-coder-6.7b-instruct",
+            "initial_adapter_dtype": "fp32",
+            "initial_adapter_mode": "trainable",
+            "load_initial_adapter": true,
+            "restored_runtime_state_path": null,
+            "resume": {
+              "active": false,
+              "mode": "fresh",
+              "stage_adapter_dir": null,
+              "stage_checkpoint_dir": null,
+              "trainer_checkpoint": null
+            }
+          },
+          "model_source": "/home/s471802/nn-gpt/out/llm/deepseek-ai/deepseek-coder-6.7b-instruct",
+          "phase": "four_pattern_reward_ablation",
+          "prompt": {
+            "feedback_char_budget": 0,
+            "nn_prefixes": [
+              "rl-bb-struct1",
+              "rl-bb-struct1-v2"
+            ],
+            "prompt_mode": "sft_aligned"
+          },
+          "reward": {
+            "env": {
+              "NNGPT_RL_FORMAL_DATASET": "cifar-10",
+              "NNGPT_RL_FORMAL_REWARD_EPOCHS": "5",
+              "NNGPT_RL_RESUME_STAGE": "stage2_formal_explore",
+              "NNGPT_RL_REWARD_VARIANT": "full_reward",
+              "NNGPT_RL_SEED": "123"
+            },
+            "formal_epochs": "5",
+            "variant": "full_reward"
+          },
+          "runtime": {
+            "deepspeed_config_path": null,
+            "distributed": {
+              "distributed": false,
+              "local_rank": 0,
+              "rank": 0,
+              "raw_local_rank": 0,
+              "reward_gpu_indices": [
+                0,
+                1,
+                2,
+                3
+              ],
+              "reward_gpu_tokens": [
+                "0",
+                "1",
+                "2",
+                "3"
+              ],
+              "train_gpu": 0,
+              "train_gpu_token": "0",
+              "visible_gpu_count": 4,
+              "visible_gpu_tokens": [
+                "0",
+                "1",
+                "2",
+                "3"
+              ],
+              "world_size": 1
+            },
+            "gpu_role_plan": {
+              "requested_mode": "auto",
+              "resolved_mode": "split",
+              "reward_exclude_train_gpu": false,
+              "reward_gpu_tokens": [
+                "0",
+                "1",
+                "2",
+                "3"
+              ],
+              "train_gpu_tokens": [
+                "0"
+              ],
+              "visible_gpu_tokens": [
+                "0",
+                "1",
+                "2",
+                "3"
+              ]
+            },
+            "reward_worker_plan": {
+              "deepspeed_enabled": false,
+              "distributed": false,
+              "dynamic_scaling": false,
+              "gpu_memory_snapshots": [
+                {
+                  "allocated_gib": 0.0,
+                  "device_index": 0,
+                  "device_token": "0",
+                  "free_gib": 78.66400146484375,
+                  "is_train_gpu": true,
+                  "reserved_gib": 0.0,
+                  "total_gib": 79.180419921875,
+                  "used_gib": 0.51641845703125
+                },
+                {
+                  "allocated_gib": 0.0,
+                  "device_index": 1,
+                  "device_token": "1",
+                  "free_gib": 78.66400146484375,
+                  "is_train_gpu": false,
+                  "reserved_gib": 0.0,
+                  "total_gib": 79.180419921875,
+                  "used_gib": 0.51641845703125
+                },
+                {
+                  "allocated_gib": 0.0,
+                  "device_index": 2,
+                  "device_token": "2",
+                  "free_gib": 78.66400146484375,
+                  "is_train_gpu": false,
+                  "reserved_gib": 0.0,
+                  "total_gib": 79.180419921875,
+                  "used_gib": 0.51641845703125
+                },
+                {
+                  "allocated_gib": 0.0,
+                  "device_index": 3,
+                  "device_token": "3",
+                  "free_gib": 78.66400146484375,
+                  "is_train_gpu": false,
+                  "reserved_gib": 0.0,
+                  "total_gib": 79.180419921875,
+                  "used_gib": 0.51641845703125
+                }
+              ],
+              "local_rank": 0,
+              "mode": "single_rank_dedicated_fixed_pool",
+              "per_gpu_worker_counts": [
+                1,
+                1,
+                1,
+                1
+              ],
+              "pool_size": 4,
+              "rank": 0,
+              "reason": "fixed_workers_override",
+              "reserved_headroom_gib": null,
+              "reward_gpu_indices": [
+                0,
+                1,
+                2,
+                3
+              ],
+              "reward_gpu_tokens": [
+                "0",
+                "1",
+                "2",
+                "3"
+              ],
+              "shared_train_gpu": true,
+              "train_gpu": 0,
+              "visible_gpu_count": 4,
+              "worker_budget_gib": null,
+              "workers_per_gpu": 1,
+              "world_size": 1
+            },
+            "use_deepspeed": false
+          },
+          "sampling": {
+            "env": {
+              "NNGPT_SFT_GENERATION_BATCH_SIZE": "8",
+              "NNGPT_SFT_MAX_COMPLETION_LENGTH": "1200",
+              "NNGPT_SFT_MAX_PROMPT_LENGTH": "3500",
+              "NNGPT_SFT_MAX_STEPS": "100",
+              "NNGPT_SFT_NUM_GENERATIONS": "8"
+            },
+            "generation_kwargs": {
+              "eos_token_id": 32021,
+              "pad_token_id": 32021,
+              "stop_strings": [
+                "</forward>"
+              ],
+              "use_cache": true
+            },
+            "runtime_settings": {
+              "dataset_limit": 500,
+              "effective_global_num_generations": 8,
+              "effective_train_batch_size": 8,
+              "generation_batch_size": 8,
+              "global_num_generations": 8,
+              "global_num_generations_adapted": 0,
+              "grad_accum": 8,
+              "max_completion_length": 1200,
+              "max_prompt_length": 3500,
+              "max_steps": 100,
+              "requested_global_num_generations": 8,
+              "steps_per_generation": null,
+              "valid_generation_values": [
+                2,
+                4,
+                8
+              ]
+            },
+            "seed": 123,
+            "temperature": 0.8,
+            "top_k": 50,
+            "top_p": 0.95
+          },
+          "source_mode": "explicit-path+out/tokenizer",
+          "tokenizer_source": "out/tokenizer/deepseek-ai/deepseek-coder-6.7b-instruct"
+        }
+      },
+      "formal_rule": "api_result.formal_success_candidate is exactly true",
+      "formal_success_n": 96,
+      "formal_success_rate": 0.96,
+      "metric_notes": {
+        "backbone_cnn_signature": "derived as backbone_signature::cnn_signature when no stored combined field exists"
+      },
+      "metrics": {
+        "actual_structure_signature": {
+          "covered_n": 96,
+          "effective_number": 54.157351678628565,
+          "shannon_entropy": 3.9918937293033827,
+          "top1_count": 6,
+          "top1_share": 0.0625,
+          "top1_value": "Fractal_TriBackbone_Fuse_Wide_Deep|d6|m1|bb3|fr1|st0|pr0|fu1|fan3|bb3|block_live|9f8b7585e779|0210e668fda6|82774322c95c",
+          "unique_count": 64
+        },
+        "backbone_cnn_signature": {
+          "covered_n": 96,
+          "effective_number": 18.2544555410704,
+          "shannon_entropy": 2.904409189468101,
+          "top1_count": 17,
+          "top1_share": 0.17708333333333334,
+          "top1_value": "resnet50 + resnet50::0210e668fda67d5c69c01a30456e358fb7a9c106",
+          "unique_count": 26
+        },
+        "backbone_signature": {
+          "covered_n": 96,
+          "effective_number": 5.496124035510235,
+          "shannon_entropy": 1.704043122989666,
+          "top1_count": 29,
+          "top1_share": 0.3020833333333333,
+          "top1_value": "efficientnet_b1 + resnet50",
+          "unique_count": 10
+        },
+        "block_signature": {
+          "covered_n": 96,
+          "effective_number": 24.749888793578425,
+          "shannon_entropy": 3.2088209958158544,
+          "top1_count": 12,
+          "top1_share": 0.125,
+          "top1_value": "82774322c95cabdd599b1a20782c7701f6cd02fc",
+          "unique_count": 35
+        },
+        "cnn_signature": {
+          "covered_n": 96,
+          "effective_number": 4.326782981703946,
+          "shannon_entropy": 1.4648243055370735,
+          "top1_count": 39,
+          "top1_share": 0.40625,
+          "top1_value": "0210e668fda67d5c69c01a30456e358fb7a9c106",
+          "unique_count": 5
+        },
+        "family_hash": {
+          "covered_n": 96,
+          "effective_number": 4.326782981703946,
+          "shannon_entropy": 1.4648243055370735,
+          "top1_count": 39,
+          "top1_share": 0.40625,
+          "top1_value": "9f8b7585e7798a0498472eb0d4816ef2c82669d4",
+          "unique_count": 5
+        },
+        "graph_hash": {
+          "covered_n": 96,
+          "effective_number": 19.18065936726744,
+          "shannon_entropy": 2.9539024467198325,
+          "top1_count": 17,
+          "top1_share": 0.17708333333333334,
+          "top1_value": "6ddf48283ed092781eace74a84f456f2d2599202",
+          "unique_count": 28
+        }
+      },
+      "metrics_population": "formal-success rows within attempted window",
+      "raw_rows": 800,
+      "row_fingerprints_unique": 800,
+      "seed": 123,
+      "source": "/Users/zhangxi/code/RL/faraz_delivery_20260726/article_raw_data_archive_20260718_resend_20260726.zip!article_raw_data_archive_20260704/01_six_seed_robustness/4pattern_seed123/generation_samples.jsonl",
+      "source_sha256": "a7fefc5246844a43518d4dfe048ad56fd2115bc883feea3a8ffa1ceec6908de5",
+      "stage": "post-RL",
+      "window_index_max": null,
+      "window_index_min": null,
+      "window_n": 100
+    },
+    {
+      "attempted_window": "file-order rows 701-800 (last 100 of 800)",
+      "candidate_ids_present": 0,
+      "candidate_ids_unique": 0,
+      "candidate_index_max": null,
+      "candidate_index_min": null,
+      "candidate_indices_monotonic": null,
+      "condition": "4pattern",
+      "config": {
+        "container_zip_sha256": "afd723be7e0e3c47de145c4c2b764786047df05a0003a833a6d24b69939ac74f",
+        "run": {
+          "archive": {
+            "append_logs": false,
+            "env": {
+              "NNGPT_SFT_EPOCH_ROOT": "/data/42-julia-hpc-ai-cv-students/s471802/nn-gpt-runs/parallel_runs/20260612_4pattern_a18_cifar10_e5_p3500_c1200_s100_l40s_excl_full_full_reward_seed777/out/nngpt/llm/epoch_sft",
+              "NNGPT_SFT_LOG_DIR": "/data/42-julia-hpc-ai-cv-students/s471802/nn-gpt-runs/parallel_runs/20260612_4pattern_a18_cifar10_e5_p3500_c1200_s100_l40s_excl_full_full_reward_seed777/rl_output",
+              "NNGPT_SFT_MODEL_OUT": "/data/42-julia-hpc-ai-cv-students/s471802/nn-gpt-runs/parallel_runs/20260612_4pattern_a18_cifar10_e5_p3500_c1200_s100_l40s_excl_full_full_reward_seed777/grpo_backbone_outputs",
+              "NNGPT_SFT_TRAINER_OUT": "/data/42-julia-hpc-ai-cv-students/s471802/nn-gpt-runs/parallel_runs/20260612_4pattern_a18_cifar10_e5_p3500_c1200_s100_l40s_excl_full_full_reward_seed777/grpo_backbone_outputs_trainer"
+            },
+            "epoch_root": "/data/42-julia-hpc-ai-cv-students/s471802/nn-gpt-runs/parallel_runs/20260612_4pattern_a18_cifar10_e5_p3500_c1200_s100_l40s_excl_full_full_reward_seed777/out/nngpt/llm/epoch_sft",
+            "fresh": true,
+            "log_dir": "/data/42-julia-hpc-ai-cv-students/s471802/nn-gpt-runs/parallel_runs/20260612_4pattern_a18_cifar10_e5_p3500_c1200_s100_l40s_excl_full_full_reward_seed777/rl_output",
+            "model_out": "/data/42-julia-hpc-ai-cv-students/s471802/nn-gpt-runs/parallel_runs/20260612_4pattern_a18_cifar10_e5_p3500_c1200_s100_l40s_excl_full_full_reward_seed777/grpo_backbone_outputs",
+            "trainer_out": "/data/42-julia-hpc-ai-cv-students/s471802/nn-gpt-runs/parallel_runs/20260612_4pattern_a18_cifar10_e5_p3500_c1200_s100_l40s_excl_full_full_reward_seed777/grpo_backbone_outputs_trainer"
+          },
+          "created_at": "2026-06-12T13:41:24+0200",
+          "evaluator": {
+            "batch": 64,
+            "data_root": "data_v2",
+            "dataset": "cifar-10",
+            "download": true,
+            "eval_split_role": "reward_eval",
+            "formal_epoch_limit_minutes": 30,
+            "formal_epochs": "5",
+            "full_test_acc": true,
+            "heldout_test_set": "cifar10-test[10k]",
+            "n_classes": 10,
+            "out_shape": [
+              10
+            ],
+            "resize": 128,
+            "reward_eval_set": "cifar10-train[5k]",
+            "run_unfrozen": false,
+            "split_protocol": "trainvaltest",
+            "split_seed": 42,
+            "train_epochs": 1,
+            "train_set": "cifar10-train[45k]",
+            "train_subset_size": 0,
+            "transform": "norm_128_flip",
+            "val_subset_size": 0,
+            "worker_eval_limit_seconds": 900
+          },
+          "git": {
+            "branch": "experiment/four-pattern-reward-ablation-821f",
+            "commit": "c91714dbe7dad1d02a9080243945bbf8e8ec9300",
+            "commit_short": "c91714db",
+            "commit_subject": "Simplify reward memory preflight",
+            "dirty": true
+          },
+          "init": {
+            "adapter_env": {
+              "NNGPT_SFT_BASE_MODEL_ID": "/home/s471802/nn-gpt/out/llm/deepseek-ai/deepseek-coder-6.7b-instruct",
+              "NNGPT_SFT_INITIAL_ADAPTER_MODE": "trainable",
+              "NNGPT_SFT_INIT_ADAPTER": "/home/s471802/nn-gpt/out/nngpt/llm/epoch_sft_20260527_1410_struct1_v2_sftcycle_h100x4_home/A18/deepseek-ai/deepseek-coder-6.7b-instruct",
+              "NNGPT_SFT_LOAD_INITIAL_ADAPTER": "1"
+            },
+            "init_adapter": "/home/s471802/nn-gpt/out/nngpt/llm/epoch_sft_20260527_1410_struct1_v2_sftcycle_h100x4_home/A18/deepseek-ai/deepseek-coder-6.7b-instruct",
+            "initial_adapter_dtype": "fp32",
+            "initial_adapter_mode": "trainable",
+            "load_initial_adapter": true,
+            "restored_runtime_state_path": null,
+            "resume": {
+              "active": false,
+              "mode": "fresh",
+              "stage_adapter_dir": null,
+              "stage_checkpoint_dir": null,
+              "trainer_checkpoint": null
+            }
+          },
+          "model_source": "/home/s471802/nn-gpt/out/llm/deepseek-ai/deepseek-coder-6.7b-instruct",
+          "phase": "four_pattern_reward_ablation",
+          "prompt": {
+            "feedback_char_budget": 0,
+            "nn_prefixes": [
+              "rl-bb-struct1",
+              "rl-bb-struct1-v2"
+            ],
+            "prompt_mode": "sft_aligned"
+          },
+          "reward": {
+            "env": {
+              "NNGPT_RL_FORMAL_DATASET": "cifar-10",
+              "NNGPT_RL_FORMAL_REWARD_EPOCHS": "5",
+              "NNGPT_RL_RESUME_STAGE": "stage2_formal_explore",
+              "NNGPT_RL_REWARD_VARIANT": "full_reward",
+              "NNGPT_RL_SEED": "777"
+            },
+            "formal_epochs": "5",
+            "variant": "full_reward"
+          },
+          "runtime": {
+            "deepspeed_config_path": null,
+            "distributed": {
+              "distributed": false,
+              "local_rank": 0,
+              "rank": 0,
+              "raw_local_rank": 0,
+              "reward_gpu_indices": [
+                1,
+                2,
+                3
+              ],
+              "reward_gpu_tokens": [
+                "1",
+                "2",
+                "3"
+              ],
+              "train_gpu": 0,
+              "train_gpu_token": "0",
+              "visible_gpu_count": 4,
+              "visible_gpu_tokens": [
+                "0",
+                "1",
+                "2",
+                "3"
+              ],
+              "world_size": 1
+            },
+            "gpu_role_plan": {
+              "requested_mode": "auto",
+              "resolved_mode": "split",
+              "reward_exclude_train_gpu": true,
+              "reward_gpu_tokens": [
+                "1",
+                "2",
+                "3"
+              ],
+              "train_gpu_tokens": [
+                "0"
+              ],
+              "visible_gpu_tokens": [
+                "0",
+                "1",
+                "2",
+                "3"
+              ]
+            },
+            "reward_worker_plan": {
+              "deepspeed_enabled": false,
+              "distributed": false,
+              "dynamic_scaling": false,
+              "gpu_memory_snapshots": [
+                {
+                  "allocated_gib": 0.0,
+                  "device_index": 1,
+                  "device_token": "1",
+                  "free_gib": 43.97003173828125,
+                  "is_train_gpu": false,
+                  "reserved_gib": 0.0,
+                  "total_gib": 44.39404296875,
+                  "used_gib": 0.42401123046875
+                },
+                {
+                  "allocated_gib": 0.0,
+                  "device_index": 2,
+                  "device_token": "2",
+                  "free_gib": 43.97003173828125,
+                  "is_train_gpu": false,
+                  "reserved_gib": 0.0,
+                  "total_gib": 44.39404296875,
+                  "used_gib": 0.42401123046875
+                },
+                {
+                  "allocated_gib": 0.0,
+                  "device_index": 3,
+                  "device_token": "3",
+                  "free_gib": 43.97003173828125,
+                  "is_train_gpu": false,
+                  "reserved_gib": 0.0,
+                  "total_gib": 44.39404296875,
+                  "used_gib": 0.42401123046875
+                }
+              ],
+              "local_rank": 0,
+              "mode": "single_rank_dedicated_fixed_pool",
+              "per_gpu_worker_counts": [
+                0,
+                1,
+                1,
+                1
+              ],
+              "pool_size": 3,
+              "rank": 0,
+              "reason": "fixed_workers_override",
+              "reserved_headroom_gib": null,
+              "reward_gpu_indices": [
+                1,
+                2,
+                3
+              ],
+              "reward_gpu_tokens": [
+                "1",
+                "2",
+                "3"
+              ],
+              "shared_train_gpu": false,
+              "train_gpu": 0,
+              "visible_gpu_count": 4,
+              "worker_budget_gib": null,
+              "workers_per_gpu": 1,
+              "world_size": 1
+            },
+            "use_deepspeed": false
+          },
+          "sampling": {
+            "env": {
+              "NNGPT_SFT_GENERATION_BATCH_SIZE": "8",
+              "NNGPT_SFT_MAX_COMPLETION_LENGTH": "1200",
+              "NNGPT_SFT_MAX_PROMPT_LENGTH": "3500",
+              "NNGPT_SFT_MAX_STEPS": "100",
+              "NNGPT_SFT_NUM_GENERATIONS": "8"
+            },
+            "generation_kwargs": {
+              "eos_token_id": 32021,
+              "pad_token_id": 32021,
+              "stop_strings": [
+                "</forward>"
+              ],
+              "use_cache": true
+            },
+            "runtime_settings": {
+              "dataset_limit": 500,
+              "effective_global_num_generations": 8,
+              "effective_train_batch_size": 8,
+              "generation_batch_size": 8,
+              "global_num_generations": 8,
+              "global_num_generations_adapted": 0,
+              "grad_accum": 8,
+              "max_completion_length": 1200,
+              "max_prompt_length": 3500,
+              "max_steps": 100,
+              "requested_global_num_generations": 8,
+              "steps_per_generation": null,
+              "valid_generation_values": [
+                2,
+                4,
+                8
+              ]
+            },
+            "seed": 777,
+            "temperature": 0.8,
+            "top_k": 50,
+            "top_p": 0.95
+          },
+          "source_mode": "explicit-path+out/tokenizer",
+          "tokenizer_source": "out/tokenizer/deepseek-ai/deepseek-coder-6.7b-instruct"
+        }
+      },
+      "formal_rule": "api_result.formal_success_candidate is exactly true",
+      "formal_success_n": 98,
+      "formal_success_rate": 0.98,
+      "metric_notes": {
+        "backbone_cnn_signature": "derived as backbone_signature::cnn_signature when no stored combined field exists"
+      },
+      "metrics": {
+        "actual_structure_signature": {
+          "covered_n": 98,
+          "effective_number": 24.509458456496066,
+          "shannon_entropy": 3.1990591024977255,
+          "top1_count": 10,
+          "top1_share": 0.10204081632653061,
+          "top1_value": "Fractal_DualBackbone_Fuse_Wide_Deep|d6|m1|bb2|fr3|st0|pr0|fu1|fan3|bb2|block_live|aa8a1d87fcbf|63cbc1eb757d|d4b7589af752",
+          "unique_count": 33
+        },
+        "backbone_cnn_signature": {
+          "covered_n": 98,
+          "effective_number": 66.99544447113328,
+          "shannon_entropy": 4.2046246241111795,
+          "top1_count": 4,
+          "top1_share": 0.04081632653061224,
+          "top1_value": "mnasnet1_0 + regnet_x_32gf::63cbc1eb757d9dfb74efedc9a5b22b8f67df0473",
+          "unique_count": 74
+        },
+        "backbone_signature": {
+          "covered_n": 98,
+          "effective_number": 47.84983428880452,
+          "shannon_entropy": 3.868067654754085,
+          "top1_count": 6,
+          "top1_share": 0.061224489795918366,
+          "top1_value": "regnet_x_32gf + resnet50",
+          "unique_count": 58
+        },
+        "block_signature": {
+          "covered_n": 98,
+          "effective_number": 11.275830030905194,
+          "shannon_entropy": 2.4226614996108733,
+          "top1_count": 21,
+          "top1_share": 0.21428571428571427,
+          "top1_value": "d4b7589af7528bc1c28ae8d81bf56172bac1aa74",
+          "unique_count": 16
+        },
+        "cnn_signature": {
+          "covered_n": 98,
+          "effective_number": 2.6403591353610456,
+          "shannon_entropy": 0.9709149440277589,
+          "top1_count": 58,
+          "top1_share": 0.5918367346938775,
+          "top1_value": "63cbc1eb757d9dfb74efedc9a5b22b8f67df0473",
+          "unique_count": 5
+        },
+        "family_hash": {
+          "covered_n": 98,
+          "effective_number": 2.6403591353610456,
+          "shannon_entropy": 0.9709149440277589,
+          "top1_count": 58,
+          "top1_share": 0.5918367346938775,
+          "top1_value": "aa8a1d87fcbfb8c73768c46495e97adfdc6c2b42",
+          "unique_count": 5
+        },
+        "graph_hash": {
+          "covered_n": 98,
+          "effective_number": 74.10756281665138,
+          "shannon_entropy": 4.305517589397026,
+          "top1_count": 4,
+          "top1_share": 0.04081632653061224,
+          "top1_value": "42f6a5d4bbd8be96aace723421f3ef9d5a6913eb",
+          "unique_count": 80
+        }
+      },
+      "metrics_population": "formal-success rows within attempted window",
+      "raw_rows": 800,
+      "row_fingerprints_unique": 800,
+      "seed": 777,
+      "source": "/Users/zhangxi/code/RL/faraz_delivery_20260726/article_raw_data_archive_20260718_resend_20260726.zip!article_raw_data_archive_20260704/01_six_seed_robustness/4pattern_seed777/generation_samples.jsonl",
+      "source_sha256": "2c752e752e27010454e1b4458cb32dad724b2effd1db0b6281af7a2235c16bf0",
+      "stage": "post-RL",
+      "window_index_max": null,
+      "window_index_min": null,
+      "window_n": 100
+    }
+  ],
+  "secondary_sft_last100_window_sensitivity": [
+    {
+      "actual_structure_signature": {
+        "covered_n": 91,
+        "effective_number": 13.833485497276147,
+        "shannon_entropy": 2.6270921383111405,
+        "top1_count": 26,
+        "top1_share": 0.2857142857142857,
+        "top1_value": "ParallelTriple_Shallow|d4|m1|bb2|fr1|st0|pr0|fu1|fan3|bb2|block_live|27413ccaf5b3|86ab858e3845|5f4d62f266fa",
+        "unique_count": 24
+      },
+      "attempted_window": "SFT-only last 100 file rows",
+      "condition": "1pattern",
+      "family_hash": {
+        "covered_n": 91,
+        "effective_number": 1.1975993669881095,
+        "shannon_entropy": 0.18031902555609897,
+        "top1_count": 87,
+        "top1_share": 0.9560439560439561,
+        "top1_value": "27413ccaf5b33052843a15c4a8706f691c3a77ae",
+        "unique_count": 2
+      },
+      "formal_success_n": 91,
+      "seed": 42
+    },
+    {
+      "actual_structure_signature": {
+        "covered_n": 95,
+        "effective_number": 12.631178708348626,
+        "shannon_entropy": 2.536168258084485,
+        "top1_count": 30,
+        "top1_share": 0.3157894736842105,
+        "top1_value": "ParallelTriple_Shallow|d4|m1|bb2|fr1|st0|pr0|fu1|fan3|bb2|block_live|27413ccaf5b3|86ab858e3845|5f4d62f266fa",
+        "unique_count": 24
+      },
+      "attempted_window": "SFT-only last 100 file rows",
+      "condition": "1pattern",
+      "family_hash": {
+        "covered_n": 95,
+        "effective_number": 1.19074364389561,
+        "shannon_entropy": 0.17457802278461543,
+        "top1_count": 91,
+        "top1_share": 0.9578947368421052,
+        "top1_value": "27413ccaf5b33052843a15c4a8706f691c3a77ae",
+        "unique_count": 2
+      },
+      "formal_success_n": 95,
+      "seed": 123
+    },
+    {
+      "actual_structure_signature": {
+        "covered_n": 91,
+        "effective_number": 15.234538997663238,
+        "shannon_entropy": 2.723565152555051,
+        "top1_count": 17,
+        "top1_share": 0.18681318681318682,
+        "top1_value": "ParallelTriple_Shallow|d4|m1|bb2|fr1|st0|pr0|fu1|fan3|bb2|block_live|27413ccaf5b3|86ab858e3845|addc0705d338",
+        "unique_count": 25
+      },
+      "attempted_window": "SFT-only last 100 file rows",
+      "condition": "1pattern",
+      "family_hash": {
+        "covered_n": 91,
+        "effective_number": 1.1559346238263752,
+        "shannon_entropy": 0.14490921486754785,
+        "top1_count": 88,
+        "top1_share": 0.967032967032967,
+        "top1_value": "27413ccaf5b33052843a15c4a8706f691c3a77ae",
+        "unique_count": 2
+      },
+      "formal_success_n": 91,
+      "seed": 777
+    },
+    {
+      "actual_structure_signature": {
+        "covered_n": 100,
+        "effective_number": 84.23263045037464,
+        "shannon_entropy": 4.433582381216051,
+        "top1_count": 3,
+        "top1_share": 0.03,
+        "top1_value": "Fractal_TriBackbone_Fuse_Wide_Deep|d8|m1|bb4|fr2|st0|pr0|fu1|fan3|bb4|block_live|138645fcd51f|0c4002e4164a|3b8f24f8d35a",
+        "unique_count": 88
+      },
+      "attempted_window": "SFT-only last 100 file rows",
+      "condition": "4pattern",
+      "family_hash": {
+        "covered_n": 100,
+        "effective_number": 3.934775400102746,
+        "shannon_entropy": 1.369853802756966,
+        "top1_count": 32,
+        "top1_share": 0.32,
+        "top1_value": "9f8b7585e7798a0498472eb0d4816ef2c82669d4",
+        "unique_count": 4
+      },
+      "formal_success_n": 100,
+      "seed": 42
+    },
+    {
+      "actual_structure_signature": {
+        "covered_n": 100,
+        "effective_number": 88.27029962906471,
+        "shannon_entropy": 4.480403693487292,
+        "top1_count": 2,
+        "top1_share": 0.02,
+        "top1_value": "Fractal_TriBackbone_Fuse_Wide_Deep|d6|m1|bb3|fr1|st0|pr0|fu1|fan3|bb3|block_live|9f8b7585e779|0210e668fda6|b21aa94453e6",
+        "unique_count": 91
+      },
+      "attempted_window": "SFT-only last 100 file rows",
+      "condition": "4pattern",
+      "family_hash": {
+        "covered_n": 100,
+        "effective_number": 4.228604457156853,
+        "shannon_entropy": 1.4418720230583177,
+        "top1_count": 34,
+        "top1_share": 0.34,
+        "top1_value": "9f8b7585e7798a0498472eb0d4816ef2c82669d4",
+        "unique_count": 6
+      },
+      "formal_success_n": 100,
+      "seed": 123
+    },
+    {
+      "actual_structure_signature": {
+        "covered_n": 100,
+        "effective_number": 87.05505632961167,
+        "shannon_entropy": 4.466540749876094,
+        "top1_count": 2,
+        "top1_share": 0.02,
+        "top1_value": "Fractal_TriBackbone_Fuse_Wide_Deep|d8|m1|bb4|fr2|st0|pr0|fu1|fan3|bb4|block_live|138645fcd51f|0c4002e4164a|f6c98fa08dd4",
+        "unique_count": 90
+      },
+      "attempted_window": "SFT-only last 100 file rows",
+      "condition": "4pattern",
+      "family_hash": {
+        "covered_n": 100,
+        "effective_number": 3.934775400102746,
+        "shannon_entropy": 1.369853802756966,
+        "top1_count": 32,
+        "top1_share": 0.32,
+        "top1_value": "9f8b7585e7798a0498472eb0d4816ef2c82669d4",
+        "unique_count": 4
+      },
+      "formal_success_n": 100,
+      "seed": 777
+    }
+  ]
+}
