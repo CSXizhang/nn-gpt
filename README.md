@@ -5,6 +5,8 @@ machine, Julia2, and workstation. The large raw artifacts are attached to the
 repository release `thesis-archive-2026-09-29`; `ASSETS.tsv` gives each asset's
 source path, SHA-256, and size. Download an asset from the release and compare
 it with `ASSETS.tsv` before use. The original source locations were not changed.
+`MANIFEST.tsv` also indexes files inside the selected Julia2 tar packages;
+`CHECKSUMS.sha256` checks the files tracked directly on this branch.
 
 The run selection follows Faraz's July–September correspondence. See
 `inventory/SELECTION_RULES.md` and
@@ -35,7 +37,7 @@ in the scheduler inventory and are not copied as raw run directories.
 The release does not contain complete optimizer/trainer checkpoints (over
 105 GiB), public base-model caches, or every historical run. It includes the
 paper-used A9/A18 and Qwen A7 SFT adapters and only stage adapters that were
-fully transferred and validated. The exact dirty-source patch for some runs,
+fully transferred and validated: 20 stage adapters are attached. The exact dirty-source patch for some runs,
 the 507-row historical SFT cycle manifest, and one old Qwen table value's
 source were not recovered. See `inventory/julia2_selected_checkpoint_exclusions.tsv`
 and `ASSETS.tsv` for the precise retained set.
