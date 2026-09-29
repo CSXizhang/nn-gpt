@@ -28,6 +28,9 @@ in the scheduler inventory and are not copied as raw run directories.
   manifest path for 43 selected runs. The two proxy runs use their archived
   preparation/evaluation scripts and candidate manifests instead; see
   `inventory/CONFIG_COVERAGE.md`.
+- `datasets/derived/sft_cycle_507/`: 507 recovered four-pattern SFT cycle
+  generated code files paired one-to-one with their CIFAR-10 epoch-1 evaluation
+  records; the source-path and SHA-256 manifest is beside the tar package.
 - `slurm/raw/julia2-sacct-duplicates-20260929.psv`: scheduler output including
   duplicate allocation records. The fifteen-run external cohort recalculates
   to 1,182.60 allocated GPU-hours in
@@ -47,8 +50,10 @@ adapters, are deliberately outside the data-only release. Their source paths,
 sizes, and checksums are recorded in `inventory/EXCLUDED_WEIGHTS.tsv`; the
 original cluster files were not changed. Public base-model caches and other
 re-downloadable dependencies are also excluded. The exact dirty-source patch
-for some runs, the 507-row historical SFT cycle manifest, and one old Qwen
-table value's source were not recovered. See `inventory/CONFIG_COVERAGE.md`
+for some runs and one old Qwen table value's source were not recovered. The
+507 cycle records were recovered after the first publication; a training-time
+dataset manifest proving exactly which rows the trainer consumed remains
+unavailable. See `inventory/CONFIG_COVERAGE.md`
 for the practical effect on paper verification.
 
 The `nn-gpt` source and fixed commit are in the fork's normal branches.

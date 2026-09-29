@@ -104,6 +104,18 @@ for old in original:
     row["status"] = "included_in_release"
     rows.append(row)
 
+cycle_manifest = ROOT / "datasets/derived/sft_cycle_507/cycle_507_manifest.tsv"
+with cycle_manifest.open() as handle:
+    for member in csv.DictReader(handle, delimiter="\t"):
+        rows.append(dict(category="datasets", source_host="julia2",
+                         source_path=member["source_path"],
+                         archive_path="datasets/derived/sft_cycle_507/cycle_507_source.tar.zst::" + member["archive_member"],
+                         size=member["bytes"], sha256=member["sha256"],
+                         experiment="four_pattern_sft_cycle_507", seed="",
+                         job_id="", code_commit="", description=member["kind"],
+                         status="included_in_git_tar",
+                         notes="Recovered code/evaluation pair; exact trainer input membership unproven"))
+
 for old in original:
     if old["archive_path"] or old["status"] in ("archived", ""):
         continue
