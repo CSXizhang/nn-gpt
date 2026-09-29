@@ -105,6 +105,17 @@ for old in original:
         continue
     rows.append(old)
 
+for rel in (
+    "git/nn-dataset/nn-dataset-all.bundle",
+    "git/nn-dataset/julia2-nn-dataset-all.bundle",
+    "git/workstation/nn-dataset/nn-dataset-all.bundle",
+):
+    old = by_path[rel]
+    row = dict(old)
+    row.update(archive_path="", sha256="", status="excluded_secret_history",
+               notes="Credential-like pattern in Git history; bundle withheld from public release")
+    rows.append(row)
+
 with (ROOT / "MANIFEST.tsv").open("w", newline="") as handle:
     writer = csv.DictWriter(handle, fieldnames=FIELDS, delimiter="\t", extrasaction="ignore")
     writer.writeheader()

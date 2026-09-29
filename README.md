@@ -30,7 +30,8 @@ in the scheduler inventory and are not copied as raw run directories.
   and source reports. Private email messages and drafts are not published here.
 - The paper's main code reference is
   `c91714dbe7dad1d02a9080243945bbf8e8ec9300`, which is already present in
-  this fork's `experiment/four-pattern-reward-ablation-821f` ref.
+  this fork's `experiment/four-pattern-reward-ablation-821f` ref. Six `nn-gpt`
+  Git bundles from the local machine and both clusters are release assets.
 
 ## Limits
 
@@ -42,7 +43,10 @@ the 507-row historical SFT cycle manifest, and one old Qwen table value's
 source were not recovered. See `inventory/julia2_selected_checkpoint_exclusions.tsv`
 and `ASSETS.tsv` for the precise retained set.
 
-The `nn-gpt` source and fixed commit are in the fork's normal branches. Git
-bundles from other repositories and private correspondence remain in the
-local research archive, not in this public fork. This branch is an evidence
-index and does not replace the original training directories.
+The `nn-gpt` source and fixed commit are in the fork's normal branches.
+`nn-dataset` history bundles triggered a credential-like pattern during
+screening and were not published; the public `nn-dataset` fork and the scanned
+worktree snapshot preserve the usable code. Private correspondence is also
+not published. See `inventory/PUBLIC_EXCLUSIONS.md` for these boundaries.
+This branch is an evidence index and does not replace the original training
+directories.
